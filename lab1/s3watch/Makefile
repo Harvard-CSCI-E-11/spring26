@@ -1,4 +1,5 @@
 redeploy:
+	sam validate
 	sam build
 	AWS_PROFILE=admin-garfinkel AWS_DEFAULT_REGION=us-east-2 sam deploy
 
