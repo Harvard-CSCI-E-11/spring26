@@ -17,6 +17,10 @@ lint = true
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+s3_prefix = "s3watch"
+region = "us-east-2"
+parameter_overrides = "ExistingBucketName=\"cscie-11\" LoggingBucketName=\"cscie-11-s3watcher-logs\""
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true

@@ -10,8 +10,8 @@ initial:
 local-testing:
 	sam local invoke LambdaFunctionName --event event.json
 
-monitor:
-	sam logs -n LambdaFunction --stack-name <STACK_NAME> --tail
+tail:
+	AWS_PROFILE=admin-garfinkel AWS_DEFAULT_REGION=us-east-2 sam logs s3watch --tail
 
 whoami:
 	aws sts get-caller-identity
