@@ -6,7 +6,7 @@ import logging
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 route53_client = boto3.client('route53')
-ses_client = boto3.client('ses')
+ses_client = boto3.client('ses',region_name='us-east-1') # SES is only in region us-east-1
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'DEBUG').upper())
 logger = logging.getLogger(__name__)
 logger.info('message')
@@ -15,9 +15,9 @@ logger.info('message')
 logger.error("point 1")
 
 # Constants
-HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # Replace with your Route53 hosted zone ID
-DOMAIN = "csci-e-11.org"  # Domain managed in Route53
-SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
+HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
+DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
+SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 
 # Function to extract data from S3 object
 def extract(content):

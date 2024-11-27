@@ -15,3 +15,8 @@ tail:
 
 whoami:
 	aws sts get-caller-identity
+
+
+dump-bucket-policy:
+	AWS_PROFILE=admin-garfinkel AWS_DEFAULT_REGION=us-east-2 aws s3api get-bucket-policy --bucket cscie-11 --query Policy --output text | jq . > bucket-policy.json
+	cat bucket-policy.json
