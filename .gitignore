@@ -1,2 +1,3 @@
 .aws_sam
 lab1/s3watch/.aws-sam/deps/
+*~

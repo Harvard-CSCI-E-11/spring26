@@ -8,6 +8,5 @@ handler = "app.lambda_handler"
 manifest_hash = "37037abf6e9be7dbe4d04fb60de0a9d2"
 packagetype = "Zip"
 functions = ["EventConsumerFunction"]
-source_hash = ""
 
 [layer_build_definitions]

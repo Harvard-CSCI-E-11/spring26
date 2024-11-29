@@ -19,6 +19,28 @@ HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 
+def get_secret():
+    secret_arn  = 'arn:aws:secretsmanager:us-east-2:586794483136:secret:smtp_config-HKxGyo'
+    secret_name = "smtp_config"
+    region_name = "us-east-2"
+
+    # Create a Secrets Manager client
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+
+    try:
+        get_secret_value_response = client.get_secret_value( SecretId=secret_name )
+    except ClientError as e:
+        # For a list of exceptions thrown, see
+        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+        raise e
+
+    secret = get_secret_value_response['SecretString']
+    return secret
+
 # Function to extract data from S3 object
 def extract(content):
     (account_id, my_ip, email, name) = content.split(",")
