@@ -1,7 +1,15 @@
+"""
+watch the S3 bucket and process uploaded records in the form:
+
+account_id, my_ip, email, name
+"""
+
+
 import os
-import boto3
 import json
 import logging
+import re
+import boto3
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
@@ -12,46 +20,23 @@ logger = logging.getLogger(__name__)
 logger.info('message')
 
 
-logger.error("point 1")
-
 # Constants
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
-
-def get_secret():
-    secret_arn  = 'arn:aws:secretsmanager:us-east-2:586794483136:secret:smtp_config-HKxGyo'
-    secret_name = "smtp_config"
-    region_name = "us-east-2"
-
-    # Create a Secrets Manager client
-    session = boto3.session.Session()
-    client = session.client(
-        service_name='secretsmanager',
-        region_name=region_name
-    )
-
-    try:
-        get_secret_value_response = client.get_secret_value( SecretId=secret_name )
-    except ClientError as e:
-        # For a list of exceptions thrown, see
-        # https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
-        raise e
-
-    secret = get_secret_value_response['SecretString']
-    return secret
 
 # Function to extract data from S3 object
 def extract(content):
     (account_id, my_ip, email, name) = content.split(",")
     account_id = account_id.strip()
     my_ip = my_ip.strip()
-    hostname = email.replace("@",".").split(".")[0].strip()
+    hostname = "".join(email.strip().replace("@",".").split(".")[0:2])
+    hostname = re.sub(r'[^a-zA-Z0-9]', '', hostname)
     return hostname, my_ip, email
 
 # Lambda handler
 def lambda_handler(event, context):
-    logger.error(f"Event received: {event}")
+    logger.error(f"Event received: %s",event)
 
     bucket_name = event['detail']['requestParameters']['bucketName']
     object_key = event['detail']['requestParameters']['key']
