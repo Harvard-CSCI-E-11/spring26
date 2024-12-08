@@ -1,12 +1,20 @@
-from flask import Flask, request, render_template_string
+"""
+CSCI E-11 Lab 2:
+Run a simple web server with an SQL injection vulnerability.
+"""
+
 import logging
 import sqlite3
+
+from flask import Flask, request, render_template_string
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)  # Set the logging level directly
 
-# HTML template with form for inputs A and B
-html_template = '''
+DB_FILE = '/home/ec2-user/students.db'
+
+# HTML template with form for inputs
+HTML_TEMPLATE = '''
 <!doctype html>
 <html lang="en">
   <head>
@@ -52,9 +60,10 @@ html_template = '''
 
 
 # Get the database connection
-conn  = sqlite3.connect("/home/ec2-user/students.db")
+conn  = sqlite3.connect( DB_FILE )
 
 def lookup(student_id):
+    """Lookup a student by id"""
     cur = conn.cursor()
     cmd = f'select * from students where student_id = "{student_id}"'
     app.logger.info("cmd=%s student_id=%s",cmd,student_id)
@@ -62,8 +71,8 @@ def lookup(student_id):
 
 # Build the database
 @app.route('/', methods=['GET', 'POST'])
-def index():
-
+def home_page():
+    """Display the home page"""
     # Get client IP address
     if request.headers.getlist("X-Forwarded-For"):
         client_ip = request.headers.getlist("X-Forwarded-For")[0]
@@ -85,7 +94,7 @@ def index():
 
     # Render the HTML template with the result
     app.logger.info("result=%s",result)
-    return render_template_string(html_template, rows=result)
+    return render_template_string(HTML_TEMPLATE, rows=result)
 
 if __name__ == '__main__':
     app.run(debug=True)
