@@ -10,6 +10,13 @@ S3_BUCKET = 'cscie-11'
 S3_PREFIX = 'students/'
 PROFILE = 'cscie11'
 
+# Get the HIDDEN value
+try:
+    HIDDEN = os.environ["HIDDEN"]
+except KeyError:
+    print("Define environment variable HIDDEN prior to running this script",file=sys.stderr)
+    exit(1)
+
 class S3ObjectIterator:
     """Creates an iterator that returns the (s3url, content) of all s3 objects under a prefix"""
     def __init__(self, bucket_name, prefix, aws_region="us-east-1", profile_name=None):
@@ -59,7 +66,7 @@ async def run_on_all_machines(hosts):
     password = '***'
     command  = 'hostname'
     tasks = [
-        connect_and_run(host, f'cscie-attack-{host}', password, command) for host in hosts
+        connect_and_run(host, f'{HIDDEN}-{host}', password, command) for host in hosts
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     return results
