@@ -14,13 +14,10 @@ import sqlite3
 
 import click
 import pbkdf2
-from flask import current_app, g
+from flask import current_app
 from .db import get_db
 
-DB_FILE = join(os.getenv("HOME"), "lab4.db")
-SCHEMA_FILE = join(dirname(__file__), "schema.sql")
-
-# If the database does not exist, create it with the correct schema
+# APIKEY Management Tools
 
 def new_apikey():
     """Create a new API key, insert the hashed key in the database, and return the key"""
@@ -55,6 +52,8 @@ def dump_db_command():
     header = rows[0].keys()
     click.echo(tabulate.tabulate(rows,header))
 
-def init_lab4_app(app):
+
+# Init code
+def init_app(app):
     app.cli.add_command(new_apikey_command)
     app.cli.add_command(dump_db_command)
