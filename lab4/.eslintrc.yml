@@ -1,0 +1,12 @@
+env:
+  browser: true,
+  jquery: true,
+  es2021: true
+
+extends: eslint:recommended
+
+parserOptions:
+  ecmaVersion: latest
+
+rules:
+  "no-unused-vars": ["error", { "args": "all", "argsIgnorePattern" : "^_" }]

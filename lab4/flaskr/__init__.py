@@ -11,7 +11,7 @@ https://github.com/blep/flaskr
 import os
 import logging
 
-from flask import Flask, render_template
+from flask import Flask, render_template, send_from_directory
 from . import db
 from . import lab4_apikey
 from . import lab4_uploader
@@ -53,9 +53,13 @@ def create_app(test_config=None):
     def index():
         return render_template('index.html')
 
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory('static', 'favicon.ico')
+
     @app.route('/about')
     def about():
-        return render_template('index.html')
+        return render_template('about.html')
 
     db.init_app(app)
     lab4_uploader.init_app(app)

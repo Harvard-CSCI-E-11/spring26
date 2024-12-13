@@ -43,7 +43,7 @@ def validate_api_key(api_key, api_secret_key):
 
     # Get the hashed password and stored salt and iteration count
     stored = cur.execute("select api_secret_key_hash from api_keys where api_key=? ",
-                         (api_key)).fetchall()
+                         (api_key,)).fetchall()
     if len(stored)!=1:
         return False
     # pylint: disable=line-too-long

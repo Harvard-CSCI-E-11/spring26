@@ -21,14 +21,15 @@ def init_app(app):
     """Initialize the app and register the paths."""
     def validate_api_key_request():
         """Validate the API key for the current request and throw an exception if invalid"""
+        app.logger.info("request.values=%s",request.values)
         api_key         = request.values.get('api_key', type=str, default="")
         api_secret_key  = request.values.get('api_secret_key', type=str, default="")
         # Verify api_key and api_secret_key
         if not lab4_apikey.validate_api_key(api_key, api_secret_key):
-            app.logger.info("api_key %s does not validate",api_key)
+            app.logger.info("api_key %s/%s does not validate",api_key,api_secret_key)
             abort(403)
 
-    @app.route('/new-image', methods=['POST'])
+    @app.route('/api/new-image', methods=['POST'])
     def new_image():
         """Use the AWS S3 API to get a presigned post that the client can use to upload to S3
         :param api_key: the user's api_key
@@ -54,7 +55,7 @@ def init_app(app):
         return jsonify(presigned_post)
 
 
-    @app.route('/get-image', methods=['POST','GET'])
+    @app.route('/api/get-image', methods=['POST','GET'])
     def get_image():
         validate_api_key_request()
 
@@ -73,7 +74,7 @@ def init_app(app):
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
         return redirect(presigned_url, code=302)
 
-    @app.route('/list-images', methods=['GET'])
+    @app.route('/api/list-images', methods=['GET'])
     def list_images():
         # Does not verify api_key
         return db.list_images()

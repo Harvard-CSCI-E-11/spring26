@@ -19,8 +19,8 @@ pylint:
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
 local-app:
-	flask --app flaskr run --debug
+	. venv/bin/activate; flask --app flaskr run --debug
 
 # Print help for the application
 help:
-	flask --app flaskr --help
+	. venv/bin/activate; flask --app flaskr --help
