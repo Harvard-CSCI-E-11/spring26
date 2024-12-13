@@ -14,7 +14,7 @@ CREATE UNIQUE INDEX api_key_index ON api_keys(api_key);
 
 CREATE TABLE images (
        image_id INTEGER PRIMARY KEY AUTOINCREMENT,
-       urn text(1023) UNIQUE NOT NULL,
+       s3key text(1023) UNIQUE NOT NULL,
        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        created_by INTEGER NOT NULL,
        annotations text(65535),

@@ -9,15 +9,20 @@ https://github.com/blep/flaskr
 """
 
 import os
+import logging
 
 from flask import Flask, render_template
+from . import db
+from . import lab4_apikey
+from . import lab4_uploader
 
 
 USERNAME = 'simsong'
 
 def create_app(test_config=None):
-    # create and configure the app
+    """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)
+    app.logger.setLevel(logging.INFO)  # Set the logging level directly
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'lab4.sqlite'),
@@ -43,12 +48,6 @@ def create_app(test_config=None):
     def hello():
         return 'Hello, World!'
 
-    from . import db
-    db.init_app(app)
-
-    from . import lab4_apikey
-    lab4_apikey.init_app(app)
-
     # Route templates
     @app.route('/')
     def index():
@@ -58,8 +57,7 @@ def create_app(test_config=None):
     def about():
         return render_template('index.html')
 
-
-    from . import lab4_uploader
+    db.init_app(app)
     lab4_uploader.init_app(app)
-
+    lab4_apikey.init_app(app)
     return app

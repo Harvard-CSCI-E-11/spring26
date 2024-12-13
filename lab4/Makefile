@@ -13,6 +13,9 @@ venv:
 	python3 -m venv venv
 	. venv/bin/activate ; python3 -m pip install -r requirements.txt
 
+pylint:
+	. venv/bin/activate; python3 -m pylint flaskr
+
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
 local-app:
