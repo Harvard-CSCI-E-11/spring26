@@ -8,10 +8,14 @@ upload and download to s3.
 # from being written into the logfile
 ##
 
-JPEG_MIME_TYPE = 'image/jpeg'
-
-from flask import request, jsonify, current_app, Response, abort
+import base64
+import os
+import boto3
+from flask import request, jsonify, current_app, abort, redirect
 from . import lab4_apikey
+from . import db
+
+JPEG_MIME_TYPE = 'image/jpeg'
 
 def init_app(app):
     """Initialize the app and register the paths."""
@@ -23,10 +27,6 @@ def init_app(app):
         if not lab4_apikey.validate_api_key(api_key, api_secret_key):
             app.logger.info("api_key %s does not validate",api_key)
             abort(403)
-
-    @app.errorhandler(403)
-    def handle_403(error):
-        return f"Invalid api_key / api_secret_key combination ({error})"
 
     @app.route('/new-image', methods=['POST'])
     def new_image():
