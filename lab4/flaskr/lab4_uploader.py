@@ -7,6 +7,19 @@ import logging
 from flask import request, jsonify, current_app, Response
 
 def register_routes(app):
+
+    def validate_api_key():
+        """Validate the API key for the current request and throw an exception if invalid"""
+        api_key         = request.values.get('api_key', type=str, default="")
+        api_secret_key  = request.values.get('api_secret_key', type=str, default="")
+        # Verify api_key and api_secret_key
+        if invalid:
+            abort(403)
+
+    @app.errorhandler(403)
+    def handle_403(error):
+        return "Invalid api_key / api_secret_key combination"
+
     @app.route('/new-image', method=POST)
     def new_image():
         """Use the AWS S3 API to get a presigned post that the client can use to upload to S3
@@ -15,11 +28,7 @@ def register_routes(app):
         :return: the post to use for uploading the image. Sends it directly to S3, or to the handler below.
         """
 
-        api_key         = request.values.get('api_key', type=str, default="")
-        api_secret_key  = request.values.get('api_secret_key', type=str, default="")
-        # Verify api_key and api_secret_key
-        if invalid:
-            return Response("Invalid api_key", status=403)
+        validate_api_key()
 
         MIME_TYPE = 'image/jpeg'
         s3_client = boto3.session.Session().client( "s3" )
@@ -37,8 +46,8 @@ def register_routes(app):
         return jsonify(presigned_post)
 
 
-    @app.route('/get-signed-url', methods=['POST','GET'])
-    def get_signed_url():
+    @app.route('/get-image', methods=['POST','GET'])
+    def get_image():
         api_key         = request.values.get('api_key', type=str, default="")
         api_secret_key  = request.values.get('api_secret_key', type=str, default="")
         image_id = request.values.get('image_id', type=int, default=0)
@@ -58,3 +67,7 @@ def register_routes(app):
         # Now redirect to it.
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
         return redirect(presigned_url, code=302)
+
+    @app.route('/list-images', methods=['GET'])
+    def list_images():
+        # Does not verify api_key

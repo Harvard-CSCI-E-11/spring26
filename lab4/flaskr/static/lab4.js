@@ -3,69 +3,58 @@
 const UPLOAD_TIMEOUT_SECONDS = 20;
 
 ////////////////////////////////////////////////////////////////
-/// page: /upload
-/// Enable the movie-file upload when we have at least 3 characters of title and description
-/// We also allow uploading other places
-function check_upload_metadata()
+/// Enable the image-file upload when a file is selected and both the api-key and api-secret-key are provided.
+function enable_disable_upload_button()
 {
-    const title = $('#movie-title').val();
-    const description = $('#movie-description').val();
-    const movie_file = $('#movie-file').val();
-    $('#upload-button').prop('disabled', (title.length < 3 || description.length < 3 || movie_file.length<1));
-}
-
-// This is an async function, which uses async functions.
-// You get the results with
-//        var sha256 = await computeSHA256(file);
-async function computeSHA256(file) {
-    // Read the file as an ArrayBuffer
-    const arrayBuffer = await file.arrayBuffer();
-
-    // Compute the SHA-256 hash
-    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-
-    // Convert the hash to a hexadecimal string
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+    const image_file =
+    const enable = $('#image-file').val().length > 0 &&
+          $('#api-key').val().length > 0 &&
+          $('#api-secret-key').val().length > 0;
+    $('#upload-button').prop('disabled', !enable);
+    if (enable) {
+        $('#message').html('ready to upload!');
+    } else {
+        $('#message').html(''); // clear the message if button is disabled
+    }
 }
 
 /*
  *
- * Uploads a movie using a presigned post. See:
+ * Uploads a image using a presigned post. See:
  * https://aws.amazon.com/blogs/compute/uploading-to-amazon-s3-directly-from-a-web-or-mobile-application/
  * https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
  *
- * Presigned post is provided by the /api/new-movie call (see below)
+ * Presigned post is provided by the /api/new-image call (see below)
  */
-async function upload_movie_post(movie_title, description, movieFile)
+async function upload_image_post(imageFile)
 {
-    // Get a new movie_id
-    const movie_data_sha256 = await computeSHA256(movieFile);
+    // Get a presigned post from the server
+    $('#message').html(`Requesting signed upload...`);
     let formData = new FormData();
-    formData.append("api_key",     api_key);   // on the upload form
-    formData.append("title",       movie_title);
-    formData.append("description", description);
-    formData.append("movie_data_sha256",  movie_data_sha256);
-    formData.append("movie_data_length",  movieFile.fileSize);
-    const r = await fetch(`${API_BASE}api/new-movie`, { method:"POST", body:formData});
+    formData.append("api_key",              $('#api-key'));
+    formData.append("api_secret_key",       $('#api-secret-key'));
+    formData.append("image_data_length",  imageFile.fileSize);
+    const r = await fetch(`${API_BASE}api/new-image`, { method:"POST", body:formData});
     const obj = await r.json();
-    console.log('new-movie obj=',obj);
+    console.log('new-image obj=',obj);
     if (obj.error){
         $('#message').html(`Error getting upload URL: ${obj.message}`);
         return;
     }
-    const movie_id = window.movie_id = obj.movie_id;
+    const image_id = window.image_id = obj.image_id;
+    $('#message').html(`Uploading image ${image_id}...`);
 
-    // The new movie_id came with the presigned post to upload the form data.
+    // The new image_id came with the presigned post to upload the form data.
     try {
         const pp = obj.presigned_post;
         const formData = new FormData();
         for (const field in pp.fields) {
             formData.append(field, pp.fields[field]);
         }
-        formData.append("file", movieFile); // order matters!
+        formData.append("file", imageFile); // order matters!
 
+        // This uses the AbortController interface.
+        // See https://developer.mozilla.org/en-US/docs/Web/API/AbortController
         const ctrl = new AbortController();    // timeout
         setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS*1000);
         const r = await fetch(pp.url, {
@@ -73,54 +62,50 @@ async function upload_movie_post(movie_title, description, movieFile)
             body: formData,
         });
         if (!r.ok) {
-            $('#upload_message').html(`Error uploading movie status=${r.status} ${r.statusText}`);
+            $('#upload_message').html(`Error uploading image status=${r.status} ${r.statusText}`);
             return;
         }
     } catch(e) {
-        $('#upload_message').html(`Timeout uploading movie -- timeout is currently ${UPLOAD_TIMEOUT_SECONDS} seconds`);
+        $('#_message').html(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
         return;
     }
-    // Movie was uploaded! Clear the form and show the first frame
+    // Image was uploaded! Clear the form and show the first frame
 
-    $('#upload_message').text('Movie uploaded.'); // .text() for <div>s.
-    $('#movie-title').val('');                    // .val() for fields
-    $('#movie-description').val('');
-    $('#movie-file').val('');
+    $('#message').html('Image uploaded.');
+    $('#image-file').val('');   // clear the uploaded image
 
-    const track_movie = `/analyze?movie_id=${movie_id}`;
-    $('#uploaded_movie_title').text(movie_title);        // display the movie title
-    $('#movie_id').text(movie_id);                       // display the movie_id
-    $('#image-preview').attr('src',first_frame_url(movie_id));          // display the first frame
-    $('#track_movie_link').attr('href',track_movie);
-
-    // Clear the movie uploaded
-    $('#upload-preview').show();
-    $('#upload-form').hide();
-    check_upload_metadata(); // disable the button
+    enable_disable_upload_button(); // disable the button
+    list_uploaded_movies();         // and give us a new list of the uploaded movies
 }
 
-/* Finally the function that is called when the upload_movie button is clicked */
-function upload_movie()
+/** Run the server's list-upload-movies.
+ * This version shows all uploaded movies and requires no authentication.
+ */
+function list_movies()
 {
-    const movie_title = $('#movie-title').val();
-    const description = $('#movie-description').val();
-    const movieFile   = $('#movie-file').prop('files')[0];
 
-    if (movie_title.length < 3) {
-        $('#message').html('<b>Movie title must be at least 3 characters long');
-        return;
-    }
+}
 
-    if (description.length < 3) {
-        $('#message').html('<b>Movie description must be at least 3 characters long');
-        return;
-    }
 
-    if (movieFile.fileSize > MAX_FILE_UPLOAD) {
+/** The function that is called when the upload_image button is clicked.
+ * It validates the image to be uploaded and then calls the upload function.
+ */
+function upload_image()
+{
+    const imageFile   = $('#image-file').prop('files')[0];
+
+    if (imageFile.fileSize > MAX_FILE_UPLOAD) {
         $('#message').html(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
         return;
     }
-    $('#upload_message').html(`Uploading movie ...`);
-
-    upload_movie_post(movie_title, description, movieFile);
+    upload_image_post(imageFile);
 }
+
+$( document ).ready( function() {
+    console.log("index.html ready function running.")
+    // set the correct enable/disable status of the upload button, and configure
+    // it to change when any of the form controls change
+    enable_disable_upload_button();
+    $('.uploadf').on('change', enable_disable_upload_button );
+    $('#upload-button').on('click', upload_image);
+});

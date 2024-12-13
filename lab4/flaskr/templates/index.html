@@ -1,11 +1,45 @@
 {% extends "base.html" %}
 
-<h1>Welcome</h1>
-<!-- about start -->
-<script>
- $( document ).ready( function() {
-     console.log("index.html ready function running.")
- });
-</script>
+{% block body %}
+<!-- index start -->
+<h1>Are you a celebrity?</h1>
 
-<!-- about end -->
+<div id='upload-form'>
+  <h2>Upload an image</h2>
+
+  <p>Select your image and click the upload button.</p>
+
+  <form class='pure-form pure-form-aligned'>
+    <fieldset>
+      <div class='pure-control-group'>
+        <label for='api-key'>API Key:</label>
+        <input type='text' id='api-key' name='api-secret-key' class='uploadf' />
+        <span class="pure-form-message-inline">required</span>
+      </div>
+
+      <div class='pure-control-group'>
+        <label for='api-secret-key'>API Secret Key:</label>
+        <input type='text' id='api-secret-key' name='api-secret-key' class='uploadf'/>
+        <span class="pure-form-message-inline">required</span>
+      </div>
+      <div class='pure-control-group'>
+        <label for='image-file'>Select image to upload:</label>
+        <input id='image-file' type="file" />
+        <span class="pure-form-message-inline">required</span>
+      </div>
+      <div class='pure-control-group'>
+        <label for='submit-button'>Click to upload:</label>
+        <input id='upload-button' type='button' value='upload' onclick='upload_image()' class='uploadf' />
+      </div>
+    </fieldset>
+  </form>
+  <div id='message'></div>
+</div>
+
+<!-- Show the uploaded images here -->
+<div id='upload-preview'>
+    <p>Here are the uploaded images. Are any celebrities? </p>
+</div>
+
+<!-- index end -->
+{% endblock %}
