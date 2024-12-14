@@ -7,6 +7,7 @@ use MySQL or DynamoDB instead.
 import sqlite3
 from datetime import datetime
 
+import tabulate
 import click
 from flask import current_app, g
 
@@ -36,16 +37,6 @@ def init_db():
     with current_app.open_resource('schema.sql') as f:
         db.executescript(f.read().decode('utf8'))
 
-def list_images():
-    """Return an array of dicts for all the images"""
-    db = get_db()
-    return db.execute('select * from images')
-
-def get_image_info(image_id):
-    """Return a dict for a specific image"""
-    db = get_db()
-    return db.execute('select * from images where image_id=?',(image_id,)).fetchone()
-
 @click.command('init-db')
 def init_db_command():
     """Clear the existing data and create new tables."""
@@ -53,7 +44,29 @@ def init_db_command():
     click.echo('Initialized the database.')
 
 
+@click.command("dump-db")
+def dump_db_command():
+    """Dump the contents of the database"""
+    db = get_db()
+    cur = db.cursor()
+    # Get a list of tables
+    tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'");
+
+    # Now list each table
+    for row in tables:
+        table_name = row['name'];
+        click.echo(f"Table: {table_name}")
+        # Note we can't prepare the table name in the statement below
+        rows = cur.execute(f"SELECT api_key, api_secret_key_hash, created,"
+                           f"last_used, remaining FROM {table_name}").fetchall()
+        if not rows:
+            click.echo("Database is empty")
+        else:
+            header = rows[0].keys()
+            click.echo(tabulate.tabulate(rows,header))
+
 def init_app(app):
     """Initialize"""
     app.teardown_appcontext(close_db)
     app.cli.add_command(init_db_command)
+    app.cli.add_command(dump_db_command)

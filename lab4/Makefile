@@ -25,6 +25,13 @@ local-app:
 help:
 	. venv/bin/activate; flask --app flaskr --help
 
+# Create a new database
+init-db:
+	. venv/bin/activate; flask --app flaskr init-db
 # Generate a new api-key
-new:
+new-apikey:
 	. venv/bin/activate; flask --app flaskr new-apikey
+
+# Dump the database
+dump-db:
+	. venv/bin/activate; flask --app flaskr dump-db

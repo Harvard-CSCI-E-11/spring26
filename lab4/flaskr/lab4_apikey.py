@@ -3,12 +3,10 @@ Web application for Amazon rekognition demo.
 Also maintains the API_KEY database.
 """
 
-import base64
 import os
 import os.path
 from hashlib import pbkdf2_hmac
 
-import tabulate
 import click
 from .db import get_db
 
@@ -19,11 +17,14 @@ ITERATIONS = 10000
 
 def new_apikey():
     """Create a new API key, insert the hashed key in the database, and return the key"""
-    api_key        = base64.b32encode(os.urandom(10)).decode('utf-8')
-    api_secret_key = base64.b32encode(os.urandom(10)).decode('utf-8')
+    api_key        = os.urandom(8).hex()
+    api_secret_key = os.urandom(16).hex()
+
+    # The random salt is used for storing the hashed secret key (which we treat as a password)
     salt           = os.urandom(8)
-    print(ALGORITHM, api_secret_key, salt, ITERATIONS)
     api_secret_key_hash = pbkdf2_hmac(ALGORITHM, api_secret_key.encode('utf-8'), salt, ITERATIONS)
+
+    # Store this as a parsable stirng. We will later parse it to recover the parameters
     to_store = f'pbkdf2:{ALGORITHM}:{ITERATIONS}:{salt.hex()}:{api_secret_key_hash.hex()}'
     db  = get_db()
     cur = db.cursor()
@@ -68,22 +69,7 @@ def new_apikey_command():
     click.echo(f"API_SECRET_KEY: {api_secret_key}")
 
 
-@click.command("dump-db")
-def dump_db_command():
-    """Dump the contents of the database"""
-    db = get_db()
-    cur = db.cursor()
-    rows = cur.execute("select api_key, api_secret_key_hash, created,"
-                       "last_used, remaining from api_keys").fetchall()
-    if not rows:
-        click.echo("Database is empty")
-        return
-    header = rows[0].keys()
-    click.echo(tabulate.tabulate(rows,header))
-
-
 # Init code
 def init_app(app):
     """Init the app"""
     app.cli.add_command(new_apikey_command)
-    app.cli.add_command(dump_db_command)

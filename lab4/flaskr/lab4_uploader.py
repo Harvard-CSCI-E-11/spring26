@@ -8,14 +8,33 @@ upload and download to s3.
 # from being written into the logfile
 ##
 
-import base64
 import os
 import boto3
 from flask import request, jsonify, current_app, abort, redirect
 from . import lab4_apikey
-from . import db
+from .db import get_db
 
 JPEG_MIME_TYPE = 'image/jpeg'
+
+def list_images():
+    """Return an array of dicts for all the images"""
+    db = get_db()
+    return db.execute('SELECT * FROM images')
+
+def get_image_info(image_id):
+    """Return a dict for a specific image"""
+    db = get_db()
+    return db.execute('SELECT * FROM images WHERE image_id=?',(image_id,)).fetchone()
+
+def new_image(api_key,s3key):
+    """Create a new image in the database"""
+    db = get_db()
+    cur  = db.cursor()
+    db.execute("""
+        INSERT into images (urn,created_by)
+        VALUES (?, (select api_key_id from api_keys where api_key=?))
+        """,(s3key,api_key))
+    return cur.lastrowid
 
 def init_app(app):
     """Initialize the app and register the paths."""
@@ -38,21 +57,25 @@ def init_app(app):
                  Sends it directly to S3, or to the handler below.
         """
 
-        app.logger.info("new_image")
         validate_api_key_request()
         s3_client = boto3.session.Session().client( "s3" )
-
+        s3key = "images/" + os.urandom(8).hex() + ".jpeg"
         presigned_post = s3_client.generate_presigned_post(
             Bucket=app.config['S3_BUCKET'],
-            Key="images/" + base64.b32encode(os.urandom(10)).decode('utf-8') + ".jpeg",
+            Key=s3key,
             Conditions=[
                 {"Content-Type": JPEG_MIME_TYPE}, # Explicitly allow Content-Type header
                 ["content-length-range", 1, current_app.config['MAX_IMAGE_SIZE']]
             ],
             Fields= { 'Content-Type': JPEG_MIME_TYPE },
             ExpiresIn=120)      # in seconds
-        app.logger.debug("presigned_post=%s",presigned_post)
-        return jsonify(presigned_post)
+        api_key = request.values.get('api_key', type=str, default="")
+
+        # Finally, record the image in the database
+        image_id = new_image(api_key, s3key)
+
+        app.logger.info("delivered presigned api_key=%s s3_key=%s image_id=%s",api_key,presigned_post,image_id)
+        return jsonify({'presigned_post':presigned_post,'image_id':image_id})
 
 
     @app.route('/api/get-image', methods=['POST','GET'])
@@ -61,7 +84,7 @@ def init_app(app):
 
         # Get the URN for the image_id
         image_id = request.values.get('image_id', type=int, default=0)
-        s3key    = db.get_image_info(image_id)['s3key']
+        s3key    = get_image_info(image_id)['s3key']
 
         s3_client = boto3.session.Session().client( "s3" )
         presigned_url = s3_client().generate_presigned_url(
@@ -75,6 +98,6 @@ def init_app(app):
         return redirect(presigned_url, code=302)
 
     @app.route('/api/list-images', methods=['GET'])
-    def list_images():
+    def api_list_images():
         # Does not verify api_key
-        return db.list_images()
+        return list_images()

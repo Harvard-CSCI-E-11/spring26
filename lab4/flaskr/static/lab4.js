@@ -56,8 +56,8 @@ function upload_image_post(imageFile) {
             console.log("obj=",obj);
             $('#message').html(`Uploading image ${obj.image_id}...`);
             const uploadFormData = new FormData();
-            for (const field in obj.fields) {
-                uploadFormData.append(field, obj.fields[field]);
+            for (const field in obj.presigned_post.fields) {
+                uploadFormData.append(field, obj.presigned_post.fields[field]);
             }
             uploadFormData.append("file", imageFile); // order matters!
 

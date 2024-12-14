@@ -24,4 +24,4 @@ CREATE TABLE images (
          ON DELETE RESTRICT
 );
 
-CREATE UNIQUE INDEX urn_index ON images(urn);
+CREATE UNIQUE INDEX s3key_index ON images(s3key);
