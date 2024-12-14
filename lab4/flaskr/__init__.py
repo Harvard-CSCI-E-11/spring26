@@ -11,18 +11,32 @@ https://github.com/blep/flaskr
 import os
 import logging
 
+import boto3
 from flask import Flask, render_template, send_from_directory
 from . import db
 from . import lab4_apikey
 from . import lab4_uploader
 
-
+LOG_LEVEL = logging.DEBUG
 USERNAME = 'simsong'
+
+# Define the CORS configuration
+CORS_CONFIGURATION = {
+    'CORSRules': [
+        {
+            'AllowedOrigins': ['*'],               # Allow all origins with presigned POST and GETs
+            'AllowedMethods': ['GET', 'POST', 'PUT'],     # Methods to allow
+            'AllowedHeaders': ['*'],               # Allow all headers
+            'MaxAgeSeconds': 3000                  # Cache duration for preflight requests
+        }
+    ]
+}
+
 
 def create_app(test_config=None):
     """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)
-    app.logger.setLevel(logging.INFO)  # Set the logging level directly
+    app.logger.setLevel(LOG_LEVEL)
     app.config.from_mapping(
         SECRET_KEY='dev',
         DATABASE=os.path.join(app.instance_path, 'lab4.sqlite'),
@@ -42,6 +56,14 @@ def create_app(test_config=None):
         os.makedirs(app.instance_path)
     except OSError:
         pass
+
+    # Apply the CORS policy to the S3 bucket
+    s3 = boto3.client('s3')
+    s3.put_bucket_cors(
+        Bucket=app.config['S3_BUCKET'],
+        CORSConfiguration=CORS_CONFIGURATION
+    )
+
 
     # a simple page that says hello
     @app.route('/hello')

@@ -24,3 +24,7 @@ local-app:
 # Print help for the application
 help:
 	. venv/bin/activate; flask --app flaskr --help
+
+# Generate a new api-key
+new:
+	. venv/bin/activate; flask --app flaskr new-apikey

@@ -30,62 +30,60 @@ function enable_disable_upload_button()
  *
  * Presigned post is provided by the /api/new-image call (see below)
  */
-async function upload_image_post(imageFile)
-{
+function upload_image_post(imageFile) {
     // Get a presigned post from the server
     $('#message').html(`Requesting signed upload...`);
     let formData = new FormData();
-    formData.append("api_key",              $('#api-key').val());
-    formData.append("api_secret_key",       $('#api-secret-key').val());
-    formData.append("image_data_length",    imageFile.size);
+    formData.append("api_key", $('#api-key').val());
+    formData.append("api_secret_key", $('#api-secret-key').val());
+    formData.append("image_data_length", imageFile.size);
 
-    try {
-        const r = await fetch(`api/new-image`, { method: "POST", body: formData });
-        if (!r.ok){
-            $('#message').html(`Error: ${r.status} ${r.statusText}`);
-            return;
-        }
-        const obj = await r.json();
-        if (obj.error){
-            $('#message').html(`Error getting upload URL: ${obj.message}`);
-            return;
-        }
-        $('#message').html(`Uploading image ${obj.image_id}...`);
-        try {
-            const pp = obj.presigned_post;
-            const formData = new FormData();
-            for (const field in pp.fields) {
-                formData.append(field, pp.fields[field]);
-            }
-            formData.append("file", imageFile); // order matters!
-
-            // This uses the AbortController interface.
-            // See https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-            const ctrl = new AbortController();    // timeout
-            setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS*1000);
-            const r = await fetch(pp.url, {
-                method: "POST",
-                body: formData,
-            });
+    fetch(`api/new-image`, { method: "POST", body: formData })
+        .then(r => {
             if (!r.ok) {
-                $('#upload_message').html(`Error uploading image status=${r.status} ${r.statusText}`);
-                return;
+                $('#message').html(`Error: ${r.status} ${r.statusText}`);
+                throw new Error(`Failed to get signed upload URL: ${r.statusText}`);
             }
-        } catch(e) {
-            $('#_message').html(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
-            return;
-        }
-    } catch (error) {
-        alert(`An error occurred: ${error.message}`);
-    }
+            console.log("r=",r);
+            return r.json();    // returned to next .then()
+        })
+        .then(obj => {
+            if (obj.error) {
+                $('#message').html(`Error getting upload URL: ${obj.message}`);
+                throw new Error(`Server error: ${obj.message}`);
+            }
 
-    // Image was uploaded! Clear the form and show the first frame
+            console.log("obj=",obj);
+            $('#message').html(`Uploading image ${obj.image_id}...`);
+            const uploadFormData = new FormData();
+            for (const field in obj.fields) {
+                uploadFormData.append(field, obj.fields[field]);
+            }
+            uploadFormData.append("file", imageFile); // order matters!
 
-    $('#message').html('Image uploaded.');
-    $('#image-file').val('');   // clear the uploaded image
-
-    enable_disable_upload_button(); // disable the button
-    list_uploaded_movies();         // and give us a new list of the uploaded movies
+            const ctrl = new AbortController();
+            setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS * 1000);
+            return fetch(obj.url, {
+                method: "POST",
+                body: uploadFormData,
+                signal: ctrl.signal
+            });
+        })
+        .then(uploadResponse => {
+            if (!uploadResponse.ok) {
+                $('#upload_message').html(`Error uploading image status=${uploadResponse.status} ${uploadResponse.statusText}`);
+                throw new Error(`Upload failed: ${uploadResponse.statusText}`);
+            }
+            $('#message').html('Image uploaded.');
+            $('#image-file').val(''); // clear the uploaded image
+        })
+        .catch(error => {
+            if (error.name === 'AbortError') {
+                $('#message').html(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
+            } else {
+                $('#message').html(`An error occurred: ${error.message}`);
+            }
+        });
 }
 
 /** Run the server's list-upload-movies.

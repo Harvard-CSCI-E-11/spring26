@@ -38,20 +38,20 @@ def init_app(app):
                  Sends it directly to S3, or to the handler below.
         """
 
+        app.logger.info("new_image")
         validate_api_key_request()
-
         s3_client = boto3.session.Session().client( "s3" )
 
         presigned_post = s3_client.generate_presigned_post(
-            Bucket=app.S3_BUCKET,
-            Key="images/" + base64.b64encode(os.urandom(16)).decode('utf-8') + ".jpeg",
+            Bucket=app.config['S3_BUCKET'],
+            Key="images/" + base64.b32encode(os.urandom(10)).decode('utf-8') + ".jpeg",
             Conditions=[
                 {"Content-Type": JPEG_MIME_TYPE}, # Explicitly allow Content-Type header
                 ["content-length-range", 1, current_app.config['MAX_IMAGE_SIZE']]
-                 ],
+            ],
             Fields= { 'Content-Type': JPEG_MIME_TYPE },
             ExpiresIn=120)      # in seconds
-
+        app.logger.debug("presigned_post=%s",presigned_post)
         return jsonify(presigned_post)
 
 

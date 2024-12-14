@@ -16,14 +16,14 @@ from .db import get_db
 
 ALGORITHM  = 'sha256'
 ITERATIONS = 10000
-DKLEN      = 64
 
 def new_apikey():
     """Create a new API key, insert the hashed key in the database, and return the key"""
-    api_key        = base64.b64encode(os.urandom(16)).decode('utf-8')
-    api_secret_key = base64.b64encode(os.urandom(16)).decode('utf-8')
+    api_key        = base64.b32encode(os.urandom(10)).decode('utf-8')
+    api_secret_key = base64.b32encode(os.urandom(10)).decode('utf-8')
     salt           = os.urandom(8)
-    api_secret_key_hash = pbkdf2_hmac(ALGORITHM, api_secret_key, salt, ITERATIONS, dklen=DKLEN)
+    print(ALGORITHM, api_secret_key, salt, ITERATIONS)
+    api_secret_key_hash = pbkdf2_hmac(ALGORITHM, api_secret_key.encode('utf-8'), salt, ITERATIONS)
     to_store = f'pbkdf2:{ALGORITHM}:{ITERATIONS}:{salt.hex()}:{api_secret_key_hash.hex()}'
     db  = get_db()
     cur = db.cursor()
@@ -37,23 +37,25 @@ def validate_api_key(api_key, api_secret_key):
     1. Pull the api_secret_key's hash and hash parameters from the database.
     2. Hash the provided api_secret_key.
     3. See if the two hashes match.
+    :param: api_key - the key provided by the user as a string
+    :param: api_secret_key - the secret key provided by the user as a string
     """
     db = get_db()
     cur = db.cursor()
 
     # Get the hashed password and stored salt and iteration count
-    stored = cur.execute("select api_secret_key_hash from api_keys where api_key=? ",
+    rows = cur.execute("select api_secret_key_hash from api_keys where api_key=? ",
                          (api_key,)).fetchall()
-    if len(stored)!=1:
+    if len(rows)!=1:
         return False
     # pylint: disable=line-too-long
-    (check,stored_algorithm,stored_iterations_dec,stored_salt_hex,stored_hash_hex) = stored.split(':')
+    (check,stored_algorithm,stored_iterations_dec,stored_salt_hex,stored_hash_hex) = rows[0]['api_secret_key_hash'].split(':')
     assert check=='pbkdf2'
     stored_iterations = int(stored_iterations_dec) # turn to integer
     stored_salt      = bytes.fromhex(stored_salt_hex)
 
     # Generate a hash from the provided
-    hashed = pbkdf2_hmac(stored_algorithm, api_secret_key, stored_salt, stored_iterations, dklen=DKLEN)
+    hashed = pbkdf2_hmac(stored_algorithm, api_secret_key.encode('utf-8'), stored_salt, stored_iterations)
 
     return hashed.hex() == stored_hash_hex
 
