@@ -25,6 +25,7 @@ def get_db():
         g.db.row_factory = sqlite3.Row
     return g.db
 
+# pylint: disable=unused-argument
 def close_db(e=None):
     """Close the database connection"""
     db = g.pop('db', None)
@@ -50,11 +51,11 @@ def dump_db_command():
     db = get_db()
     cur = db.cursor()
     # Get a list of tables
-    tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'");
+    tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
 
     # Now list each table
     for row in tables:
-        table_name = row['name'];
+        table_name = row['name']
         click.echo(f"Table: {table_name}")
         # Note we can't prepare the table name in the statement below
         rows = cur.execute(f"SELECT api_key, api_secret_key_hash, created,"

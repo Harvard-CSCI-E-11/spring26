@@ -16,9 +16,9 @@ function enable_disable_upload_button()
     console.log('enable=',enable);
     $('#upload-button').prop('disabled', !enable);
     if (enable) {
-        $('#message').html('ready to upload!');
+        $('#message').text('ready to upload!');
     } else {
-        $('#message').html(''); // clear the message if button is disabled
+        $('#message').text(''); // clear the message if button is disabled
     }
 }
 
@@ -32,29 +32,23 @@ function enable_disable_upload_button()
  */
 function upload_image_post(imageFile) {
     // Get a presigned post from the server
-    $('#message').html(`Requesting signed upload...`);
+    $('#message').text(`Requesting signed upload...`);
     let formData = new FormData();
     formData.append("api_key", $('#api-key').val());
     formData.append("api_secret_key", $('#api-secret-key').val());
     formData.append("image_data_length", imageFile.size);
 
-    fetch(`api/new-image`, { method: "POST", body: formData })
+    fetch('api/new-image', { method: "POST", body: formData })
         .then(r => {
             if (!r.ok) {
-                $('#message').html(`Error: ${r.status} ${r.statusText}`);
+                $('#message').text(`Error: ${r.status} ${r.statusText}`);
                 throw new Error(`Failed to get signed upload URL: ${r.statusText}`);
             }
-            console.log("r=",r);
             return r.json();    // returned to next .then()
         })
         .then(obj => {
-            if (obj.error) {
-                $('#message').html(`Error getting upload URL: ${obj.message}`);
-                throw new Error(`Server error: ${obj.message}`);
-            }
-
             console.log("obj=",obj);
-            $('#message').html(`Uploading image ${obj.image_id}...`);
+            $('#message').text(`Uploading image ${obj.image_id}...`);
             const uploadFormData = new FormData();
             for (const field in obj.presigned_post.fields) {
                 uploadFormData.append(field, obj.presigned_post.fields[field]);
@@ -71,28 +65,56 @@ function upload_image_post(imageFile) {
         })
         .then(uploadResponse => {
             if (!uploadResponse.ok) {
-                $('#upload_message').html(`Error uploading image status=${uploadResponse.status} ${uploadResponse.statusText}`);
+                $('#upload_message').text(`Error uploading image status=${uploadResponse.status} ${uploadResponse.statusText}`);
                 throw new Error(`Upload failed: ${uploadResponse.statusText}`);
             }
-            $('#message').html('Image uploaded.');
+            $('#message').text('Image uploaded.');
             $('#image-file').val(''); // clear the uploaded image
         })
         .catch(error => {
             if (error.name === 'AbortError') {
-                $('#message').html(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
+                $('#message').text(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
             } else {
-                $('#message').html(`An error occurred: ${error.message}`);
+                $('#message').text(`An error occurred: ${error.message}`);
             }
         });
 }
 
-/** Run the server's list-upload-movies.
+/** Run the server's list-images
  * This version shows all uploaded movies and requires no authentication.
  */
-function list_movies()
+function list_images()
 {
-
+    fetch('api/list-images', { method: "GET" })
+        .then(r => {
+            if (!r.ok) {
+                $('#image-container').text(`Error: ${r.status} ${r.statusText}`);
+                throw new Error(`Failed to get images: ${r.statusText}`);
+            }
+            return r.json();
+        })
+        .then(obj => {
+            $('#table-container').html('<table id="image-table" class="display" style="width:100%"></table>');
+            $('#image-table').DataTable({
+                data: obj,
+                columns: [
+                    { title:'Image Id', data: 'image_id'},
+                    { title:'created',  data: 'created'},
+                    { title:'s3key',    data: 's3key'},
+                    { title:'Photo',
+                      data: 'url',
+                      render: function (data, type, row) {
+                          return `<img src="${data}" alt="Image" style="width:50px; height:auto;">`;
+                      }
+                    }
+                ]
+            });
+        })
+        .catch(error => {
+            $('#table-container').text(`Uncaught error: ${error.message}`);
+        });
 }
+
 
 
 /** The function that is called when the upload_image button is clicked.
@@ -104,7 +126,7 @@ function upload_image()
     console.log('imageFile=',imageFile);
 
     if (imageFile.fileSize > MAX_FILE_UPLOAD) {
-        $('#message').html(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
+        $('#message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
         return;
     }
     upload_image_post(imageFile);

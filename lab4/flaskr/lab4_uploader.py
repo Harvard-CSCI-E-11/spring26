@@ -49,7 +49,7 @@ def init_app(app):
             abort(403)
 
     @app.route('/api/new-image', methods=['POST'])
-    def new_image():
+    def api_new_image():
         """Use the AWS S3 API to get a presigned post that the client can use to upload to S3
         :param api_key: the user's api_key
         :param api_secret_key: the user's api_secret_key
@@ -74,12 +74,13 @@ def init_app(app):
         # Finally, record the image in the database
         image_id = new_image(api_key, s3key)
 
-        app.logger.info("delivered presigned api_key=%s s3_key=%s image_id=%s",api_key,presigned_post,image_id)
+        app.logger.info("delivered presigned api_key=%s s3_key=%s image_id=%s",
+                        api_key,presigned_post,image_id)
         return jsonify({'presigned_post':presigned_post,'image_id':image_id})
 
 
     @app.route('/api/get-image', methods=['POST','GET'])
-    def get_image():
+    def api_get_image():
         validate_api_key_request()
 
         # Get the URN for the image_id

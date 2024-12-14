@@ -11,6 +11,9 @@
           href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css"
           integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/grids-responsive-min.css" />
+
+    <!-- bring in JQuery -->
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"
             integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo="
             crossorigin="anonymous"></script>
@@ -18,8 +21,17 @@
     <!-- The `integrity` and `crossorigin` attributes are used for Subresource Integrity (SRI) checking.
        -- This allows browsers to ensure that resources hosted on third-party servers have not been tampered with.
        -- Use of SRI is recommended as a best-practice, whenever libraries are loaded from a third-party source.
+       -- Sadly, not all of them do...
        -- Read more at srihash.org
-    -->
+       -->
+
+    <!-- Use DataTables to display the table.
+      -- Two other good options would be Tabulator and Handsontable.
+      -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css">
+    <script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+
+    <!-- Specific styles for this application. Note the use of url_for() -->
     <link rel="stylesheet" href="{{ url_for('static', filename='lab4_style.css') }}">
   </head>
 
