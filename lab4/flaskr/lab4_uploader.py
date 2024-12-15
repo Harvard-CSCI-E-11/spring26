@@ -1,5 +1,6 @@
 """
-upload and download to s3.
+lab4_image_controller: Controlls all aspects of uploading, downloading, listing, and processing JPEG images.
+
 """
 
 ################################################################
@@ -30,12 +31,12 @@ def new_image(api_key,s3key):
     """Create a new image in the database"""
     db = get_db()
     cur  = db.cursor()
-    db.execute("""
+    cur.execute("""
         INSERT into images (s3key,created_by)
         VALUES (?, (select api_key_id from api_keys where api_key=?))
         """,(s3key,api_key))
     db.commit()
-    return db.execute("SELECT image_id from images where s3key=?",(s3key,)).fetchone()['image_id']
+    return cur.lastrowid        # return the row inserted into images
 
 def init_app(app):
     """Initialize the app and register the paths."""

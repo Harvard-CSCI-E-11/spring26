@@ -12,8 +12,6 @@ function enable_disable_upload_button()
     const enable = $('#image-file').val().length > 0 &&
           $('#api-key').val().length > 0 &&
           $('#api-secret-key').val().length > 0;
-    console.log('v1=',$('#api-key').val());
-    console.log('enable=',enable);
     $('#upload-button').prop('disabled', !enable);
     if (enable) {
         $('#message').text('ready to upload!');
@@ -25,7 +23,6 @@ function enable_disable_upload_button()
 // This implements the image pop-ups
 function initImagePopups()
 {
-    console.log("initImagePopups();")
     $(document).on('click', '.clickable-image', function () {
         const imgUrl = $(this).attr('src');  // Get the image URL
         $('#popup-img').attr('src', imgUrl); // Set the image source in the pop-up
@@ -63,7 +60,7 @@ function upload_image_post(imageFile) {
             return r.json();    // returned to next .then()
         })
         .then(obj => {
-            console.log("obj=",obj);
+            console.log("api/new-image returned obj=",obj);
             $('#message').text(`Uploading image ${obj.image_id}...`);
             const uploadFormData = new FormData();
             for (const field in obj.presigned_post.fields) {
@@ -151,8 +148,6 @@ function list_images() {
 function upload_image()
 {
     const imageFile   = $('#image-file').prop('files')[0];
-    console.log('imageFile=',imageFile);
-
     if (imageFile.fileSize > MAX_FILE_UPLOAD) {
         $('#message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
         return;
@@ -161,7 +156,7 @@ function upload_image()
 }
 
 $( document ).ready( function() {
-    console.log("index.html ready function running.")
+    console.log("lab4.js ready function running.")
     // set the correct enable/disable status of the upload button, and configure
     // it to change when any of the form controls change
     enable_disable_upload_button();
