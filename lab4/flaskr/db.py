@@ -51,15 +51,14 @@ def dump_db_command():
     db = get_db()
     cur = db.cursor()
     # Get a list of tables
-    tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
 
     # Now list each table
     for row in tables:
         table_name = row['name']
         click.echo(f"Table: {table_name}")
         # Note we can't prepare the table name in the statement below
-        rows = cur.execute(f"SELECT api_key, api_secret_key_hash, created,"
-                           f"last_used, remaining FROM {table_name}").fetchall()
+        rows = cur.execute(f"SELECT * FROM {table_name}").fetchall()
         if not rows:
             click.echo("Database is empty")
         else:

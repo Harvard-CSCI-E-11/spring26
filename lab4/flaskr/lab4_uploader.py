@@ -31,10 +31,11 @@ def new_image(api_key,s3key):
     db = get_db()
     cur  = db.cursor()
     db.execute("""
-        INSERT into images (urn,created_by)
+        INSERT into images (s3key,created_by)
         VALUES (?, (select api_key_id from api_keys where api_key=?))
         """,(s3key,api_key))
-    return cur.lastrowid
+    db.commit()
+    return db.execute("SELECT image_id from images where s3key=?",(s3key,)).fetchone()['image_id']
 
 def init_app(app):
     """Initialize the app and register the paths."""

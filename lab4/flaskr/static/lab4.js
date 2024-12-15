@@ -57,7 +57,7 @@ function upload_image_post(imageFile) {
 
             const ctrl = new AbortController();
             setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS * 1000);
-            return fetch(obj.url, {
+            return fetch(obj.presigned_post.url, {
                 method: "POST",
                 body: uploadFormData,
                 signal: ctrl.signal
