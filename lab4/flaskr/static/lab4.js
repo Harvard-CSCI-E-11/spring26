@@ -22,6 +22,22 @@ function enable_disable_upload_button()
     }
 }
 
+// This implements the image pop-ups
+function initImagePopups()
+{
+    console.log("initImagePopups();")
+    $(document).on('click', '.clickable-image', function () {
+        const imgUrl = $(this).attr('src');  // Get the image URL
+        $('#popup-img').attr('src', imgUrl); // Set the image source in the pop-up
+        $('#image-popup').fadeIn();          // Show the pop-up
+    });
+
+    // When the pop-up is clicked, hide it
+    $('#image-popup').on('click', function () {
+        $(this).fadeOut();
+    });
+}
+
 /*
  *
  * Uploads a image using a presigned post. See:
@@ -78,13 +94,16 @@ function upload_image_post(imageFile) {
                 $('#message').text(`An error occurred: ${error.message}`);
             }
         });
+    // A successful POST clears the image to upload.
+    // Clear the button and list the images
+    enable_disable_upload_button();
+    list_images();
 }
 
 /** Run the server's list-images
  * This version shows all uploaded movies and requires no authentication.
  */
-function list_images()
-{
+function list_images() {
     fetch('api/list-images', { method: "GET" })
         .then(r => {
             if (!r.ok) {
@@ -94,21 +113,30 @@ function list_images()
             return r.json();
         })
         .then(obj => {
-            $('#table-container').html('<table id="image-table" class="display" style="width:100%"></table>');
-            $('#image-table').DataTable({
-                data: obj,
+            // Clear the table container and initialize Tabulator
+            $('#table-container').html('<div id="image-table"></div>');
+
+            // Create a new Tabulator table
+            new Tabulator("#image-table", {
+                data: obj, // Assign fetched data to the table
+                layout: "fitColumns", // Fit columns to width of the table
+                rowHeight: 120,
                 columns: [
-                    { title:'Image Id', data: 'image_id'},
-                    { title:'created',  data: 'created'},
-                    { title:'s3key',    data: 's3key'},
-                    { title:'Photo',
-                      data: 'url',
-                      render: function (data, type, row) {
-                          return `<img src="${data}" alt="Image" style="width:50px; height:auto;">`;
-                      }
+                    { title: "Image Id", field: "image_id" },
+                    { title: "Created", field: "created" },
+                    { title: "S3 Key", field: "s3key" },
+                    {
+                        title: "Photo",
+                        field: "url",
+                        formatter: function (cell, formatterParams) {
+                            const url = cell.getValue();
+                            return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
+                        }
                     }
-                ]
+                ],
+                placeholder: "No data available", // Displayed when there is no data
             });
+            initImagePopups();
         })
         .catch(error => {
             $('#table-container').text(`Uncaught error: ${error.message}`);
@@ -140,5 +168,6 @@ $( document ).ready( function() {
     $('.uploadf').on('change', enable_disable_upload_button );
     $('#upload-button').on('click', upload_image);
 });
+
 
 console.log('lab4.js');

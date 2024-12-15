@@ -19,7 +19,7 @@ JPEG_MIME_TYPE = 'image/jpeg'
 def list_images():
     """Return an array of dicts for all the images"""
     db = get_db()
-    return db.execute('SELECT * FROM images')
+    return db.execute('SELECT * FROM images').fetchall()
 
 def get_image_info(image_id):
     """Return a dict for a specific image"""
@@ -48,6 +48,15 @@ def init_app(app):
         if not lab4_apikey.validate_api_key(api_key, api_secret_key):
             app.logger.info("api_key %s/%s does not validate",api_key,api_secret_key)
             abort(403)
+
+    def presigned_url_for_s3key(s3key):
+        s3_client = boto3.session.Session().client( "s3" )
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': current_app.config['S3_BUCKET'],
+                    'Key': s3key},
+            ExpiresIn=3600)     # give an hour
+        return presigned_url
 
     @app.route('/api/new-image', methods=['POST'])
     def api_new_image():
@@ -87,13 +96,7 @@ def init_app(app):
         # Get the URN for the image_id
         image_id = request.values.get('image_id', type=int, default=0)
         s3key    = get_image_info(image_id)['s3key']
-
-        s3_client = boto3.session.Session().client( "s3" )
-        presigned_url = s3_client().generate_presigned_url(
-            'get_object',
-            Params={'Bucket': current_app.config['S3_BUCKET'],
-                    'Key': s3key},
-            ExpiresIn=3600)     # give an hour
+        presigned_url = presigned_url_for_s3key(s3key)
 
         # Now redirect to it.
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
@@ -101,5 +104,12 @@ def init_app(app):
 
     @app.route('/api/list-images', methods=['GET'])
     def api_list_images():
-        # Does not verify api_key
-        return list_images()
+        """List the imsages. Note that the function list_images() returns a list of SQLIte3 Row
+        objects. They need to be turned into an array of dict() objects, and each s3key needs to be turned into a url.
+        """
+        # First, convert the array of Row objects into an array of dict() objects:
+        rows = [dict(row) for row in list_images()]
+        # Now, for each row, add a url for the s3key:
+        for row in rows:
+            row['url'] = presigned_url_for_s3key(row['s3key'])
+        return rows

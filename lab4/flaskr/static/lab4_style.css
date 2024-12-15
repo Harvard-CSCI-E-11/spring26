@@ -6,3 +6,7 @@ a.disabled {
     pointer-events: none;
     cursor: default;
 }
+
+#image-popup {
+    cursor: pointer;
+}
