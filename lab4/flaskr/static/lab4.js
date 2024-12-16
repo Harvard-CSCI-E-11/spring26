@@ -119,7 +119,7 @@ function list_images() {
                 layout: "fitColumns", // Fit columns to width of the table
                 rowHeight: 120,
                 columns: [
-                    { title: "Image Id", field: "image_id" },
+                    { title: "#", field: "image_id", width:20 },
                     { title: "Created", field: "created" },
                     { title: "S3 Key", field: "s3key" },
                     {
@@ -129,7 +129,8 @@ function list_images() {
                             const url = cell.getValue();
                             return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
                         }
-                    }
+                    },
+                    { title: "Celebrity", field: "celeb_html", formatter:"html"}
                 ],
                 placeholder: "No data available", // Displayed when there is no data
             });

@@ -15,7 +15,7 @@ import boto3
 from flask import Flask, render_template, send_from_directory
 from . import db
 from . import lab4_apikey
-from . import lab4_uploader
+from . import lab4_image_controller
 
 LOG_LEVEL = logging.DEBUG
 USERNAME = 'simsong'
@@ -84,6 +84,6 @@ def create_app(test_config=None):
         return render_template('about.html')
 
     db.init_app(app)
-    lab4_uploader.init_app(app)
+    lab4_image_controller.init_app(app)
     lab4_apikey.init_app(app)
     return app

@@ -10,10 +10,13 @@ lab4_image_controller: Controlls all aspects of uploading, downloading, listing,
 ##
 
 import os
+import json
+
 import boto3
 from flask import request, jsonify, current_app, abort, redirect
 from . import lab4_apikey
 from .db import get_db
+from . import lab4_rekognizer
 
 JPEG_MIME_TYPE = 'image/jpeg'
 
@@ -98,6 +101,7 @@ def init_app(app):
         image_id = request.values.get('image_id', type=int, default=0)
         s3key    = get_image_info(image_id)['s3key']
         presigned_url = presigned_url_for_s3key(s3key)
+        app.logger.info("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
 
         # Now redirect to it.
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
@@ -110,7 +114,22 @@ def init_app(app):
         """
         # First, convert the array of Row objects into an array of dict() objects:
         rows = [dict(row) for row in list_images()]
-        # Now, for each row, add a url for the s3key:
+
+        # Now, for each row, add a url for the s3key
+        # If we don't celeb info for it, generate the JSON and HTML
+        # (note: it would probably be better to generate the HTML on the client from the JSON)
+        db = get_db()
+        print(rows)
         for row in rows:
-            row['url'] = presigned_url_for_s3key(row['s3key'])
+            s3key = row['s3key']
+            row['url'] = presigned_url_for_s3key(s3key)
+            if row['celeb']:
+                celeb = json.loads(row['celeb'])
+            else:
+                celeb = lab4_rekognizer.recognize_celebrities(app.config['S3_BUCKET'], s3key)
+                row['celeb'] = json.dumps(celeb,default=str)
+                db.execute("UPDATE images set celeb=? where s3key=?",(celeb_json,s3key))
+                db.commit()
+            row['celeb_html'] = lab4_rekognizer.celebrities_to_html(celeb)
+            print(row['celeb_html'])
         return rows

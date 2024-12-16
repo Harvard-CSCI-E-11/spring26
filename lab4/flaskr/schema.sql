@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS api_keys;
-DROP TABLE IF EXISTS post;
+DROP TABLE IF EXISTS images;
 
 CREATE TABLE api_keys (
        api_key_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -17,7 +17,7 @@ CREATE TABLE images (
        s3key text(1023) UNIQUE NOT NULL,
        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        created_by INTEGER NOT NULL,
-       annotations text(65535),
+       celeb text(65535),
        FOREIGN KEY(created_by)
        REFERENCES api_keys(api_key_id)
          ON UPDATE RESTRICT
