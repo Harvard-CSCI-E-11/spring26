@@ -6,10 +6,12 @@ from boto3.dynamodb.conditions import Key
 import boto3
 import time
 import os
+import logging
+import sys
 from datetime import datetime, timedelta
-from apig_wsgi import make_lambda_handler
 
-app = Flask(__name__)
+TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
 dynamodb = boto3.resource(
     'dynamodb',
     region_name=os.environ.get('AWS_REGION', 'us-east-1')
@@ -30,9 +32,9 @@ def display_leaderboard():
     items = response['Items']
 
     # Separate active and inactive
-    current_time = get_current_time()
-    active = [item for item in items if current_time - item['last_seen'] < 3600]
-    inactive = [item for item in items if current_time - item['last_seen'] >= 3600]
+    now = time.time()
+    active = [item for item in items if now - item['last_seen'] < 3600]
+    inactive = [item for item in items if now - item['last_seen'] >= 3600]
 
     # Sort by most recent last_seen
     active.sort(key=lambda x: x['last_seen'], reverse=True)
@@ -62,7 +64,7 @@ def update_leaderboard():
             Key={'name': name, 'key': key},
             UpdateExpression="SET last_seen = :last_seen, ip_address = :ip_address",
             ExpressionAttributeValues={
-                ':last_seen': current_time,
+                ':last_seen': time.time(),
                 ':ip_address': ip_address
             }
         )
@@ -93,6 +95,3 @@ def update_leaderboard():
 def get_leaderboard():
     response = leaderboard_table.scan()
     return jsonify(response['Items'])
-
-# Lambda handler for AWS API Gateway
-lambda_handler = make_lambda_handler(app)

@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from hello_world import app
+from lambda_handler import lambda_app
 
 
 @pytest.fixture()
@@ -55,7 +55,7 @@ def apigw_event():
             "CloudFront-Forwarded-Proto": "https",
             "Accept-Encoding": "gzip, deflate, sdch",
         },
-        "pathParameters": {"proxy": "/examplepath"},
+        "pathParameters": {"proxy": "/api/leaderboard"},
         "httpMethod": "POST",
         "stageVariables": {"baz": "qux"},
         "path": "/examplepath",
@@ -63,8 +63,7 @@ def apigw_event():
 
 
 def test_lambda_handler(apigw_event):
-
-    ret = app.lambda_handler(apigw_event, "")
+    ret = lambda_app(apigw_event, "")
     data = json.loads(ret["body"])
 
     assert ret["statusCode"] == 200

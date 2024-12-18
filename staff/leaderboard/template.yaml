@@ -37,7 +37,7 @@ Resources:
       Architectures:
         - x86_64
       CodeUri: ./src
-      Handler: leaderboard_app.lambda_handler
+      Handler: lambda_handler.lambda_app
       Runtime: python3.12
       Events:
         RootPath:
