@@ -3,6 +3,7 @@ Leaerboard Fask Application (src/app.py)
 """
 from flask import Flask, request, jsonify, render_template
 from boto3.dynamodb.conditions import Key
+import botocore.exceptions
 import boto3
 import time
 import os
@@ -28,7 +29,10 @@ def client():
 
 @app.route('/', methods=['GET'])
 def display_leaderboard():
-    response = leaderboard_table.scan()
+    try:
+        response = leaderboard_table.scan()
+    except botocore.exceptions.ClientError as e:
+        return render_template('client_error.html', error=str(e))
     items = response['Items']
 
     # Separate active and inactive

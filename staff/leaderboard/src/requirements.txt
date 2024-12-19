@@ -1,1 +1,5 @@
+# requirements.txt for the deployed lambda function
 requests
+apig_wsgi
+boto3
+flask

@@ -62,6 +62,7 @@ def apigw_event():
     }
 
 
+@pytest.mark.docker
 def test_lambda_handler(apigw_event):
     ret = lambda_app(apigw_event, "")
     data = json.loads(ret["body"])
