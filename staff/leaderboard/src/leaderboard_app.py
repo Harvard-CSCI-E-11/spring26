@@ -13,14 +13,7 @@ from datetime import datetime, timedelta
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
-dynamodb = boto3.resource(
-    'dynamodb',
-    region_name=os.environ.get('AWS_REGION', 'us-east-1')
-)
-leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', 'Leaderboard'))
-
-
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource( 'dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', 'Leaderboard'))
 
 @app.route('/client.html', methods=['GET'])

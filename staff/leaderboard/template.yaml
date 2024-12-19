@@ -1,4 +1,3 @@
-# SAM Template (template.yaml)
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
@@ -52,11 +51,17 @@ Resources:
             RestApiId: !Ref MyApi
             Path: /{proxy+}
             Method: ANY
+      Environment:
+        Variables:
+          LEADERBOARD_TABLE: !Ref LeaderboardTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTable
 
   LeaderboardTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: Leaderboard
+      TableName: Leaderboard    # only needs to be unique within the account
       AttributeDefinitions:
         - AttributeName: Name
           AttributeType: S
