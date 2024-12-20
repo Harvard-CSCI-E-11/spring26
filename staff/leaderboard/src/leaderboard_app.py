@@ -1,27 +1,33 @@
 """
 Leaerboard Fask Application (src/app.py)
 """
+import time
+import os
+import logging
+from datetime import datetime
 from flask import Flask, request, jsonify, render_template
 from boto3.dynamodb.conditions import Key
 import botocore.exceptions
 import boto3
-import time
-import os
-import logging
-import sys
-from datetime import datetime, timedelta
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 dynamodb = boto3.resource( 'dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', 'Leaderboard'))
+app.logger.setLevel(logging.DEBUG)
+
+# pylint: disable=missing-function-docstring
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value):
+    return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
 
 @app.route('/client.html', methods=['GET'])
 def client():
     return render_template('client.html')
 
 @app.route('/', methods=['GET'])
-def display_leaderboard():
+def display_leaderboard():      # pylint disable=missing-function-docstring
     try:
         response = leaderboard_table.scan()
     except botocore.exceptions.ClientError as e:
@@ -39,26 +45,26 @@ def display_leaderboard():
     return render_template('leaderboard.html', active=active, inactive=inactive)
 
 @app.route('/api/update', methods=['POST'])
-def update_leaderboard():
+def update_leaderboard():   # pylint disable=missing-function-docstring
     name = request.form['name']
     key = request.form['key']
-    ip = request.remote_addr
+    ip_address = request.remote_addr
+
+    app.logger.info("name=%s key=%s ip=%s",name,key,ip_address)
 
     if not name or not key:
         return "Invalid data", 400
 
-    now = datetime.utcnow().isoformat()
-
     # Check if the name-key pair exists
     response = leaderboard_table.query(
-        KeyConditionExpression=Key('name').eq(name) & Key('key').eq(key)
+        KeyConditionExpression=Key('Name').eq(name) & Key('Key').eq(key)
     )
     items = response.get('Items', [])
 
     if items:
         # Update existing item if IP address hasn't changed
         leaderboard_table.update_item(
-            Key={'name': name, 'key': key},
+            Key={'Name': name, 'Key': key},
             UpdateExpression="SET last_seen = :last_seen, ip_address = :ip_address",
             ExpressionAttributeValues={
                 ':last_seen': time.time(),
@@ -70,8 +76,8 @@ def update_leaderboard():
         # Add new item
         leaderboard_table.put_item(
             Item={
-                'name': name,
-                'key': key,
+                'Name': name,
+                'Key': key,
                 'ip_address': ip_address
             }
         )
@@ -89,6 +95,6 @@ def update_leaderboard():
     return 'OK', 200
 
 @app.route('/api/leaderboard', methods=['GET'])
-def get_leaderboard():
+def get_leaderboard():  # pylint disable=missing-function-docstring
     response = leaderboard_table.scan()
     return jsonify(response['Items'])

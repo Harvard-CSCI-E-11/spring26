@@ -1,5 +1,11 @@
-import pytest
+"""
+conftest.py - additions for pytest for this and descendent directories.
+"""
+
 import os
+import pytest
+
+# pylint: disable=missing-function-docstring
 
 def pytest_runtest_setup(item):
     if "docker" in item.keywords and os.getenv("IS_DOCKER") != "true":

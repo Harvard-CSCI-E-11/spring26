@@ -1,7 +1,10 @@
-# Python CLI Demo Code (demo_client.py)
+"""
+Python CLI Demo Code (demo_client.py)
+"""
 import time
+import json
+
 import requests
-import sys
 
 if __name__=='__main__':
     import argparse
@@ -11,13 +14,15 @@ if __name__=='__main__':
     parser.add_argument('name')
     parser.add_argument('key')
     args = parser.parse_args()
+    URL = f'{args.endpoint}/api/update'
 
     while True:
-        response = requests.post(f'http://{parser.endpoint}/api/post',
-                                 data={'name': parser.name,
-                                       'key': parser.key})
+        response = requests.post(URL,
+                                 data={'name': args.name,
+                                       'key': args.key},
+                                 timeout = 30 )
         print(f"Posted: {response.status_code}")
 
-        leaderboard = requests.get(f'http://{parser.endpoint}/api/leaderboard').json()
+        leaderboard = requests.get(f'http://{args.endpoint}/api/leaderboard', timeout=30).json()
         print(json.dumps(leaderboard))
         time.sleep(60)

@@ -3,3 +3,4 @@ requests
 boto3
 flask
 apig_wsgi
+pylint

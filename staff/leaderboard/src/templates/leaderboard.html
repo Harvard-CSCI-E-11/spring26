@@ -29,13 +29,24 @@
     <script>
         // Function to fetch the full page and update the leaderboard
         function refreshLeaderboard() {
-            fetch(window.location.href)
+           fetch(window.location.href)
                 .then(response => response.text())
                 .then(html => {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
                     const newLeaderboard = doc.querySelector('#leaderboard-container').innerHTML;
                     document.querySelector('#leaderboard-container').innerHTML = newLeaderboard;
+
+
+                    var currentdate = new Date();
+                    var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                                 + (currentdate.getMonth()+1)  + "/"
+                                 + currentdate.getFullYear() + " @ "
+                                 + currentdate.getHours() + ":"
+                                 + currentdate.getMinutes() + ":"
+                                 + currentdate.getSeconds();
+
+                    document.querySelector('#last-update').innerHTML = datetime;
                 })
                 .catch(error => console.error('Error refreshing leaderboard:', error));
         }
@@ -91,5 +102,6 @@
             </tbody>
         </table>
     </div>
+    <div id='last-update'></div>
 </body>
 </html>
