@@ -1,6 +1,6 @@
 import pytest
-from leaderboard_app import app
 from flask import render_template
+from leaderboard_app import app
 
 @pytest.fixture
 def app_context():

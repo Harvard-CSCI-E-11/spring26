@@ -12,17 +12,18 @@ if __name__=='__main__':
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('endpoint')
     parser.add_argument('name')
-    parser.add_argument('key')
+    parser.add_argument('hidden')
     args = parser.parse_args()
-    URL = f'{args.endpoint}/api/update'
+    url_update = f'{args.endpoint}/api/update'
+    url_leaderboard = f'{args.endpoint}/api/leaderboard'
 
     while True:
-        response = requests.post(URL,
+        response = requests.post(url_update,
                                  data={'name': args.name,
-                                       'key': args.key},
+                                       'hidden': args.hidden},
                                  timeout = 30 )
         print(f"Posted: {response.status_code}")
 
-        leaderboard = requests.get(f'http://{args.endpoint}/api/leaderboard', timeout=30).json()
+        leaderboard = requests.get(url_leaderboard, timeout=30).json()
         print(json.dumps(leaderboard))
         time.sleep(60)

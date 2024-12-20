@@ -63,15 +63,11 @@ Resources:
     Properties:
       TableName: Leaderboard    # only needs to be unique within the account
       AttributeDefinitions:
-        - AttributeName: Name
-          AttributeType: S
-        - AttributeName: Key
+        - AttributeName: name
           AttributeType: S
       KeySchema:
-        - AttributeName: Name
+        - AttributeName: name
           KeyType: HASH
-        - AttributeName: Key
-          KeyType: RANGE
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5

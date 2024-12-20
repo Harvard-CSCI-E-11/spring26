@@ -1,5 +1,5 @@
 pytest:
-	pytest
+	pytest .
 
 pylint:
-	pylint *py */*py
+	pylint .

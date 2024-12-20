@@ -35,7 +35,7 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
     items = response['Items']
 
     # Separate active and inactive
-    now = time.time()
+    now = int(time.time())
     active = [item for item in items if now - item['last_seen'] < 3600]
     inactive = [item for item in items if now - item['last_seen'] >= 3600]
 
@@ -47,38 +47,51 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
 @app.route('/api/update', methods=['POST'])
 def update_leaderboard():   # pylint disable=missing-function-docstring
     name = request.form['name']
-    key = request.form['key']
+    hidden = request.form['hidden']
     ip_address = request.remote_addr
+    now = int(time.time())
 
-    app.logger.info("name=%s key=%s ip=%s",name,key,ip_address)
+    app.logger.info("name=%s hidden=%s ip=%s",name,hidden,ip_address)
 
-    if not name or not key:
+    if not name or not hidden:
         return "Invalid data", 400
 
-    # Check if the name-key pair exists
-    response = leaderboard_table.query(
-        KeyConditionExpression=Key('Name').eq(name) & Key('Key').eq(key)
-    )
+    # Check if the name exists
+    response = leaderboard_table.query( KeyConditionExpression=Key('name').eq(name) )
     items = response.get('Items', [])
-
-    if items:
-        # Update existing item if IP address hasn't changed
-        leaderboard_table.update_item(
-            Key={'Name': name, 'Key': key},
-            UpdateExpression="SET last_seen = :last_seen, ip_address = :ip_address",
-            ExpressionAttributeValues={
-                ':last_seen': time.time(),
-                ':ip_address': ip_address
-            }
-        )
-        # If IP address changed, also update first_seen
-    else:
-        # Add new item
+    updated = False
+    for i in items:
+        # If we find a matching name and the key doesn't match, return
+        # If the key does match, update last seen. If ip address doesn't match, update first-seen
+        if i['name']==name:
+            if i['hidden'] != hidden:
+                return "Hidden mismatch", 403
+            if i['ip_address'] == ip_address:
+                leaderboard_table.update_item(
+                    Key={'name': name},
+                    UpdateExpression="SET last_seen = :last_seen",
+                    ExpressionAttributeValues={
+                        ':last_seen': now,
+                    })
+            else:
+                leaderboard_table.update_item(
+                    Key={'name': name},
+                    UpdateExpression="SET last_seen = :last_seen, first_seen = :fist_seen, ip_address = :ip_address",
+                    ExpressionAttributeValues={
+                        ':last_seen': now,
+                        ':first_seen': now,
+                        ':ip_address': ip_address
+                    })
+            updated = True
+    # If nothing was updated, add the new entry
+    if not updated:
         leaderboard_table.put_item(
             Item={
-                'Name': name,
-                'Key': key,
-                'ip_address': ip_address
+                'name': name,
+                'hidden': hidden,
+                'ip_address': ip_address,
+                'last_seen': now,
+                'first_seen': now
             }
         )
 
@@ -87,10 +100,10 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
     response = leaderboard_table.scan()
     items = response['Items']
     if len(items) > 100:
-        items.sort(key=lambda x: x['FirstSeen'])
+        items.sort(key=lambda x: x['first_seen'])
         to_delete = items[:len(items) - 100]
         for item in to_delete:
-            leaderboard_table.delete_item(Key={'Name': item['Name'], 'Key': item['Key']})
+            leaderboard_table.delete_item(Key={'Name': item['Name']})
 
     return 'OK', 200
 

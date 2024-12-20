@@ -4,3 +4,4 @@ boto3
 flask
 apig_wsgi
 pylint
+pylint-pytest
