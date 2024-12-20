@@ -39,13 +39,14 @@
 
 
                     var currentdate = new Date();
-                    var datetime = "Last Sync: " + currentdate.getDate() + "/"
-                                 + (currentdate.getMonth()+1)  + "/"
-                                 + currentdate.getFullYear() + " @ "
-                                 + currentdate.getHours() + ":"
-                                 + currentdate.getMinutes() + ":"
-                                 + currentdate.getSeconds();
-
+                    const zeroPad = (num, places) => String(num).padStart(places, '0')
+                    var datetime = "Last Sync: " +
+                                 + currentdate.getFullYear() + "-" +
+                                 + zeroPad(currentdate.getMonth()+1,2)  + "-"
+                                 + zeroPad(currentdate.getDate(),2) + " "
+                                 + zeroPad(currentdate.getHours(),2) + ":"
+                                 + zeroPad(currentdate.getMinutes(),2) + ":"
+                                 + zeroPad(currentdate.getSeconds(),2);
                     document.querySelector('#last-update').innerHTML = datetime;
                 })
                 .catch(error => console.error('Error refreshing leaderboard:', error));
