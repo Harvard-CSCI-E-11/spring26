@@ -3,19 +3,19 @@ Python CLI Demo Code (demo_client.py)
 """
 import time
 import json
-
 import requests
+
+ENDPOINT = 'https://leaderboard.csci-e-11.org/'
 
 if __name__=='__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Test program for leaderboard",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('endpoint')
     parser.add_argument('name')
     parser.add_argument('hidden')
     args = parser.parse_args()
-    url_update = f'{args.endpoint}/api/update'
-    url_leaderboard = f'{args.endpoint}/api/leaderboard'
+    url_update = f'{ENDPOINT}/api/update'
+    url_leaderboard = f'{ENDPOINT}/api/leaderboard'
 
     while True:
         response = requests.post(url_update,

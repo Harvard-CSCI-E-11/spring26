@@ -1,7 +1,23 @@
+#
+# Deploy with:
+# sam deploy --profile fas
+# or put this in samconfig.toml:
+# [default.deploy.parameters]
+# profile = "fas"
+
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >-
   Leaderboard application
+
+Parameters:
+  FQDN:
+    Type: String
+    Description: Fully qualified domain name
+  ZoneId:
+    Type: String
+    Description: Route53 Zone ID
+
 
 Globals:
   Function:
@@ -14,10 +30,25 @@ Globals:
       AllowOrigin: "'*'"
 
 Resources:
-  MyApi:
+  # Create our SSL certificate
+  GenerateCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref FQDN
+      ValidationMethod: DNS
+      DomainValidationOptions:
+      - DomainName: !Ref FQDN
+        HostedZoneId: !Ref ZoneId
+
+  RestApiGateway:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Prod
+      Domain:
+        DomainName: !Ref FQDN
+        CertificateArn: !Ref GenerateCertificate
+        Route53:
+          HostedZoneId: !Ref ZoneId
       BinaryMediaTypes:
         - image/x-icon
         - image/png
@@ -42,13 +73,13 @@ Resources:
         RootPath:
           Type: Api
           Properties:
-            RestApiId: !Ref MyApi
+            RestApiId: !Ref RestApiGateway
             Path: /
             Method: ANY
         ProxyPath:
           Type: Api
           Properties:
-            RestApiId: !Ref MyApi
+            RestApiId: !Ref RestApiGateway
             Path: /{proxy+}
             Method: ANY
       Environment:
@@ -75,4 +106,4 @@ Resources:
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${MyApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !Sub "https://${FQDN}"

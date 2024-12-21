@@ -11,6 +11,7 @@ import botocore.exceptions
 import boto3
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
+INACTIVE_SECONDS = 300
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 dynamodb = boto3.resource( 'dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', 'Leaderboard'))
@@ -36,8 +37,8 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
 
     # Separate active and inactive
     now = int(time.time())
-    active = [item for item in items if now - item['last_seen'] < 3600]
-    inactive = [item for item in items if now - item['last_seen'] >= 3600]
+    active = [item for item in items if now - item['last_seen'] < INACTIVE_SECONDS]
+    inactive = [item for item in items if now - item['last_seen'] >= INACTIVE_SECONDS]
 
     # Sort by most recent last_seen
     active.sort(key=lambda x: x['last_seen'], reverse=True)

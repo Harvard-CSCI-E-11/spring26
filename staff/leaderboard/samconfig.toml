@@ -20,7 +20,8 @@ s3_prefix = "leaderboard"
 region = "us-east-1"
 image_repositories = []
 disable_rollback = true
-
+parameter_overrides = "FQDN=\"leaderboard.csci-e-11.org\" ZoneId=\"Z05034072HOMXYCK23BRA\""
+profile = "fas"
 
 [default.package.parameters]
 resolve_s3 = true
