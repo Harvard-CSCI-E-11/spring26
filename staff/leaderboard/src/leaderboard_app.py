@@ -23,10 +23,6 @@ app.logger.setLevel(logging.DEBUG)
 def datetimeformat(value):
     return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
 
-@app.route('/client.html', methods=['GET'])
-def client():
-    return render_template('client.html')
-
 @app.route('/', methods=['GET'])
 def display_leaderboard():      # pylint disable=missing-function-docstring
     try:
@@ -47,11 +43,10 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
 
 @app.route('/api/update', methods=['POST'])
 def update_leaderboard():   # pylint disable=missing-function-docstring
-    name = request.form['name']
+    name   = request.form['name']
     hidden = request.form['hidden']
     ip_address = request.remote_addr
     now = int(time.time())
-
     app.logger.info("name=%s hidden=%s ip=%s",name,hidden,ip_address)
 
     if not name or not hidden:
