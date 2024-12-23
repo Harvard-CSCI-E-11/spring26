@@ -1,6 +1,10 @@
 "use strict";
 console.log('start');
 
+/* lab5: image_interaction.js
+ * Code for uploading and displaying images.
+ */
+
 /* jshint esversion: 8 */
 const UPLOAD_TIMEOUT_SECONDS = 20;
 const MAX_FILE_UPLOAD = 10*1000*1000;
@@ -94,18 +98,41 @@ function upload_image_post(imageFile) {
     // A successful POST clears the image to upload.
     // Clear the button and list the images
     enable_disable_upload_button();
-    list_images();
+    show_chat();
 }
 
-/** Run the server's list-images
+/** The function that is called when the upload_image button is clicked.
+ * It validates the image to be uploaded and then calls the upload function.
+ */
+function upload_image()
+{
+    const imageFile   = $('#image-file').prop('files')[0];
+    if (imageFile.fileSize > MAX_FILE_UPLOAD) {
+        $('#message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
+        return;
+    }
+    upload_image_post(imageFile);
+}
+
+$( document ).ready( function() {
+    console.log("lab4.js ready function running.")
+    // set the correct enable/disable status of the upload button, and configure
+    // it to change when any of the form controls change
+    enable_disable_upload_button();
+    $('.uploadf').on('change', enable_disable_upload_button );
+    $('#upload-button').on('click', upload_image);
+});
+
+
+/** Run the server's get-chat
  * This version shows all uploaded movies and requires no authentication.
  */
-function list_images() {
-    fetch('api/list-images', { method: "GET" })
+function show_messages() {
+    fetch('api/get-messages', { method: "GET" })
         .then(r => {
             if (!r.ok) {
                 $('#image-container').text(`Error: ${r.status} ${r.statusText}`);
-                throw new Error(`Failed to get images: ${r.statusText}`);
+                throw new Error(`Failed to get messages: ${r.statusText}`);
             }
             return r.json();
         })
@@ -114,7 +141,7 @@ function list_images() {
             $('#table-container').html('<div id="image-table"></div>');
 
             // Create a new Tabulator table
-            new Tabulator("#image-table", {
+            new Tabulator("#message-table", {
                 data: obj, // Assign fetched data to the table
                 layout: "fitColumns", // Fit columns to width of the table
                 rowHeight: 120,
@@ -142,28 +169,4 @@ function list_images() {
 }
 
 
-
-/** The function that is called when the upload_image button is clicked.
- * It validates the image to be uploaded and then calls the upload function.
- */
-function upload_image()
-{
-    const imageFile   = $('#image-file').prop('files')[0];
-    if (imageFile.fileSize > MAX_FILE_UPLOAD) {
-        $('#message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
-        return;
-    }
-    upload_image_post(imageFile);
-}
-
-$( document ).ready( function() {
-    console.log("lab4.js ready function running.")
-    // set the correct enable/disable status of the upload button, and configure
-    // it to change when any of the form controls change
-    enable_disable_upload_button();
-    $('.uploadf').on('change', enable_disable_upload_button );
-    $('#upload-button').on('click', upload_image);
-});
-
-
-console.log('lab4.js');
+console.log('image_interaction.js');

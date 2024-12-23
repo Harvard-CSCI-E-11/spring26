@@ -51,5 +51,11 @@
 </div>
 
 <!-- index end -->
-<script src="static/lab4.js"> </script>
+<!-- always bring in the chat server -->
+
+
+<!-- If we are in lab5, bring in the image interaction -->
+{% if lab5 %}
+<script src="static/image_interaction.js"> </script>
+{% endif %}
 {% endblock %}

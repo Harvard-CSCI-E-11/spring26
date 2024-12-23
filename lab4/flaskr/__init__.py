@@ -14,11 +14,18 @@ import logging
 import boto3
 from flask import Flask, render_template, send_from_directory
 from . import db
-from . import lab4_apikey
-from . import lab4_image_controller
+from . import apikey
+from . import message_controller
 
-LOG_LEVEL = logging.DEBUG
-USERNAME = 'simsong'
+try:
+    from . import image_controller
+except ImportError as e:
+    image_controller = None
+
+
+LOG_LEVEL   = logging.DEBUG
+USERNAME    = 'simsong'
+DBFILE_NAME = 'server_db.sqlite'
 
 # Define the CORS configuration
 CORS_CONFIGURATION = {
@@ -32,14 +39,13 @@ CORS_CONFIGURATION = {
     ]
 }
 
-
 def create_app(test_config=None):
     """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)
     app.logger.setLevel(LOG_LEVEL)
     app.config.from_mapping(
         SECRET_KEY='dev',
-        DATABASE=os.path.join(app.instance_path, 'lab4.sqlite'),
+        DATABASE=os.path.join(app.instance_path, DBFILE_NAME),
         MAX_IMAGE_SIZE=10_000_000,
         S3_BUCKET=f'{USERNAME}-cscie-11-s3-bucket'
     )
@@ -64,7 +70,6 @@ def create_app(test_config=None):
         CORSConfiguration=CORS_CONFIGURATION
     )
 
-
     # a simple page that says hello
     @app.route('/hello')
     def hello():
@@ -83,7 +88,14 @@ def create_app(test_config=None):
     def about():
         return render_template('about.html')
 
+    # Initialize all of the plug-ins
     db.init_app(app)
-    lab4_image_controller.init_app(app)
-    lab4_apikey.init_app(app)
+    apikey.init_app(app)
+    message_controller.init_app(app)
+
+    # If we loaded the image_controler (lab5), initialize it:
+    if image_controller is not None:
+        image_controller.init_app(app)
+
+    # Return the application object
     return app

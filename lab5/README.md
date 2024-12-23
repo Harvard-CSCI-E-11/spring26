@@ -1,4 +1,4 @@
-## Web application for Lab4: The chat server
+## Web application for Lab5: Adding AWS Rekognition
 
 To run this lab, log into your EC2 instance at Amazon and type:
 ```
