@@ -7,15 +7,32 @@
 # For background, see:
 # https://en.wikipedia.org/wiki/Make_(software)
 
+################################################################
+# Installation targets
+#
 # Create the virtual environment
 venv:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv
+	. venv/bin/activate ; python3 -m pip install --upgrade pip
 	. venv/bin/activate ; python3 -m pip install -r requirements.txt
 
-pylint:
-	. venv/bin/activate; python3 -m pylint flaskr
+#
+# Install the lab4.services file
+install-lab4-service:
+	sudo install lab4.service /etc/systemd/system/
+	sudo systemctl daemon-reload
+	sudo systemctl enable lab4
+	sudo systemctl start lab4
+	@if [ ! -r /etc/httpd/conf.d/lab4.conf ]; \
+		then echo installing /etc/httpd/conf/lab4.conf ; \
+		sudo install lab4.conf /etc/httpd/conf.d/ ; \
+		else echo /etc/httpd/conf/lab4.conf already installed ; \
+	fi
+	echo do not forget to edit /etc/httpd/conf/lab4.conf
 
+################################################################
+# Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
 local-app:
@@ -35,3 +52,17 @@ new-apikey:
 # Dump the database
 dump-db:
 	. venv/bin/activate; flask --app flaskr dump-db
+
+
+#
+# Software engineering targets
+
+pylint:
+	. venv/bin/activate; python3 -m pylint flaskr
+
+
+
+# make venv always run, even if it exists
+.PHONY: venv
+.PHONY: install-lab4-service
+
