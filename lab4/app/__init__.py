@@ -38,10 +38,11 @@ def create_app(test_config=None):
     app.config.from_mapping(
         # Flask configuration variables:
         SECRET_KEY='dev',
+        # For development, disable caching in Flask and browser:
         TEMPLATES_AUTO_RELOAD=True,
-        # Additional ones for us:
-        DATABASE=os.path.join(app.instance_path, DBFILE_NAME),
-        S3_BUCKET=f'{USERNAME}-cscie-11-s3-bucket'
+        SEND_FILE_MAX_AGE_DEFAULT=0,
+        # Additional config for lab4:
+        DATABASE=os.path.join(app.instance_path, DBFILE_NAME)
     )
 
     if test_config is None:
@@ -91,6 +92,5 @@ def create_app(test_config=None):
 
 #
 # If we are run from gunicorn, create the app object
-# 
+#
 app = create_app()
-

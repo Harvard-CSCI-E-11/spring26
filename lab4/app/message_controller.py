@@ -21,7 +21,7 @@ def post_message(api_key_id,message):
     db = get_db()
     cur  = db.cursor()
     cur.execute("""
-        INSERT into message (created_by,message)
+        INSERT into messages (created_by,message)
         VALUES (?, ?)
         """,(api_key_id, message))
     db.commit()
@@ -35,6 +35,7 @@ def init_app(app):
         return get_messages
 
     @app.route('/api/post-message', methods=['POST'])
-    def post_message():
+    def api_post_message():
         api_key_id = apikey.validate_api_key_request()
         post_message(api_key_id, request.values.get('message'))
+        return "OK",200

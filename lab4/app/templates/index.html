@@ -15,15 +15,14 @@
 
 <!-- Show the uploaded images here -->
 <div id='upload-preview'>
-    <div id='table-container'></div>
+    <div id='message-container'></div>
 </div>
 
 <h1>Upload a new message</h1>
 <div id='message-form'>
 
   <p>This form is for testing the upload API. Enter the API_KEY and the API_SECRET_KEY and a message.</p>
-
-  <form class='pure-form pure-form-aligned'>
+  <form class='pure-form pure-form-aligned' action="api/post-message" method="POST" onsubmit="list_messages(); return true;">
     <fieldset>
       <div class='pure-control-group'>
         <label for='api-key'>API_KEY:</label>
@@ -42,19 +41,25 @@
       </div>
       <div class='pure-control-group'>
         <label for='submit-button'>Click to post:</label>
-        <input id='upload-button' type='button' value='POST' class='uploadf' />
+        <input id='submit-button' type='submit' value='POST' class='uploadf' />
       </div>
     </fieldset>
   </form>
   <div id='message'></div>
 </div>
 
-<!-- index end -->
-<!-- always bring in the chat server -->
+<!-- bring in the messageboard -->
+
+<script src="static/messageboard.js"> </script>
+<script>
+function list_messages() {
+   console.log("list_messages");
+}
+</script>
 
 
 <!-- If we are in lab5, bring in the image interaction -->
 {% if lab5 %}
-<script src="static/image_interaction.js"> </script>
 {% endif %}
 {% endblock %}
+<!-- index end -->

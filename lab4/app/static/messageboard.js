@@ -5,14 +5,14 @@ function show_messages() {
     fetch('api/get-messages', { method: "GET" })
         .then(r => {
             if (!r.ok) {
-                $('#image-container').text(`Error: ${r.status} ${r.statusText}`);
+                $('#message-container').text(`Error: ${r.status} ${r.statusText}`);
                 throw new Error(`Failed to get messages: ${r.statusText}`);
             }
             return r.json();
         })
         .then(obj => {
             // Clear the table container and initialize Tabulator
-            $('#table-container').html('<div id="image-table"></div>');
+            $('#message-container').html('<div id="image-table"></div>');
 
             // Create a new Tabulator table
             new Tabulator("#message-table", {
@@ -28,6 +28,6 @@ function show_messages() {
             initImagePopups();
         })
         .catch(error => {
-            $('#table-container').text(`Uncaught error: ${error.message}`);
+            $('#message-container').text(`Uncaught error: ${error.message}`);
         });
 }

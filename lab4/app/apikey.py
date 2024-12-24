@@ -51,7 +51,7 @@ def validate_api_key(api_key, api_secret_key):
     rows = cur.execute("select api_key_id, api_secret_key_hash from api_keys where api_key=? ",
                          (api_key,)).fetchall()
     if len(rows)!=1:
-        flask.abort(403)
+        flask.abort(401, description='Unknown API_KEY')
 
     # Get the hash parameters for the stored hash
     # pylint: disable=line-too-long
@@ -64,7 +64,7 @@ def validate_api_key(api_key, api_secret_key):
     # If they do not match
     hashed = pbkdf2_hmac(stored_algorithm, api_secret_key.encode('utf-8'), stored_salt, stored_iterations)
     if hashed.hex() != stored_hash_hex:
-        flask.abort(403)
+        flask.abort(401, description='Invalid API_SECRET_KEY')
     return rows[0]['api_key_id']
 
 
@@ -93,3 +93,6 @@ def new_apikey_command():
 def init_app(app):
     """Init the app"""
     app.cli.add_command(new_apikey_command)
+    @app.errorhandler(403)
+    def page_not_found(error):
+        return str(error.description) if hasattr(error,'description') else '403 Error', 403
