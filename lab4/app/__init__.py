@@ -17,36 +17,30 @@ from . import db
 from . import apikey
 from . import message_controller
 
+# lab5 includes the image_controller.
+# Load it if image_controller.py is in the current directory
+# If not, this throws an error, and we set image_controller to Null
 try:
     from . import image_controller
 except ImportError as e:
     image_controller = None
 
-
 LOG_LEVEL   = logging.DEBUG
 USERNAME    = 'simsong'
 DBFILE_NAME = 'server_db.sqlite'
-
-# Define the CORS configuration
-CORS_CONFIGURATION = {
-    'CORSRules': [
-        {
-            'AllowedOrigins': ['*'],               # Allow all origins with presigned POST and GETs
-            'AllowedMethods': ['GET', 'POST', 'PUT'],     # Methods to allow
-            'AllowedHeaders': ['*'],               # Allow all headers
-            'MaxAgeSeconds': 3000                  # Cache duration for preflight requests
-        }
-    ]
-}
 
 def create_app(test_config=None):
     """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)
     app.logger.setLevel(LOG_LEVEL)
+
+    # See https://flask.palletsprojects.com/en/stable/config/
     app.config.from_mapping(
+        # Flask configuration variables:
         SECRET_KEY='dev',
+        TEMPLATES_AUTO_RELOAD=True,
+        # Additional ones for us:
         DATABASE=os.path.join(app.instance_path, DBFILE_NAME),
-        MAX_IMAGE_SIZE=10_000_000,
         S3_BUCKET=f'{USERNAME}-cscie-11-s3-bucket'
     )
 
@@ -63,26 +57,21 @@ def create_app(test_config=None):
     except OSError:
         pass
 
-    # Apply the CORS policy to the S3 bucket
-    s3 = boto3.client('s3')
-    s3.put_bucket_cors(
-        Bucket=app.config['S3_BUCKET'],
-        CORSConfiguration=CORS_CONFIGURATION
-    )
-
-    # a simple page that says hello
+    # a simple page that says hello - for testing
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
+
+    # Static files
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory('static', 'favicon.ico')
+
 
     # Route templates
     @app.route('/')
     def index():
         return render_template('index.html')
-
-    @app.route('/favicon.ico')
-    def favicon():
-        return send_from_directory('static', 'favicon.ico')
 
     @app.route('/about')
     def about():
@@ -99,3 +88,9 @@ def create_app(test_config=None):
 
     # Return the application object
     return app
+
+#
+# If we are run from gunicorn, create the app object
+# 
+app = create_app()
+
