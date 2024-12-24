@@ -22,16 +22,17 @@
 <div id='message-form'>
 
   <p>This form is for testing the upload API. Enter the API_KEY and the API_SECRET_KEY and a message.</p>
-  <form class='pure-form pure-form-aligned' action="api/post-message" method="POST" onsubmit="list_messages(); return true;">
+  <!-- Note: we have the output of the form submission go to the hidden i-frame to avoid form submission with JavaScript -->
+  <form class='pure-form pure-form-aligned' action="api/post-message" method="POST" onsubmit="show_messages(); return true;" target="hidden-iframe">
     <fieldset>
       <div class='pure-control-group'>
         <label for='api-key'>API_KEY:</label>
-        <input type='text' id='api-key' name='api-key' class='uploadf' />
+        <input type='text' id='api-key' name='api_key' class='uploadf' />
         <span class="pure-form-message-inline">required</span>
       </div>
       <div class='pure-control-group'>
         <label for='api-secret-key'>API_SECRET_KEY:</label>
-        <input type='text' id='api-secret-key' name='api-secret-key' class='uploadf'/>
+        <input type='text' id='api-secret-key' name='api_secret_key' class='uploadf'/>
         <span class="pure-form-message-inline">required</span>
       </div>
       <div class='pure-control-group'>
@@ -45,6 +46,7 @@
       </div>
     </fieldset>
   </form>
+  <iframe name="hidden-iframe" style="display: none;"></iframe>
   <div id='message'></div>
 </div>
 
@@ -52,9 +54,7 @@
 
 <script src="static/messageboard.js"> </script>
 <script>
-function list_messages() {
-   console.log("list_messages");
-}
+show_messages();
 </script>
 
 

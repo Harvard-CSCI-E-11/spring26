@@ -13,7 +13,7 @@ from .db import get_db
 def get_messages():
     """Return an array of dicts for all the messages"""
     db = get_db()
-    return db.execute('SELECT * FROM messages ORDER BY created DESC').fetchall()
+    return db.execute('SELECT * FROM messages ORDER BY created DESC')
 
 
 def post_message(api_key_id,message):
@@ -31,8 +31,9 @@ def init_app(app):
     """Initialize the app and register the paths."""
 
     @app.route('/api/get-messages', methods=['GET'])
-    def get_messages():
-        return get_messages
+    def api_get_messages():
+        # Get the messages and expand every sqlite3.Row object into a dictionary
+        return [dict(message) for message in get_messages()]
 
     @app.route('/api/post-message', methods=['POST'])
     def api_post_message():

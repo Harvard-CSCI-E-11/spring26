@@ -75,7 +75,13 @@ def validate_api_key_request():
 
     """
     api_key         = request.values.get('api_key', type=str, default="")
+    if not api_key:
+        abort(401, description='api_key not provided')
+
     api_secret_key  = request.values.get('api_secret_key', type=str, default="")
+    if not api_secret_key:
+        abort(401, description='api_secret_key not provided')
+
     # Verify api_key and api_secret_key
     return validate_api_key(api_key, api_secret_key)
 

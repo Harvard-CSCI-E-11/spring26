@@ -1,4 +1,4 @@
-/** Run the server's get-chat
+/** lab4 show_messages() function.
  * This version shows all uploaded movies and requires no authentication.
  */
 function show_messages() {
@@ -12,20 +12,19 @@ function show_messages() {
         })
         .then(obj => {
             // Clear the table container and initialize Tabulator
-            $('#message-container').html('<div id="image-table"></div>');
+            $('#message-container').html('<div id="message-table"></div>');
 
             // Create a new Tabulator table
             new Tabulator("#message-table", {
                 data: obj, // Assign fetched data to the table
                 layout: "fitColumns", // Fit columns to width of the table
-                rowHeight: 120,
                 columns: [
-                    { title: "Created", field: "created" },
-                    { title: "message", field: "message" },
+                    { title: "Posted", field: "created" },
+                    { title: "Message", field: "message" },
                 ],
-                placeholder: "No data available", // Displayed when there is no data
+                placeholder: "No messages available yet", // Displayed when there is no data
             });
-            initImagePopups();
+            SetTimeout(show_messages, 5000); // call again in 5 seconds
         })
         .catch(error => {
             $('#message-container').text(`Uncaught error: ${error.message}`);
