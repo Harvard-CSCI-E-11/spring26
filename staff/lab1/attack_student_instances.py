@@ -1,14 +1,15 @@
 """
 This program reads the contents of the S3 bucket and attempts to log into each student machine.
 """
+import os
+import sys
 import asyncio
-
 import asyncssh
 import boto3
 
 S3_BUCKET = 'cscie-11'
 S3_PREFIX = 'students/'
-PROFILE = 'cscie11'
+PROFILE = 'fas'
 
 # Get the HIDDEN value
 try:

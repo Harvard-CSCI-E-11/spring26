@@ -24,10 +24,13 @@ logger.info('message')
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
+DOMAIN_SUFFIXES = ['', '-lab2', '-lab4', '-lab5', '-lab6']
 
 # Function to extract data from S3 object
 def extract(content):
+    """Given the content that the student uploaded to S3, extract the hostname, IP, and email"""
     (account_id, my_ip, email, name) = content.split(",")
+    logging.info("account_id=%s my_ip=%s email=%s name=%s",account_id, my_ip, email, name)
     account_id = account_id.strip()
     my_ip = my_ip.strip()
     hostname = "".join(email.strip().replace("@",".").split(".")[0:2])
@@ -35,8 +38,11 @@ def extract(content):
     return hostname, my_ip, email
 
 # Lambda handler
+# pylint: disable=unused-argument
+# pylint: disable=too-many-locals
 def lambda_handler(event, context):
-    logger.error(f"Event received: %s",event)
+    """Process the lambda event"""
+    logger.debug("Event received: %s",event)
 
     bucket_name = event['detail']['requestParameters']['bucketName']
     object_key = event['detail']['requestParameters']['key']
@@ -50,34 +56,32 @@ def lambda_handler(event, context):
     # Extract data using the extract function
     hostname, ip_address, email = extract(content)
 
-    # Create DNS record in Route53
-    full_hostname = f"{hostname}.{DOMAIN}"
-    logging.error("full_hostname=%s",full_hostname)
+    # Create DNS records in Route53
+    changes = []
+    hostnames = [f"{hostname}{suffix}.{DOMAIN}" for suffix in DOMAIN_SUFFIXES]
+    changes   = [{ "Action": "UPSERT",
+                         "ResourceRecordSet": {
+                             "Name": hostname,
+                             "Type": "A",
+                             "TTL": 300,
+                             "ResourceRecords": [{"Value": ip_address}]
+                             }}
+                 for hostname in hostnames]
 
     route53_response = route53_client.change_resource_record_sets(
         HostedZoneId=HOSTED_ZONE_ID,
         ChangeBatch={
-            "Changes": [
-                {
-                    "Action": "UPSERT",
-                    "ResourceRecordSet": {
-                        "Name": full_hostname,
-                        "Type": "A",
-                        "TTL": 300,
-                        "ResourceRecords": [{"Value": ip_address}],
-                    }
-                }
-            ]
+            "Changes": changes
         }
     )
-    logger.info(f"Route53 response: {route53_response}")
+    logger.info("Route53 response: %s",route53_response)
 
     # Send email notification using SES
-    email_subject = f"New DNS Record Created: {full_hostname}"
+    email_subject = f"New DNS Record Created: {hostnames[0]}"
     email_body = f"""
     The following DNS record has been created:
 
-    Hostname: {full_hostname}
+    Hostname: {hostnames[0]}
     IP Address: {ip_address}
 
     Best regards,
@@ -91,7 +95,7 @@ def lambda_handler(event, context):
             'Body': {'Text': {'Data': email_body}}
         }
     )
-    logger.info(f"SES response: {ses_response}")
+    logger.info("SES response: %s",ses_response)
 
     return {
         "statusCode": 200,

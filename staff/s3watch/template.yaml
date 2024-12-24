@@ -65,7 +65,7 @@ Resources:
   EventConsumerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: eventConsumer/
+      CodeUri: event_consumer/
       Handler: app.lambda_handler
       Runtime: python3.11
       Policies:
