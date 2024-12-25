@@ -10,6 +10,7 @@ image_controller: Controlls all aspects of uploading, downloading, listing, and 
 
 import os
 import json
+import socket
 
 import boto3
 from flask import request, jsonify, current_app, abort, redirect
@@ -17,7 +18,28 @@ from . import apikey
 from .db import get_db
 from . import rekognizer
 
+
+S3_BUCKET = socket.gethostname().replace('.','-') + '-cscie-11-s3-bucket'
+MAX_IMAGE_SIZE=10_000_000,
 JPEG_MIME_TYPE = 'image/jpeg'
+
+# Define the Cross Origin Resource Sharing Policy for the S3 bucket.
+# This tells the browser that it is safe to retrieve the S3 objects it gets the redirect
+# from the application.
+# See:
+# https://en.wikipedia.org/wiki/Cross-origin_resource_sharing
+# https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
+
+CORS_CONFIGURATION = {
+    'CORSRules': [
+        {
+            'AllowedOrigins': ['*'],               # Allow all origins with presigned POST and GETs
+            'AllowedMethods': ['GET', 'POST', 'PUT'],     # Methods to allow
+            'AllowedHeaders': ['*'],               # Allow all headers
+            'MaxAgeSeconds': 3000                  # Cache duration for preflight requests
+        }
+    ]
+}
 
 def list_images():
     """Return an array of dicts for all the images"""
@@ -119,3 +141,35 @@ def init_app(app):
             row['celeb_html'] = rekognizer.celebrities_to_html(celeb)
             print(row['celeb_html'])
         return rows
+
+    # Add new variable to the configuration
+    app.config['S3_BUCKET'] = S3_BUCKET
+    app.config['MAX_IMAGE_SIZE'] = MAX_IMAGE_SIZE
+
+    # Register CLI command
+    @click.command('apply-cors')
+    def apply_cors():
+        # Check to see if the bucket exists and creat it if it does not
+        s3 = boto3.client('s3')
+
+        try:
+            s3.head_bucket(Bucket=bucket_name)
+        except ClientError as e:
+            error_code = int(e.response['Error']['Code'])
+            if error_code == 404:
+                # Bucket does not exist; create it
+                s3.create_bucket(Bucket=bucket_name)
+                click.echo(f'Created bucket {app.config["S3_BUCKET"]}')
+        else:
+            print(f"Error checking bucket: {e}")
+            raise
+
+
+        # Apply the CORS policy to the S3 bucket
+        s3.put_bucket_cors(
+            Bucket=app.config['S3_BUCKET'],
+            CORSConfiguration=CORS_CONFIGURATION
+        )
+        click.echo(f'Applied CORS policy to bucket {app.config["S3_BUCKET"]}')
+
+    app.cli.add_command(apply_cors)

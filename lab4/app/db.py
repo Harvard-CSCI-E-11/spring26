@@ -27,16 +27,19 @@ def get_db():
 
 # pylint: disable=unused-argument
 def close_db(e=None):
-    """Close the database connection"""
+    """Close the database connection if one was set through g.db=<foo>"""
     db = g.pop('db', None)
     if db is not None:
         db.close()
 
 def init_db():
-    """Initialize the database"""
+    """Initialize the database by loading every file that begins 'schema' and ends '.sql'"""
     db = get_db()
-    with current_app.open_resource('schema.sql') as f:
-        db.executescript(f.read().decode('utf8'))
+    app_directory = app.root_path
+    for fname in os.listdir(app_directory):
+        if fname.startswith('schema') and fname.endswith('.sql'):
+            with current_app.open_resource(fname) as f:
+                db.executescript(f.read().decode('utf8'))
 
 @click.command('init-db')
 def init_db_command():
@@ -67,6 +70,9 @@ def dump_db_command():
 
 def init_app(app):
     """Initialize"""
+    # always call close_db when connection is finished.
     app.teardown_appcontext(close_db)
+
+    # Register CLI commands
     app.cli.add_command(init_db_command)
     app.cli.add_command(dump_db_command)

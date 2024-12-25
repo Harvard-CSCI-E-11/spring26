@@ -1,0 +1,1 @@
+../../lab4/app/schema_lab4.sql

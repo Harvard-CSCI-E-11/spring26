@@ -3,3 +3,4 @@ click
 flask
 boto3
 gunicorn
+pylint
