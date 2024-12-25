@@ -1,12 +1,10 @@
 """
-message_controller: implements a simple message server where new messages must be authenticated but anyone can view.
+message_controller: implements a simple message server where new
+messages must be authenticated but anyone can view.
+
 """
 
-import os
-import json
-
-import boto3
-from flask import request, jsonify, current_app, abort, redirect
+from flask import request, current_app, abort, redirect
 from . import apikey
 from .db import get_db
 

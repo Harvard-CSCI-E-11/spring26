@@ -4,6 +4,7 @@ This uses a SQLite3 database. For a system serving multiple users simultaneously
 use MySQL or DynamoDB instead.
 """
 
+import os
 import sqlite3
 from datetime import datetime
 
@@ -16,7 +17,8 @@ sqlite3.register_converter(
 )
 
 def get_db():
-    """Return a database connection"""
+    """Return a database connection.
+    """
     if 'db' not in g:
         g.db = sqlite3.connect(
             current_app.config['DATABASE'],
@@ -33,9 +35,11 @@ def close_db(e=None):
         db.close()
 
 def init_db():
-    """Initialize the database by loading every file that begins 'schema' and ends '.sql'"""
+    """Initialize the database by loading every file that begins 'schema' and ends '.sql'
+    current_app is set by click CLI.
+    """
     db = get_db()
-    app_directory = app.root_path
+    app_directory = current_app.root_path
     for fname in os.listdir(app_directory):
         if fname.startswith('schema') and fname.endswith('.sql'):
             with current_app.open_resource(fname) as f:

@@ -1,0 +1,1 @@
+../../../lab4/app/static/messageboard.js
