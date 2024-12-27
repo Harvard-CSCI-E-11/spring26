@@ -1,5 +1,8 @@
+# lab5.service:
+# Similar to the lab4 service file, but with different port numbers and file names
+
 [Unit]
-Description=Gunicorn instance to serve Flask application for Lab5
+Description=Gunicorn instance to serve Flask application
 After=network.target
 
 [Service]
@@ -10,10 +13,14 @@ WorkingDirectory=/home/ec2-user/spring25/lab5
 # Run gunicorn:
 # --reload - automatically reloads the app when the program changes
 # -w 4     - four workers
-# -b 127.0.0.1:5005 - listens on localhost, port 5005
+# -b 127.0.0.1:8004 - listens on localhost, port 8005
 # app:app  - runs the 'app' attribute instead a module called 'app'
 
-ExecStart=/usr/local/bin/gunicorn --reload -w 4 -b 127.0.0.1:5005 app:app
+ExecStart=/home/ec2-user/spring25/lab5/venv/bin/gunicorn \
+    --reload -w 2 -b 127.0.0.1:8005 \
+    --access-logfile=/home/ec2-user/spring25/lab5/logs/access.log \
+    --error-logfile=/home/ec2-user/spring25/lab5/logs/error.log \
+    app:app
 
 # Optional: specify environment variables if needed
 # Environment="PATH=/path/to/your/venv/bin"
