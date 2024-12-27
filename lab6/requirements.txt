@@ -1,2 +1,4 @@
 circup
 adafruit-ampy
+pylint
+adafruit-blinka

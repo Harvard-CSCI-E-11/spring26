@@ -20,6 +20,10 @@ from . import message_controller
 # lab5 includes the image_controller.
 # Load it if image_controller.py is in the current directory
 # If not, this throws an error, and we set image_controller to Null
+#
+# For a full plug-in system, we could scan the directory for anything
+# named 'plugin*.py' or '*controller.py' and dynamically load each.
+
 try:
     from . import image_controller
 except ImportError as e:
@@ -29,6 +33,7 @@ LOG_LEVEL   = logging.DEBUG
 USERNAME    = 'simsong'
 DBFILE_NAME = 'server_db.sqlite'
 
+# pylint: disable=redefined-outer-name
 def create_app(test_config=None):
     """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)

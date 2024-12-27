@@ -4,6 +4,7 @@ This uses a SQLite3 database. For a system serving multiple users simultaneously
 use MySQL or DynamoDB instead.
 """
 
+import os
 import sqlite3
 from datetime import datetime
 
@@ -16,7 +17,8 @@ sqlite3.register_converter(
 )
 
 def get_db():
-    """Return a database connection"""
+    """Return a database connection.
+    """
     if 'db' not in g:
         g.db = sqlite3.connect(
             current_app.config['DATABASE'],
@@ -27,16 +29,21 @@ def get_db():
 
 # pylint: disable=unused-argument
 def close_db(e=None):
-    """Close the database connection"""
+    """Close the database connection if one was set through g.db=<foo>"""
     db = g.pop('db', None)
     if db is not None:
         db.close()
 
 def init_db():
-    """Initialize the database"""
+    """Initialize the database by loading every file that begins 'schema' and ends '.sql'
+    current_app is set by click CLI.
+    """
     db = get_db()
-    with current_app.open_resource('schema.sql') as f:
-        db.executescript(f.read().decode('utf8'))
+    app_directory = current_app.root_path
+    for fname in os.listdir(app_directory):
+        if fname.startswith('schema') and fname.endswith('.sql'):
+            with current_app.open_resource(fname) as f:
+                db.executescript(f.read().decode('utf8'))
 
 @click.command('init-db')
 def init_db_command():
@@ -67,6 +74,9 @@ def dump_db_command():
 
 def init_app(app):
     """Initialize"""
+    # always call close_db when connection is finished.
     app.teardown_appcontext(close_db)
+
+    # Register CLI commands
     app.cli.add_command(init_db_command)
     app.cli.add_command(dump_db_command)

@@ -1,5 +1,10 @@
+"""
+rekognizer.py - Interface app to Amazon Rekognition API.
+"""
+
 import boto3
 import json
+from botocore.exceptions import BotoCoreError
 
 def recognize_celebrities(bucket_name, object_key):
     """
@@ -27,15 +32,6 @@ def recognize_celebrities(bucket_name, object_key):
         )
         # Extract and return details about recognized celebrities as a block of HTML
         return response.get('CelebrityFaces', [])
-    except Exception as e:
+    except BotoCoreError as e:
         print(f"Error: {e}")
         return None
-
-def celebrities_to_html(celebs):
-    html = ''
-    for celeb in celebs:
-        html += f"Name: {celeb.get('Name')} Confidence: {celeb.get('MatchConfidence'):2.4}% "
-        for url in celeb.get('Urls', []):
-            html += f"<a target='_' href='https://{url}'>[link]</a>"
-        html += "<br/>\n"
-    return html

@@ -1,0 +1,2 @@
+ampy --port /dev/cu.usbserial-210 ls
+
