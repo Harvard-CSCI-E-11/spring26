@@ -24,7 +24,7 @@ function show_messages() {
                 ],
                 placeholder: "No messages available yet", // Displayed when there is no data
             });
-            SetTimeout(show_messages, 5000); // call again in 5 seconds
+            setTimeout(show_messages, 5000); // call again in 5 seconds
         })
         .catch(error => {
             $('#message-container').text(`Uncaught error: ${error.message}`);

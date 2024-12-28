@@ -12,6 +12,9 @@
 #
 # Create the virtual environment
 venv:
+	make venv/pyvenv.cfg
+
+venv/pyvenv.cfg:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv
 	. venv/bin/activate ; python3 -m pip install --upgrade pip
@@ -19,18 +22,20 @@ venv:
 
 #
 # Install the lab4.services file
-install-lab4-service:
+install-lab4-service: venv/pyvenv.cfg
 	sudo install lab4.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab4
 	sudo systemctl start lab4
 	@# Do not overwrite lab4 as it may have been customized
 	@if [ ! -r /etc/httpd/conf.d/lab4.conf ]; \
-		then echo installing /etc/httpd/conf/lab4.conf ; \
+		then echo installing /etc/httpd/conf.d/lab4.conf ; \
 		sudo install lab4.conf /etc/httpd/conf.d/ ; \
-		else echo /etc/httpd/conf/lab4.conf already installed ; \
+		else echo /etc/httpd/conf.d/lab4.conf already installed ; \
 	fi
-	echo do not forget to edit /etc/httpd/conf/lab4.conf
+	@echo
+	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab4.conf, restart apache, run certbot, and restart apache again
+	@echo You may also need to restart your web browser.
 
 ################################################################
 # Application targets
@@ -66,4 +71,3 @@ pylint:
 # make venv always run, even if it exists
 .PHONY: venv
 .PHONY: install-lab4-service
-

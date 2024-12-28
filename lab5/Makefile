@@ -7,6 +7,9 @@
 #
 # Create the virtual environment
 venv:
+	make venv/pyvenv.cfg
+
+venv/pyvenv.cfg:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv
 	. venv/bin/activate ; python3 -m pip install --upgrade pip
@@ -14,18 +17,20 @@ venv:
 
 #
 # Install the lab5.services file
-install-lab5-service:
+install-lab5-service: venv/pyvenv.cfg
 	sudo install lab5.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab5
 	sudo systemctl start lab5
 	@# Do not overwrite lab5 as it may have been customized
 	@if [ ! -r /etc/httpd/conf.d/lab5.conf ]; \
-		then echo installing /etc/httpd/conf/lab5.conf ; \
+		then echo installing /etc/httpd/conf.d/lab5.conf ; \
 		sudo install lab5.conf /etc/httpd/conf.d/ ; \
-		else echo /etc/httpd/conf/lab5.conf already installed ; \
+		else echo /etc/httpd/conf.d/lab5.conf already installed ; \
 	fi
-	echo do not forget to edit /etc/httpd/conf/lab5.conf
+	@echo
+	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab5.conf, restart apache, and run certbot, and restart apache again
+	@echo You may also need to restart your web browser.
 
 ################################################################
 # Application targets

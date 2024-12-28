@@ -68,7 +68,6 @@ def create_bucket_and_apply_cors(bucket_name):
         Bucket=bucket_name,
         CORSConfiguration=CORS_CONFIGURATION
     )
-    click.echo(f'Applied CORS policy to bucket {bucket_name}')
 
 
 def list_images():
@@ -203,5 +202,6 @@ def init_app(app):
     @click.command('apply-cors')
     def cli_apply_cors():
         create_bucket_and_apply_cors(app.config["S3_BUCKET"])
+        click.echo(f'Applied CORS policy to bucket {bucket_name}')
 
-    app.cli.add_command(create_bucket_and_apply_cors)
+    app.cli.add_command(cli_apply_cors)

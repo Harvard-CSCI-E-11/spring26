@@ -10,6 +10,7 @@ https://github.com/blep/flaskr
 
 import os
 import logging
+import json
 
 import boto3
 from flask import Flask, render_template, send_from_directory
@@ -66,7 +67,7 @@ def create_app(test_config=None):
     # a simple page that says hello - for testing
     @app.route('/hello')
     def hello():
-        return 'Hello, World!'
+        return f'Hello, World!. __file__={__file__} app.instance_path={app.instance_path}'
 
     # Static files
     @app.route('/favicon.ico')
