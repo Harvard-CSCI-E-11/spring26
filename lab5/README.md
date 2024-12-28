@@ -9,7 +9,7 @@ git clone https://github.com/Harvard-CSCI-E-11/spring25
 Then do these steps:
 
 1. Install and start up the lab4 service.
-   (Note that we now run gunicorn on port 5004 to avoid conflicting with the gunicorn set up for lab2)
+   (Note that we now run gunicorn on port 8005 to avoid conflicting with the gunicorn set up for lab2)
 
    command to type:
    ```
@@ -17,6 +17,6 @@ Then do these steps:
    ```
 
 2. Add the -lab4 virtual host to your httpd configuration file (see the lab).
-   Be sure to specify port 5004 for `mod_proxy`!
+   Be sure to specify port 8005 for `mod_proxy`!
 
 3. Tell the Let's Encrypt certbot to add a TLS certificate for the new virtual host.

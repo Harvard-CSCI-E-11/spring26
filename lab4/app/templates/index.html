@@ -40,7 +40,7 @@
         <input type='text' id='message' name='message' class='uploadf'/>
         <span class="pure-form-message-inline">required</span>
       </div>
-      <div class='pure-control-group'>
+      <div class='pure-control-group' id='submit-group'>
         <label for='submit-button'>Click to post:</label>
         <input id='submit-button' type='submit' value='POST' class='uploadf' />
       </div>
@@ -50,6 +50,13 @@
   <div id='message'></div>
 </div>
 
+<!-- If we are in lab5, bring in the image interaction -->
+{% if lab_number == "5" %}
+<div id='lab5'></div>
+<script src="static/imageboard.js"></script>
+{% endif %}
+
+
 <!-- bring in the messageboard -->
 
 <script src="static/messageboard.js"> </script>
@@ -57,9 +64,5 @@
 show_messages();
 </script>
 
-
-<!-- If we are in lab5, bring in the image interaction -->
-{% if lab5 %}
-{% endif %}
 {% endblock %}
 <!-- index end -->

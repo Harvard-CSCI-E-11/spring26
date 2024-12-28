@@ -1,7 +1,7 @@
 "use strict";
 console.log('start');
 
-/* lab5: image_interaction.js
+/* lab5: imageboard.js
  * Code for uploading and displaying images.
  */
 
@@ -11,12 +11,12 @@ const MAX_FILE_UPLOAD = 10*1000*1000;
 
 ////////////////////////////////////////////////////////////////
 /// Enable the image-file upload when a file is selected and both the api-key and api-secret-key are provided.
-function enable_disable_upload_button()
+function enable_disable_submit_button()
 {
     const enable = $('#image-file').val().length > 0 &&
           $('#api-key').val().length > 0 &&
           $('#api-secret-key').val().length > 0;
-    $('#upload-button').prop('disabled', !enable);
+    $('#submit-button').prop('disabled', !enable);
     if (enable) {
         $('#message').text('ready to upload!');
     } else {
@@ -45,7 +45,7 @@ function initImagePopups()
  * https://aws.amazon.com/blogs/compute/uploading-to-amazon-s3-directly-from-a-web-or-mobile-application/
  * https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-presigned-urls.html
  *
- * Presigned post is provided by the /api/new-image call (see below)
+ * Presigned post is provided by the /api/post-image call (see below)
  */
 function upload_image_post(imageFile) {
     // Get a presigned post from the server
@@ -55,7 +55,7 @@ function upload_image_post(imageFile) {
     formData.append("api_secret_key", $('#api-secret-key').val());
     formData.append("image_data_length", imageFile.size);
 
-    fetch('api/new-image', { method: "POST", body: formData })
+    fetch('api/post-image', { method: "POST", body: formData })
         .then(r => {
             if (!r.ok) {
                 $('#message').text(`Error: ${r.status} ${r.statusText}`);
@@ -64,7 +64,7 @@ function upload_image_post(imageFile) {
             return r.json();    // returned to next .then()
         })
         .then(obj => {
-            console.log("api/new-image returned obj=",obj);
+            console.log("api/post-image returned obj=",obj);
             $('#message').text(`Uploading image ${obj.image_id}...`);
             const uploadFormData = new FormData();
             for (const field in obj.presigned_post.fields) {
@@ -97,8 +97,8 @@ function upload_image_post(imageFile) {
         });
     // A successful POST clears the image to upload.
     // Clear the button and list the images
-    enable_disable_upload_button();
-    show_chat();
+    enable_disable_submit_button();
+    show_messages();
 }
 
 /** The function that is called when the upload_image button is clicked.
@@ -114,20 +114,11 @@ function upload_image()
     upload_image_post(imageFile);
 }
 
-$( document ).ready( function() {
-    console.log("lab4.js ready function running.")
-    // set the correct enable/disable status of the upload button, and configure
-    // it to change when any of the form controls change
-    enable_disable_upload_button();
-    $('.uploadf').on('change', enable_disable_upload_button );
-    $('#upload-button').on('click', upload_image);
-});
-
-
-/** Run the server's get-chat
- * This version shows all uploaded movies and requires no authentication.
+/** lab5 show_messages() function.
+ * This version loads after the lab4 show_messages() function and overwrites it.
  */
 function show_messages() {
+    console.log("lab5 show_messages");
     fetch('api/get-messages', { method: "GET" })
         .then(r => {
             if (!r.ok) {
@@ -159,7 +150,7 @@ function show_messages() {
                     },
                     { title: "Celebrity", field: "celeb_html", formatter:"html"}
                 ],
-                placeholder: "No data available", // Displayed when there is no data
+                placeholder: "No lab5 messages yet", // Displayed when there is no data
             });
             initImagePopups();
         })
@@ -169,4 +160,23 @@ function show_messages() {
 }
 
 
-console.log('image_interaction.js');
+$( document ).ready( function() {
+    console.log("lab5 ready function running.")
+
+    // add the field to the form
+    const pos = document.getElementById('submit-group');
+    pos.insertAdjacentHTML('beforebegin',`
+      <div class='pure-control-group'>
+        <label for='message'>IMAGE:</label>
+        <input type='file' id='image-file' name='image' class='uploadf'/>
+      </div>`);
+    // change the submit-button from a SUBMIT into a BUTTON
+    document.getElementById('submit-button').setAttribute('type','button');
+    document.getElementById('submit-button').value='UPLOAD';
+
+    // set the correct enable/disable status of the upload button, and configure
+    // it to change when any of the form controls change
+    enable_disable_submit_button();
+    $('.uploadf').on('change', enable_disable_submit_button );
+    $('#submit-button').on('click', upload_image);
+});

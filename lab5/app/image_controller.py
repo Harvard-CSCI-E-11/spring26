@@ -161,7 +161,7 @@ def init_app(app):
 
     @app.route('/api/list-images', methods=['GET'])
     def api_list_images():
-        """List the imsages.
+        """List the images.
 
         Note 1: that the function list_images()
         returns a list of SQLIte3 Row objects. They need to be turned

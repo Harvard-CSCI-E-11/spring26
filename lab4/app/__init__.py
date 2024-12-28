@@ -11,6 +11,7 @@ https://github.com/blep/flaskr
 import os
 import logging
 import json
+import re
 
 import boto3
 from flask import Flask, render_template, send_from_directory
@@ -40,6 +41,12 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.logger.setLevel(LOG_LEVEL)
 
+    m = re.search(r"lab(\d)",__file__)
+    if m:
+        lab_number = m.group(1)
+    else:
+        lab_number = '?'
+
     # See https://flask.palletsprojects.com/en/stable/config/
     app.config.from_mapping(
         # Flask configuration variables:
@@ -47,8 +54,10 @@ def create_app(test_config=None):
         # For development, disable caching in Flask and browser:
         TEMPLATES_AUTO_RELOAD=True,
         SEND_FILE_MAX_AGE_DEFAULT=0,
-        # Additional config for lab4:
-        DATABASE=os.path.join(app.instance_path, DBFILE_NAME)
+
+        # Additional config for lab:
+        DATABASE=os.path.join(app.instance_path, DBFILE_NAME),
+        LAB_NUMBER = lab_number
     )
 
     if test_config is None:
@@ -74,11 +83,10 @@ def create_app(test_config=None):
     def favicon():
         return send_from_directory('static', 'favicon.ico')
 
-
     # Route templates
     @app.route('/')
     def index():
-        return render_template('index.html')
+        return render_template('index.html',lab_number=app.config['LAB_NUMBER'])
 
     @app.route('/about')
     def about():

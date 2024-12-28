@@ -2,6 +2,7 @@
  * This version shows all uploaded movies and requires no authentication.
  */
 function show_messages() {
+    console.log("lab4 show_messages");
     fetch('api/get-messages', { method: "GET" })
         .then(r => {
             if (!r.ok) {
@@ -22,7 +23,7 @@ function show_messages() {
                     { title: "Posted", field: "created" },
                     { title: "Message", field: "message" },
                 ],
-                placeholder: "No messages available yet", // Displayed when there is no data
+                placeholder: "No lab4 messages yet", // Displayed when there is no data
             });
             setTimeout(show_messages, 5000); // call again in 5 seconds
         })
