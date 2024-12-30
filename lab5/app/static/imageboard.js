@@ -18,9 +18,9 @@ function enable_disable_submit_button()
           $('#api-secret-key').val().length > 0;
     $('#submit-button').prop('disabled', !enable);
     if (enable) {
-        $('#message').text('ready to upload!');
+        $('#status-message').text('ready to upload!');
     } else {
-        $('#message').text(''); // clear the message if button is disabled
+        $('#status-message').text(''); // clear the message if button is disabled
     }
 }
 
@@ -49,7 +49,7 @@ function initImagePopups()
  */
 function upload_image_post(imageFile) {
     // Get a presigned post from the server
-    $('#message').text(`Requesting signed upload...`);
+    $('#status-message').text(`Requesting signed upload...`);
     let formData = new FormData();
     formData.append("api_key", $('#api-key').val());
     formData.append("api_secret_key", $('#api-secret-key').val());
@@ -58,14 +58,18 @@ function upload_image_post(imageFile) {
     fetch('api/post-image', { method: "POST", body: formData })
         .then(r => {
             if (!r.ok) {
-                $('#message').text(`Error: ${r.status} ${r.statusText}`);
+                $('#status-message').text(`Error: ${r.status} ${r.statusText}`);
                 throw new Error(`Failed to get signed upload URL: ${r.statusText}`);
             }
             return r.json();    // returned to next .then()
         })
         .then(obj => {
             console.log("api/post-image returned obj=",obj);
-            $('#message').text(`Uploading image ${obj.image_id}...`);
+	    if (obj.error) {
+                throw { message: obj.error };
+	    }
+
+            $('#status-message').text(`Uploading image ${obj.image_id}...`);
             const uploadFormData = new FormData();
             for (const field in obj.presigned_post.fields) {
                 uploadFormData.append(field, obj.presigned_post.fields[field]);
@@ -85,14 +89,14 @@ function upload_image_post(imageFile) {
                 $('#upload_message').text(`Error uploading image status=${uploadResponse.status} ${uploadResponse.statusText}`);
                 throw new Error(`Upload failed: ${uploadResponse.statusText}`);
             }
-            $('#message').text('Image uploaded.');
+            $('#status-message').text('Image uploaded.');
             $('#image-file').val(''); // clear the uploaded image
         })
         .catch(error => {
             if (error.name === 'AbortError') {
-                $('#message').text(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
+                $('#status-message').text(`Timeout (${UPLOAD_TIMEOUT_SECONDS}s) uploading image.`);
             } else {
-                $('#message').text(`An error occurred: ${error.message}`);
+                $('#status-message').text(`An error occurred: ${error.message}`);
             }
         });
     // A successful POST clears the image to upload.
@@ -108,7 +112,7 @@ function upload_image()
 {
     const imageFile   = $('#image-file').prop('files')[0];
     if (imageFile.fileSize > MAX_FILE_UPLOAD) {
-        $('#message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
+        $('#status-message').text(`That file is too big to upload. Please chose a file smaller than ${MAX_FILE_UPLOAD} bytes.`);
         return;
     }
     upload_image_post(imageFile);

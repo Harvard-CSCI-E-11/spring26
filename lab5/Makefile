@@ -43,6 +43,10 @@ local-app:
 help:
 	. venv/bin/activate; flask --app app --help
 
+# Create the s3 bucket and establish the CORS policy
+init-s3:
+	. venv/bin/activate; flask --app app init-s3
+
 # Create a new database
 init-db:
 	. venv/bin/activate; flask --app app init-db

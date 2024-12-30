@@ -23,7 +23,6 @@ from .db import get_db
 from . import apikey
 from . import message_controller
 
-
 S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
@@ -77,29 +76,27 @@ def recognize_celebrities(bucket_name, object_key):
         print(f"Error: {e}")
         return None
 
-def create_bucket_and_apply_cors(bucket_name):
+@click.command('init-s3')
+def create_bucket_and_apply_cors():
     """Check to see if the bucket exists and create it if it does not."""
     s3 = boto3.client('s3')
 
     try:
-        s3.head_bucket(Bucket=bucket_name)
+        s3.head_bucket(Bucket=S3_BUCKET)
     except ClientError as e:
         error_code = int(e.response['Error']['Code'])
         if error_code == 404:
             # Bucket does not exist; create it
-            s3.create_bucket(Bucket=bucket_name)
-            click.echo(f'Created bucket {bucket_name}')
+            s3.create_bucket(Bucket=S3_BUCKET)
+            click.echo(f'Created bucket {S3_BUCKET}')
         else:
             print(f"Error checking bucket: {e}")
             raise
 
     # Apply the CORS policy to the S3 bucket
-    s3.put_bucket_cors(
-        Bucket=bucket_name,
-        CORSConfiguration=CORS_CONFIGURATION
-    )
-
-
+    s3.put_bucket_cors( Bucket=S3_BUCKET,
+                        CORSConfiguration=CORS_CONFIGURATION )
+    click.echo(f'CORS policy applied to {S3_BUCKET}')
 def list_images():
     """Return an array of dicts for all the images.
 
@@ -129,8 +126,8 @@ def new_image(api_key_id, linked_message_id, s3key):
 def init_app(app):
     """Initialize the app and register the paths."""
     def presigned_url_for_s3key(s3key):
-        s3_client = boto3.session.Session().client( "s3" )
-        presigned_url = s3_client.generate_presigned_url(
+        s3 = boto3.session.Session().client( "s3" )
+        presigned_url = s3.generate_presigned_url(
             'get_object',
             Params={'Bucket': current_app.config['S3_BUCKET'],
                     'Key': s3key},
@@ -143,9 +140,22 @@ def init_app(app):
         :param api_key: the user's api_key
         :param api_secret_key: the user's api_secret_key
         :param message: the message to post
-        :return: the post to use for uploading the image.
+        :return: JSON containing the post to use for uploading the image.
                  The client will post the image directly to S3.
+                 if error, JSON containing 'error:<message>'
         """
+
+        # If the bucket does not exist, tell the user
+        s3 = boto3.session.Session().client( "s3" )
+        try:
+            s3.head_bucket(Bucket=S3_BUCKET)
+        except ClientError as e:
+            error_code = int(e.response['Error']['Code'])
+            if error_code == 404:
+                error_message = 'S3 bucket does not exist'
+            else:
+                error_message = f'S3 error: {e}'
+            return {'error':error_message}
 
         # First validate the API key and post the message
         api_key_id = apikey.validate_api_key_request()
@@ -153,9 +163,8 @@ def init_app(app):
         message_id = message_controller.post_message(api_key_id, message)
 
         # Now get params for the signed S3 POST
-        s3_client = boto3.session.Session().client( "s3" )
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
-        presigned_post = s3_client.generate_presigned_post(
+        presigned_post = s3.generate_presigned_post(
             Bucket=app.config['S3_BUCKET'],
             Key=s3key,
             Conditions=[
@@ -173,65 +182,6 @@ def init_app(app):
                         api_key_id,presigned_post,image_id)
         return jsonify({'presigned_post':presigned_post,'image_id':image_id})
 
+    app.cli.add_command(create_bucket_and_apply_cors)
 
-    @app.route('/api/get-image', methods=['POST','GET'])
-    def api_get_image():
-        """Given a request for an image_id, return a presigned URL that will let the client
-        directly GET the image from S3. NOTE: No authenticaiton.
-        """
-        # Get the URN for the image_id
-        image_id = request.values.get('image_id', type=int, default=0)
-        s3key    = get_image_info(image_id)['s3key']
-        presigned_url = presigned_url_for_s3key(s3key)
-        app.logger.info("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
 
-        # Now redirect to it.
-        # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
-        return redirect(presigned_url, code=302)
-
-    @app.route('/api/list-images', methods=['GET'])
-    def api_list_images():
-        """List the images.
-
-        Note 1: that the function list_images()
-        returns a list of SQLIte3 Row objects. They need to be turned
-        into an array of dict() objects, and each s3key needs to be
-        turned into a url.
-
-        Note 2: This interface returns *all* of the images. A
-        production system would return just some of them.
-
-        """
-        # Get all of the images and convert each SQLite3 Row object to a dictionary
-        # (so we can modify it)
-
-        rows = [dict(row) for row in list_images()]
-
-        # Now, for each row:
-        # 1. If we don't celeb info for it, generate the JSON and store that in the database
-        # 2. Add a signed url for the s3key
-        db = get_db()
-        for row in rows:
-            if row['celeb']:
-                celeb = json.loads(row['celeb_json'])
-            else:
-                celeb = recognize_celebrities(app.config['S3_BUCKET'], s3key)
-                row['celeb'] = celeb
-                db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),s3key))
-                db.commit()
-
-            s3key = row['s3key']
-            row['url'] = presigned_url_for_s3key(s3key)
-        return rows
-
-    # Add new variable to the configuration
-    app.config['S3_BUCKET'] = S3_BUCKET
-    app.config['MAX_IMAGE_SIZE'] = MAX_IMAGE_SIZE
-
-    # Register CLI command
-    @click.command('create-bucket')
-    def cli_apply_cors():
-        create_bucket_and_apply_cors(app.config["S3_BUCKET"])
-        click.echo(f'Applied CORS policy to bucket {bucket_name}')
-
-    app.cli.add_command(cli_apply_cors)
