@@ -15,17 +15,16 @@ import socket
 
 import click
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError,ClientError
 
 from flask import request, jsonify, current_app, redirect
 
 from .db import get_db
 from . import apikey
-from . import rekognizer
 from . import message_controller
 
 
-S3_BUCKET = socket.gethostname().replace('.','-') + '-cscie-11-s3-bucket'
+S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
 
@@ -46,6 +45,37 @@ CORS_CONFIGURATION = {
         }
     ]
 }
+
+
+def recognize_celebrities(bucket_name, object_key):
+    """
+    Recognizes celebrities in an image stored in an S3 bucket using Amazon Rekognition.
+
+    Args:
+        bucket_name (str): The name of the S3 bucket.
+        object_key (str): The key of the JPEG file in the S3 bucket.
+
+    Returns:
+        list: A list of dictionaries containing information about recognized celebrities.
+    """
+    # Initialize the Rekognition client
+    rekognition_client = boto3.client('rekognition')
+
+    # Call the recognize_celebrities API
+    try:
+        response = rekognition_client.recognize_celebrities(
+            Image={
+                'S3Object': {
+                    'Bucket': bucket_name,
+                    'Name': object_key
+                }
+            }
+        )
+        # Extract and return details about recognized celebrities as a block of HTML
+        return response.get('CelebrityFaces', [])
+    except BotoCoreError as e:
+        print(f"Error: {e}")
+        return None
 
 def create_bucket_and_apply_cors(bucket_name):
     """Check to see if the bucket exists and create it if it does not."""
@@ -185,7 +215,7 @@ def init_app(app):
             if row['celeb']:
                 celeb = json.loads(row['celeb_json'])
             else:
-                celeb = rekognizer.recognize_celebrities(app.config['S3_BUCKET'], s3key)
+                celeb = recognize_celebrities(app.config['S3_BUCKET'], s3key)
                 row['celeb'] = celeb
                 db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),s3key))
                 db.commit()
@@ -199,7 +229,7 @@ def init_app(app):
     app.config['MAX_IMAGE_SIZE'] = MAX_IMAGE_SIZE
 
     # Register CLI command
-    @click.command('apply-cors')
+    @click.command('create-bucket')
     def cli_apply_cors():
         create_bucket_and_apply_cors(app.config["S3_BUCKET"])
         click.echo(f'Applied CORS policy to bucket {bucket_name}')

@@ -28,13 +28,13 @@ def post_message(api_key_id,message):
 def init_app(app):
     """Initialize the app and register the paths."""
 
-    @app.route('/api/get-messages', methods=['GET'])
-    def api_get_messages():
-        # Get the messages and expand every sqlite3.Row object into a dictionary
-        return [dict(message) for message in get_messages()]
-
     @app.route('/api/post-message', methods=['POST'])
     def api_post_message():
         api_key_id = apikey.validate_api_key_request()
         post_message(api_key_id, request.values.get('message'))
         return "OK",200
+
+    @app.route('/api/get-messages', methods=['GET'])
+    def api_get_messages():
+        # Get the messages and expand every sqlite3.Row object into a dictionary
+        return [dict(message) for message in get_messages()]
