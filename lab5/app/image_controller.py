@@ -97,6 +97,7 @@ def create_bucket_and_apply_cors():
     s3.put_bucket_cors( Bucket=S3_BUCKET,
                         CORSConfiguration=CORS_CONFIGURATION )
     click.echo(f'CORS policy applied to {S3_BUCKET}')
+
 def list_images():
     """Return an array of dicts for all the images.
 
@@ -129,7 +130,7 @@ def init_app(app):
         s3 = boto3.session.Session().client( "s3" )
         presigned_url = s3.generate_presigned_url(
             'get_object',
-            Params={'Bucket': current_app.config['S3_BUCKET'],
+            Params={'Bucket': S3_BUCKET,
                     'Key': s3key},
             ExpiresIn=3600)     # give an hour
         return presigned_url
@@ -165,7 +166,7 @@ def init_app(app):
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
         presigned_post = s3.generate_presigned_post(
-            Bucket=app.config['S3_BUCKET'],
+            Bucket=S3_BUCKET,
             Key=s3key,
             Conditions=[
                 {"Content-Type": JPEG_MIME_TYPE}, # Explicitly allow Content-Type header
