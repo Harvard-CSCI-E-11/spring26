@@ -108,7 +108,7 @@ def list_images():
 
     """
     db = get_db()
-    return db.execute('select message_id,messages.created as created,message,image_id,celeb_json from messages left join images where messages.message_id = images.linked_message_id;').fetchall()
+    return db.execute('select message_id,messages.created as created,message,image_id,celeb_json,s3key from messages left join images where messages.message_id = images.linked_message_id;').fetchall()
 
 def get_image_info(image_id):
     """Return a dict for a specific image."""

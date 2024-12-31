@@ -118,6 +118,7 @@ function upload_image_post(imageFile) {
     let formData = new FormData();
     formData.append("api_key", $('#api-key').val());
     formData.append("api_secret_key", $('#api-secret-key').val());
+    formData.append("message", $('#message').val());
     formData.append("image_data_length", imageFile.size);
 
     fetch('api/post-image', { method: "POST", body: formData })
