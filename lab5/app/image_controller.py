@@ -15,6 +15,7 @@ import socket
 
 import click
 import boto3
+import logging
 from botocore.exceptions import BotoCoreError,ClientError
 
 from flask import request, jsonify, current_app, redirect
@@ -162,7 +163,7 @@ def init_app(app):
         api_key_id = apikey.validate_api_key_request()
         message    = request.values.get('message')
         message_id = message_controller.post_message(api_key_id, message)
-        console.log("Message %s posted. message_id=%s",message,message_id)
+        logging.info("Message %s posted. message_id=%s",message,message_id)
 
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"

@@ -42,7 +42,6 @@ function show_images() {
                             field: "url",
                             formatter: function (cell, formatterParams) {
                                 const url = cell.getValue();
-                                console.log("cell=",cell,"url=",url);
                                 if (!url) {
                                     return `n/a`;
                                 }
