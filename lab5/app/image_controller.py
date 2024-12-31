@@ -108,7 +108,7 @@ def list_images():
 
     """
     db = get_db()
-    return db.execute('SELECT * FROM images').fetchall()
+    return db.execute('select message_id,messages.created as created,message,image_id,celeb_json from messages left join images where messages.message_id = images.linked_message_id;').fetchall()
 
 def get_image_info(image_id):
     """Return a dict for a specific image."""
@@ -224,16 +224,14 @@ def init_app(app):
         # 1. If we don't celeb info for it, generate the JSON and store that in the database
         # 2. Add a signed url for the s3key
         for row in rows:
-            if row['s3key']:
-                if row['celeb_json']:
-                    celeb = json.loads(row['celeb_json'])
-                    del row['celeb_json'] # remove undecoded
-                else:
-                    celeb = recognize_celebrities(S3_BUCKET, row['s3key'])
-                    db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),row['s3key']))
-                    db.commit()
-                row['celeb'] = celeb
-                row['url'] = presigned_url_for_s3key(row['s3key'])
+            if row['celeb_json']:
+                celeb = json.loads(row['celeb_json'])
+                del row['celeb_json'] # remove undecoded
+            else:
+                celeb = recognize_celebrities(S3_BUCKET, row['s3key'])
+                db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),row['s3key']))
+                db.commit()
+            row['celeb'] = celeb
         return rows
 
     app.cli.add_command(create_bucket_and_apply_cors)

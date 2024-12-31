@@ -36,19 +36,30 @@ function show_images() {
                     columns: [
                         { title: "#", field: "image_id", width:20 },
                         { title: "Created", field: "created" },
-                        { title: "S3 Key", field: "s3key" },
+                        { title: "message", field: "message" },
                         {
                             title: "Photo",
-                            field: "url",
+                            field: "image_id",
                             formatter: function (cell, formatterParams) {
                                 const url = cell.getValue();
                                 if (!url) {
                                     return `n/a`;
                                 }
-                                return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
+                                return `<img src="/api/get-image?image_id=${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
                             }
                         },
-                        { title: "Celebrity", field: "celeb_html", formatter:"html"}
+                        {
+                            title: "Celebrity",
+                            field: "celeb",
+                            formatter: function (cell, formatterParams) {
+                                const celeb = cell.getValue();
+                                const c0 = celeb[0];
+                                if (c0) {
+                                    return `Name: <a href='https://${c0.Urls[0]}'>${c0.Name}</a><br>Match Confidence: ${c0.MatchConfidence}`;
+                                }
+                                return 'n/a';
+                            }
+                        }
                     ],
                     placeholder: "No lab5 messages yet", // Displayed when there is no data
                 });
