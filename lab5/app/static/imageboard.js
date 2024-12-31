@@ -13,7 +13,7 @@ const MAX_FILE_UPLOAD = 10*1000*1000;
  */
 function show_images() {
     console.log("lab5 images_messages");
-    fetch('api/get-messages', { method: "GET" })
+    fetch('api/get-images', { method: "GET" })
         .then(r => {
             if (!r.ok) {
                 $('#message-container').text(`Error: ${r.status} ${r.statusText}`);
