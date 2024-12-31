@@ -25,6 +25,7 @@ from . import apikey
 from . import message_controller
 
 S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
+S3_REGION = 'us-east-1'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
 
@@ -59,7 +60,7 @@ def recognize_celebrities(bucket_name, object_key):
         list: A list of dictionaries containing information about recognized celebrities.
     """
     # Initialize the Rekognition client
-    rekognition_client = boto3.client('rekognition')
+    rekognition_client = boto3.client('rekognition',region_name=S3_REGION)
 
     # Call the recognize_celebrities API
     try:
@@ -184,5 +185,55 @@ def init_app(app):
         app.logger.info("delivered presigned api_key_id=%s s3_key=%s image_id=%s",
                         api_key_id,presigned_post,image_id)
         return jsonify({'presigned_post':presigned_post,'image_id':image_id})
+
+    @app.route('/api/get-image', methods=['POST','GET'])
+    def api_get_image():
+        """Given a request for an image_id, return a presigned URL that will let the client
+        directly GET the image from S3. NOTE: No authenticaiton.
+        """
+        # Get the URN for the image_id
+        image_id = request.values.get('image_id', type=int, default=0)
+        s3key    = get_image_info(image_id)['s3key']
+        presigned_url = presigned_url_for_s3key(s3key)
+        app.logger.info("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
+
+        # Now redirect to it.
+        # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
+        return redirect(presigned_url, code=302)
+
+    @app.route('/api/get-images', methods=['GET'])
+    def api_list_images():
+        """List the imsages.
+
+        Note 1: that the function list_images()
+        returns a list of SQLIte3 Row objects. They need to be turned
+        into an array of dict() objects, and each s3key needs to be
+        turned into a url.
+
+        Note 2: This interface returns *all* of the images. A
+        production system would return just some of them.
+
+        """
+        # Get all of the images and convert each SQLite3 Row object to a dictionary
+        # (so we can modify it)
+
+        db = get_db()
+        rows = [dict(row) for row in list_images()]
+
+        # Now, for each row:
+        # 1. If we don't celeb info for it, generate the JSON and store that in the database
+        # 2. Add a signed url for the s3key
+        for row in rows:
+            if row['s3key']:
+                if row['celeb_json']:
+                    celeb = json.loads(row['celeb_json'])
+                    del row['celeb_json'] # remove undecoded
+                else:
+                    celeb = recognize_celebrities(S3_BUCKET, row['s3key'])
+                    db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),row['s3key']))
+                    db.commit()
+                row['celeb'] = celeb
+                row['url'] = presigned_url_for_s3key(row['s3key'])
+        return rows
 
     app.cli.add_command(create_bucket_and_apply_cors)
