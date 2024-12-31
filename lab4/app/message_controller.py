@@ -14,7 +14,7 @@ def get_messages():
     return db.execute('SELECT * FROM messages ORDER BY created DESC')
 
 
-def post_message(api_key_id,message):
+def post_message(api_key_id, message):
     """Add a new message in the database"""
     db = get_db()
     cur  = db.cursor()

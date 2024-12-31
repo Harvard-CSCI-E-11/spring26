@@ -9,6 +9,61 @@ console.log('start');
 const UPLOAD_TIMEOUT_SECONDS = 20;
 const MAX_FILE_UPLOAD = 10*1000*1000;
 
+/** lab5 show_images() function.
+ */
+function show_images() {
+    console.log("lab5 images_messages");
+    fetch('api/get-messages', { method: "GET" })
+        .then(r => {
+            if (!r.ok) {
+                $('#message-container').text(`Error: ${r.status} ${r.statusText}`);
+                throw new Error(`Failed to get messages: ${r.statusText}`);
+            }
+            return r.json();
+        })
+        .then(obj => {
+            // Clear the table container and initialize Tabulator
+	    let table = Tabulator.findTable("#message-table")[0];
+	    if (table) {
+		// Table exists: Update the data
+		table.replaceData(obj);
+	    } else {
+		// Table doesn't exist: Create it
+                table = new Tabulator("#message-table", {
+                    data: obj, // Assign fetched data to the table
+                    layout: "fitColumns", // Fit columns to width of the table
+                    rowHeight: 120,
+                    columns: [
+                        { title: "#", field: "image_id", width:20 },
+                        { title: "Created", field: "created" },
+                        { title: "S3 Key", field: "s3key" },
+                        {
+                            title: "Photo",
+                            field: "url",
+                            formatter: function (cell, formatterParams) {
+                                const url = cell.getValue();
+                                console.log("cell=",cell,"url=",url);
+                                if (!url) {
+                                    return `n/a`;
+                                }
+                                return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
+                            }
+                        },
+                        { title: "Celebrity", field: "celeb_html", formatter:"html"}
+                    ],
+                    placeholder: "No lab5 messages yet", // Displayed when there is no data
+                });
+                initImagePopups();
+            }
+        })
+        .catch(error => {
+            $('#table-container').text(`Uncaught error: ${error.message}`);
+        });
+}
+
+
+
+
 ////////////////////////////////////////////////////////////////
 /// Enable the image-file upload when a file is selected and both the api-key and api-secret-key are provided.
 function enable_disable_submit_button()
@@ -68,14 +123,17 @@ function upload_image_post(imageFile) {
 	    if (obj.error) {
                 throw { message: obj.error };
 	    }
-
             $('#status-message').text(`Uploading image ${obj.image_id}...`);
+
+            // Now use the presigned_post to upload to s3
             const uploadFormData = new FormData();
             for (const field in obj.presigned_post.fields) {
                 uploadFormData.append(field, obj.presigned_post.fields[field]);
             }
             uploadFormData.append("file", imageFile); // order matters!
 
+            // Use an AbortController for the timeout:
+            // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
             const ctrl = new AbortController();
             setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS * 1000);
             return fetch(obj.presigned_post.url, {
@@ -102,7 +160,7 @@ function upload_image_post(imageFile) {
     // A successful POST clears the image to upload.
     // Clear the button and list the images
     enable_disable_submit_button();
-    show_messages();
+    show_images();
 }
 
 /** The function that is called when the upload_image button is clicked.
@@ -117,52 +175,6 @@ function upload_image()
     }
     upload_image_post(imageFile);
 }
-
-/** lab5 show_messages() function.
- * This version loads after the lab4 show_messages() function and overwrites it.
- */
-function show_messages() {
-    console.log("lab5 show_messages");
-    fetch('api/get-messages', { method: "GET" })
-        .then(r => {
-            if (!r.ok) {
-                $('#image-container').text(`Error: ${r.status} ${r.statusText}`);
-                throw new Error(`Failed to get messages: ${r.statusText}`);
-            }
-            return r.json();
-        })
-        .then(obj => {
-            // Clear the table container and initialize Tabulator
-            $('#table-container').html('<div id="image-table"></div>');
-
-            // Create a new Tabulator table
-            new Tabulator("#message-table", {
-                data: obj, // Assign fetched data to the table
-                layout: "fitColumns", // Fit columns to width of the table
-                rowHeight: 120,
-                columns: [
-                    { title: "#", field: "image_id", width:20 },
-                    { title: "Created", field: "created" },
-                    { title: "S3 Key", field: "s3key" },
-                    {
-                        title: "Photo",
-                        field: "url",
-                        formatter: function (cell, formatterParams) {
-                            const url = cell.getValue();
-                            return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
-                        }
-                    },
-                    { title: "Celebrity", field: "celeb_html", formatter:"html"}
-                ],
-                placeholder: "No lab5 messages yet", // Displayed when there is no data
-            });
-            initImagePopups();
-        })
-        .catch(error => {
-            $('#table-container').text(`Uncaught error: ${error.message}`);
-        });
-}
-
 
 $( document ).ready( function() {
     console.log("lab5 ready function running.")

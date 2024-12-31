@@ -9,7 +9,7 @@ CREATE TABLE images (
        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        created_by INTEGER NOT NULL,
        celeb_json text(65535),
-       FOREIGN KEY(linked_message_id) REFERENCES messages(messages_id)
+       FOREIGN KEY(linked_message_id) REFERENCES messages(message_id)
          ON UPDATE RESTRICT
          ON DELETE RESTRICT,
        FOREIGN KEY(created_by) REFERENCES api_keys(api_key_id)

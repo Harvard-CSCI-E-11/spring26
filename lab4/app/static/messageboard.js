@@ -13,19 +13,22 @@ function show_messages() {
         })
         .then(obj => {
             // Clear the table container and initialize Tabulator
-            $('#message-container').html('<div id="message-table"></div>');
-
-            // Create a new Tabulator table
-            new Tabulator("#message-table", {
-                data: obj, // Assign fetched data to the table
-                layout: "fitColumns", // Fit columns to width of the table
-                columns: [
-                    { title: "Posted", field: "created" },
-                    { title: "Message", field: "message" },
-                ],
-                placeholder: "No lab4 messages yet", // Displayed when there is no data
-            });
-            setTimeout(show_messages, 5000); // call again in 5 seconds
+	    let table = Tabulator.findTable("#message-table")[0];
+	    if (table) {
+		// Table exists: Update the data
+		table.replaceData(obj);
+	    } else {
+		// Table doesn't exist: Create it
+		table = new Tabulator("#message-table", {
+		    data: obj,
+		    layout: "fitColumns",
+		    columns: [
+			{ title: "Posted", field: "created" },
+			{ title: "Message", field: "message" },
+		    ],
+		    placeholder: "No lab4 messages yet",
+		});
+	    }
         })
         .catch(error => {
             $('#message-container').text(`Uncaught error: ${error.message}`);

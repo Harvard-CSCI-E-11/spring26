@@ -15,7 +15,10 @@
 
 <!-- Show the uploaded images here -->
 <div id='upload-preview'>
-    <div id='message-container'></div>
+  <div id='message-container'>
+    <div id='message-table'>
+    </div>
+  </div>
 </div>
 
 <h1>Upload a new message</h1>
@@ -61,9 +64,7 @@
 <!-- bring in the messageboard -->
 
 <script src="static/messageboard.js"> </script>
-<script>
-show_messages();
-</script>
+<script src="static/startup.js"></script>
 
 {% endblock %}
 <!-- index end -->

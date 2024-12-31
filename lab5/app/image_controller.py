@@ -1,6 +1,6 @@
-"""image_controller: Controlls all aspects of uploading, downloading,
+"""
+image_controller: Controlls all aspects of uploading, downloading,
 listing, and processing JPEG images.
-
 """
 
 ################################################################
@@ -158,10 +158,11 @@ def init_app(app):
                 error_message = f'S3 error: {e}'
             return {'error':error_message}
 
-        # First validate the API key and post the message
+        # Validate the API key and post the message
         api_key_id = apikey.validate_api_key_request()
         message    = request.values.get('message')
         message_id = message_controller.post_message(api_key_id, message)
+        console.log("Message %s posted. message_id=%s",message,message_id)
 
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
@@ -170,7 +171,7 @@ def init_app(app):
             Key=s3key,
             Conditions=[
                 {"Content-Type": JPEG_MIME_TYPE}, # Explicitly allow Content-Type header
-                ["content-length-range", 1, current_app.config['MAX_IMAGE_SIZE']]
+                ["content-length-range", 1, MAX_IMAGE_SIZE]
             ],
             Fields= { 'Content-Type': JPEG_MIME_TYPE },
             ExpiresIn=120)      # in seconds
@@ -184,5 +185,3 @@ def init_app(app):
         return jsonify({'presigned_post':presigned_post,'image_id':image_id})
 
     app.cli.add_command(create_bucket_and_apply_cors)
-
-

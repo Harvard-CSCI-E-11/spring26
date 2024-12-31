@@ -15,7 +15,7 @@ CREATE TABLE api_keys (
 CREATE UNIQUE INDEX api_key_index ON api_keys(api_key);
 
 CREATE TABLE messages (
-       messages_id INTEGER PRIMARY KEY AUTOINCREMENT,
+       message_id INTEGER PRIMARY KEY AUTOINCREMENT,
        message text(4096),
        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        created_by INTEGER NOT NULL,
