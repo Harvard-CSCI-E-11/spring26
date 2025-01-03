@@ -22,9 +22,9 @@ deploy:
 # Create the virtual environment and install both host requirements
 # and the lambda requirements for testing
 venv:
-	python3 -m venv venv
+	python3.12 -m venv venv
 	. venv/bin/activate ; pip install --upgrade pip
 	. venv/bin/activate ; pip install -r requirements.txt
-	. venv/bin/activate ; pip install -r src/requirements.txt
+	. venv/bin/activate ; pip install -r app/requirements.txt
 
 .PHONY: venv
