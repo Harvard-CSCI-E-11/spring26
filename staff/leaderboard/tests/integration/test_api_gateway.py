@@ -14,7 +14,7 @@ import requests
 
 #pylint: disable=line-too-long
 
-class TestApiGateway:
+class TestApiGateway:           # pylint: disable=missing-class-docstring
     @pytest.fixture()
     def api_gateway_url(self):
         """ Get the API Gateway URL from Cloudformation Stack outputs """
@@ -29,7 +29,8 @@ class TestApiGateway:
             response = client.describe_stacks(StackName=stack_name)
         except ClientError as e:
             raise ClientError(
-                f"Cannot find stack {stack_name} \n" f'Please make sure a stack with the name "{stack_name}" exists'
+                f"Cannot find stack {stack_name} \n" f'Please make sure a stack with the name "{stack_name}" exists',
+                "cloudformation"
             ) from e
 
         stacks = response["Stacks"]

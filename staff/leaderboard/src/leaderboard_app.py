@@ -6,37 +6,53 @@ import os
 import logging
 import random
 from datetime import datetime
-from os.path import abspath,dirname
+from os.path import dirname
+from functools import lru_cache
 
 from flask import Flask, request, jsonify, render_template, abort
 from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
+__version__ = '0.9.2'
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
-app = Flask(__name__, template_folder=TEMPLATE_DIR)
+DEFAULT_LEADERBOARD_TABLE = 'Leaderboard'
+
 dynamodb = boto3.resource( 'dynamodb')
-leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', 'Leaderboard'))
-app.logger.setLevel(logging.DEBUG)
+leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', DEFAULT_LEADERBOARD_TABLE))
 SECRET_KEY = 'to be changed'    # for its dangerous
-MAX_ITEMS = 100
+MAX_ITEMS = 20                  # keep it exciting
+NO_MESSAGE = None
+
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.logger.setLevel(logging.DEBUG)
+
+@app.template_filter('datetimeformat')
+def datetimeformat(value):
+    """Format for displaying datetime in jinja2"""
+    return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
 
 # pylint: disable=missing-function-docstring
+NOUNS = os.path.join( dirname(__file__), 'nouns.txt' )
+ADJECTIVES = os.path.join( dirname(__file__), 'adjectives.txt' )
 
-# Make a list of the nouns and adjectives
+# Get a list of words from a file
 def wordlist(fn):
     with open(fn,'r',encoding='utf-8') as f:
         return f.read().split('\n')
 
-NOUNS = os.path.join( dirname(__file__), 'nouns.txt' )
-ADJECTIVES = os.path.join( dirname(__file__), 'adjectives.txt' )
+@lru_cache(maxsize=1)
+def get_nouns():
+    return wordlist( NOUNS )
 
-nouns = wordlist( NOUNS )
-adjectives = wordlist( ADJECTIVES )
+@lru_cache(maxsize=1)
+def get_adjectives():
+    return wordlist( ADJECTIVES )
+
 def random_name():
-    return random.choice(nouns) + " " + random.choice(adjectives)
+    return random.choice(get_nouns()) + " " + random.choice(get_adjectives())
 
 def get_serializer():
     """
@@ -58,21 +74,18 @@ def get_leaderboard():
     Note if they are active or inactive.
     Return sorted by active, inactive, and then by when they were first seen
     """
-    scan_kwargs = {
-        'ProjectExpression' : 'name, ip_address, first_seen, last_seen'
-    }
-
     try:
         leaders = []
-        done = False
         start_key = None
-        while not done:
+        scan_kwargs = {}
+        while True:
             if start_key:
                 scan_kwargs['ExclusiveStartKey'] = start_key
             response = leaderboard_table.scan(**scan_kwargs)
             leaders.extend(response.get('Items', []))
             start_key = response.get('LastEvaluatedKey', None)
-            done = start_key is None
+            if start_key is None:
+                break
     except ClientError as err:
         app.logger.error(
             "Couldn't scan for leaders: %s: %s",
@@ -85,7 +98,7 @@ def get_leaderboard():
     leaders = [dict(leader) for leader in leaders]
 
     # Figure out who is active and inactive
-    now = time.time()
+    now = int(time.time())
     for leader in leaders:
         leader['active'] = (now - leader.get('last_seen',0)) < INACTIVE_SECONDS
 
@@ -94,9 +107,9 @@ def get_leaderboard():
 
     return leaders
 
-@app.template_filter('datetimeformat')
-def datetimeformat(value):
-    return datetime.fromtimestamp(value).strftime('%Y-%m-%d %H:%M:%S')
+@app.route('/ver', methods=['GET'])
+def app_ver():
+    return __version__
 
 @app.route('/', methods=['GET'])
 def display_leaderboard():      # pylint disable=missing-function-docstring
@@ -121,7 +134,7 @@ def api_register():
     name        = random_name()
     first_seen  = int(time.time())
     opaque = s.dumps({'name':name,
-                           'first_seen':first_seen})
+                      'first_seen':first_seen})
     return jsonify({'name':name,
                     'opaque':opaque})
 
@@ -129,6 +142,7 @@ def api_register():
 # pylint: disable=too-many-locals
 @app.route('/api/update', methods=['POST'])
 def update_leaderboard():   # pylint disable=missing-function-docstring
+    now = int(time.time())
     s = get_serializer()
     opaque   = request.form['opaque']
     try:
@@ -141,7 +155,8 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
 
     # create the potential leaderboard object for this leader
     this_leader = {'name':data['name'],
-                   'first_seen':data['first_seen'],
+                   'first_seen':int(data['first_seen']),
+                   'last_seen':now,
                    'ip_addr':ip_address}
 
     # Get the leaderboard
@@ -153,8 +168,9 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
         to_delete.extend([leader for leader in leaders if not leader['active']])
         leaders = [leader for leader in leaders if leader['active']]
 
-    # If this_leader is older than one of the leaders on the leaderboard,
-    # or if the number of leaders is less than MAX_ITEMS, add this leader and resort.
+    # Write this_leader to the leaderboard if:
+    # - There are less than MAX_ITEMS on the leaderboard
+    # - This is older than the youngest on the leaderboard
     youngest_leader = max( (leader['first_seen'] for leader in leaders) )
     if ( this_leader['first_seen'] < youngest_leader) or (len(leaders) < MAX_ITEMS):
         try:
@@ -169,8 +185,8 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
         leaders.append(this_leader)
         sort_leaders(leaders)
 
-    # If the number of leaders on the leaderboard is still n more than MAX_ITEMS, delete the oldest
-    # N items
+    # If the number of leaders on the leaderboard is still n more than MAX_ITEMS,
+    # delete the youngest N items
     n = len(leaders) - MAX_ITEMS
     if n>0:
         to_delete.extend(leaders[:-n])
@@ -180,7 +196,7 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
     try:
         with leaderboard_table.batch_writer() as batch:
             for leader in to_delete:
-                response = batch.delete_item(Key={'name':leader['name']})
+                batch.delete_item(Key={'name':leader['name']})
     except ClientError as err:
         app.logger.error(
             "Couldn't delete_item on leaders: %s: %s",
@@ -191,9 +207,10 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
 
 
     # and return to the caller
-    return jsonify(leaders)
+    return jsonify({'leaderboard':leaders,'message':NO_MESSAGE})
 
 
 @app.route('/api/leaderboard', methods=['GET'])
 def api_leaderboard():
-    return jsonify( get_leaderboard())
+    return jsonify( {'leaderboard':get_leaderboard(),
+                     'message':NO_MESSAGE})

@@ -4,12 +4,20 @@ pytest:
 pylint:
 	. venv/bin/activate ; pylint .
 
+local-debug:
+	. venv/bin/activate ; python -c 'from src.leaderboard_app import app; app.run(debug=True)'
+
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-sync.html
+sam-sync:
+	sam sync --code --watch
+
 deploy:
+	make pylint
 	sam validate
 	sam validate --lint
 	sam build
 	sam deploy
-	sam logs --stack-name leaderboard --watch
+	sam logs --stack-name leaderboard --tail
 
 # Create the virtual environment and install both host requirements
 # and the lambda requirements for testing

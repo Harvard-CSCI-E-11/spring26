@@ -18,7 +18,6 @@ Parameters:
     Type: String
     Description: Route53 Zone ID
 
-
 Globals:
   Function:
     Timeout: 10
@@ -49,13 +48,6 @@ Resources:
         CertificateArn: !Ref GenerateCertificate
         Route53:
           HostedZoneId: !Ref ZoneId
-      BinaryMediaTypes:
-        - image/x-icon
-        - image/png
-        - image/jpeg
-        - audio/mpeg
-        - application/octet-stream
-        - application/json
       Cors:
         AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE'"
         AllowHeaders: "'content-type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
