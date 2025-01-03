@@ -1,17 +1,18 @@
 """
 test_api_gateway.py
+
+Make sure env variable AWS_SAM_STACK_NAME exists with the name of the stack we are going to test.
+
 """
 
 import os
 
+from botocore.exceptions import ClientError
 import boto3
 import pytest
 import requests
 
-"""
-Make sure env variable AWS_SAM_STACK_NAME exists with the name of the stack we are going to test.
-"""
-
+#pylint: disable=line-too-long
 
 class TestApiGateway:
     @pytest.fixture()
@@ -26,8 +27,8 @@ class TestApiGateway:
 
         try:
             response = client.describe_stacks(StackName=stack_name)
-        except Exception as e:
-            raise Exception(
+        except ClientError as e:
+            raise ClientError(
                 f"Cannot find stack {stack_name} \n" f'Please make sure a stack with the name "{stack_name}" exists'
             ) from e
 

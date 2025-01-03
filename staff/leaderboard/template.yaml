@@ -89,6 +89,10 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref LeaderboardTable
 
+  # define the DynamoDB table used to hold the Leaderboard
+  # We index on the name. Each entry is a JSON object whose structure
+  # is determiend at runtime.
+  # We actually store these attributes: name, ip_address, first_seen, last_seen, secret_key
   LeaderboardTable:
     Type: AWS::DynamoDB::Table
     Properties:

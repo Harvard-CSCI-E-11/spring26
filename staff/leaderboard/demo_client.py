@@ -2,10 +2,14 @@
 Python CLI Demo Code (demo_client.py)
 """
 import time
-import json
 import requests
 
+
+# pylint: disable=invalid-name
+TIMEOUT = 30
 ENDPOINT = 'https://leaderboard.csci-e-11.org/'
+URL_REGISTER = f'{ENDPOINT}/api/register'
+URL_UPDATE = f'{ENDPOINT}/api/update'
 
 if __name__=='__main__':
     import argparse
@@ -14,16 +18,23 @@ if __name__=='__main__':
     parser.add_argument('name')
     parser.add_argument('hidden')
     args = parser.parse_args()
-    url_update = f'{ENDPOINT}/api/update'
-    url_leaderboard = f'{ENDPOINT}/api/leaderboard'
+
+    my_data = requests.get(URL_REGISTER,timeout = TIMEOUT).json()
+    name = my_data['name']
+    opaque = my_data.json()['opaque']
 
     while True:
-        response = requests.post(url_update,
-                                 data={'name': args.name,
-                                       'hidden': args.hidden},
-                                 timeout = 30 )
+        response = requests.post(URL_UPDATE,
+                                 data={'opaque': opaque},
+                                 timeout = TIMEOUT )
         print(f"Posted: {response.status_code}")
-
-        leaderboard = requests.get(url_leaderboard, timeout=30).json()
-        print(json.dumps(leaderboard))
+        data = response.json()
+        print("Message: ",data['message'])
+        print("Leaderboard:")
+        now = time.time()
+        for leader in data['leaders']:
+            me  = 'me -->' if leader['name']==name else ''
+            age = now - leader['first_seen']
+            active = 'active' if leader['active'] else ''
+            print(me, leader['name'],age,active)
         time.sleep(60)

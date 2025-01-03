@@ -7,7 +7,6 @@ import pytest
 
 from lambda_handler import lambda_app
 
-
 @pytest.fixture()
 def apigw_event():
     """ Generates API GW Event"""
@@ -67,6 +66,7 @@ def apigw_event():
 
 @pytest.mark.docker
 def test_lambda_handler(apigw_event):
+    """Test the lambda function"""
     ret = lambda_app(apigw_event, "")
     data = json.loads(ret["body"])
 
