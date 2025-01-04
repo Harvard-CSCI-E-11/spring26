@@ -1,3 +1,4 @@
 [MASTER]
 init-hook='import sys; sys.path.append("src")'
 load-plugins=pylint_pytest
+source-roots=app

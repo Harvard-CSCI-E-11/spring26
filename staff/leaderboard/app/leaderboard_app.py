@@ -52,7 +52,7 @@ def get_adjectives():
     return wordlist( ADJECTIVES )
 
 def random_name():
-    return random.choice(get_nouns()) + " " + random.choice(get_adjectives())
+    return random.choice(get_adjectives()) + " " + random.choice(get_nouns())
 
 def get_serializer():
     """
@@ -82,6 +82,7 @@ def get_leaderboard():
             if start_key:
                 scan_kwargs['ExclusiveStartKey'] = start_key
             response = leaderboard_table.scan(**scan_kwargs)
+            app.logger.debug("response=%s",response)
             leaders.extend(response.get('Items', []))
             start_key = response.get('LastEvaluatedKey', None)
             if start_key is None:
@@ -122,7 +123,7 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
         return render_template('client_error.html', error=str(e))
 
     # Separate active and inactive
-    active = [leader for leader in leaders if leader['active']]
+    active   = [leader for leader in leaders if leader['active']]
     inactive = [leader for leader in leaders if not leader['active']]
 
     return render_template('leaderboard.html', active=active, inactive=inactive)
@@ -157,9 +158,10 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
     this_leader = {'name':data['name'],
                    'first_seen':int(data['first_seen']),
                    'last_seen':now,
-                   'ip_addr':ip_address}
+                   'ip_address':ip_address}
 
     # Get the leaderboard
+    app.logger.debug("this_leader=%s",this_leader)
     leaders = get_leaderboard()
 
     # If the number of leaders on the leaderboard is more than MAX_ITEMS, delete all the inactives
@@ -171,7 +173,11 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
     # Write this_leader to the leaderboard if:
     # - There are less than MAX_ITEMS on the leaderboard
     # - This is older than the youngest on the leaderboard
-    youngest_leader = max( (leader['first_seen'] for leader in leaders) )
+    if leaders:
+        youngest_leader = max( (leader['first_seen'] for leader in leaders) )
+    else:
+        youngest_leader = now
+
     if ( this_leader['first_seen'] < youngest_leader) or (len(leaders) < MAX_ITEMS):
         try:
             leaderboard_table.put_item(Item=this_leader) # replaces if already there
@@ -182,6 +188,7 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
                 err.response['Error']['Message']
             )
             raise
+        this_leader['active'] = True
         leaders.append(this_leader)
         sort_leaders(leaders)
 

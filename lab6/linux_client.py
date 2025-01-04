@@ -1,5 +1,5 @@
 """
-Python CLI Demo Code (demo_client.py)
+Python CLI Leaderboard Client
 """
 import time
 import sys

@@ -2,7 +2,7 @@ pytest:
 	. venv/bin/activate ; 	pytest .
 
 pylint:
-	. venv/bin/activate ; pylint .
+	. venv/bin/activate ; pylint app
 
 local-debug:
 	. venv/bin/activate ; python -c 'from src.leaderboard_app import app; app.run(debug=True)'
