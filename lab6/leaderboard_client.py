@@ -2,35 +2,26 @@
 ESP32 Leaderboard Client
 """
 
+import os
 import time
 import wifi
 import adafruit_connection_manager
 import adafruit_requests
-import random
 
 # WiFi configuration - Update This!
-secrets = {
-    "ssid": getenv("CIRCUITPY_WIFI_SSID"),
-    "password": getenv("CIRCUITPY_WIFI_PASSWORD"),
-}
+ssid = os.getenv("CIRCUITPY_WIFI_SSID")
+password =os.getenv("CIRCUITPY_WIFI_PASSWORD")
+
 
 TIMEOUT = 30
 ENDPOINT = "https://leaderboard.csci-e-11.org/"
 HIDDEN = "hidden value"
 
 # Connect to WiFi
-def connect_to_wifi():
-    print("Connecting to WiFi...")
-    wifi.radio.connect(secrets["ssid"], secrets["password"])
-    print("Connected to WiFi")
-    print("IP Address:", wifi.radio.ipv4_address)
-
-
-# Main execution
-try:
-    connect_to_wifi()
-except Exception as e:
-    print("Error Connecting to Wifi:", e)
+print("Connecting to WiFi...")
+wifi.radio.connect(ssid, password)
+print("Connected to WiFi")
+print("IP Address:", wifi.radio.ipv4_address)
 
 # Get requests operational
 
@@ -47,8 +38,12 @@ if True:
     opaque = my_data["opaque"]
     print("Name: ", name)
 
+run = 0
 while True:
+    run += 1
+    print("\nrun:",run)
     response = requests.post(url_update, data={"opaque": opaque}, timeout=TIMEOUT)
+    data = response.json()
     now = int(time.time())
     count = 0
     for leader in data["leaderboard"]:
