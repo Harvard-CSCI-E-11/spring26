@@ -179,23 +179,23 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
         youngest_leader = now
 
     # Add this leader to the leaderboard if this leader not there
-    if this_leader['name'] not in set( (leader['name'] for leader in leaders) ):
-        if ( this_leader['first_seen'] < youngest_leader) or (len(leaders) < MAX_ITEMS):
-            try:
-                leaderboard_table.put_item(Item=this_leader) # replaces if already there
-            except ClientError as err:
-                app.logger.error(
-                    "Couldn't put_item on leaders: %s: %s",
-                    err.response['Error']['Code'],
-                    err.response['Error']['Message']
-                )
-                raise
+    if ( this_leader['first_seen'] < youngest_leader) or (len(leaders) < MAX_ITEMS):
+        try:
+            leaderboard_table.put_item(Item=this_leader) # replaces if already there
+        except ClientError as err:
+            app.logger.error(
+                "Couldn't put_item on leaders: %s: %s",
+                err.response['Error']['Code'],
+                err.response['Error']['Message']
+            )
+            raise
+        if this_leader['name'] not in set( (leader['name'] for leader in leaders) ):
             this_leader['active'] = True
             leaders.append(this_leader)
-            sort_leaders(leaders)
 
     # If the number of leaders on the leaderboard is still n more than MAX_ITEMS,
     # delete the youngest N items
+    sort_leaders(leaders)
     n = len(leaders) - MAX_ITEMS
     if n>0:
         to_delete.extend(leaders[:-n])
@@ -214,9 +214,8 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
         )
         raise
 
-
     # and return to the caller
-    return jsonify({'leaderboard':leaders,'message':NO_MESSAGE})
+    return jsonify({'leaderboard':leaders,'message':NO_MESSAGE, 'now':now})
 
 
 @app.route('/api/leaderboard', methods=['GET'])
