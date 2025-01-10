@@ -68,7 +68,7 @@ Resources:
   FlaskFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: app/
+      CodeUri: leaderboard_app/
       Handler: run.sh
       #Handler: app.lambda_handler
       Runtime: python3.13
