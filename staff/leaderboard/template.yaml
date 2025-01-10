@@ -20,7 +20,7 @@ Parameters:
 
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
   Api:
     Cors:
       AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE'"
@@ -50,7 +50,7 @@ Resources:
   ApiMapping:
     Type: AWS::ApiGatewayV2::ApiMapping
     Properties:
-      ApiId: !Ref ServerlessRestApi
+      ApiId: !Ref ServerlessHttpApi
       DomainName: !Ref CustomDomainName
       Stage: $default
 
@@ -68,10 +68,9 @@ Resources:
   FlaskFunction:
     Type: AWS::Serverless::Function
     Properties:
-      #CodeUri: leaderboard_app/
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
-      #Handler: run.sh
+      CodeUri: app/
+      Handler: run.sh
+      #Handler: app.lambda_handler
       Runtime: python3.13
       MemorySize: 256
       Environment:
@@ -83,10 +82,7 @@ Resources:
         - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:23
       Events:
         ApiEvent:
-          Type: Api
-          Properties:
-            Path: /
-            Method: ANY
+          Type: HttpApi
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref LeaderboardTable
@@ -115,7 +111,7 @@ Outputs:
     Value: !Sub "https://${FQDN}"
   FlaskApi:
     Description: "API Gateway endpoint URL for Prod stage for Flask function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
   FlaskFunction:
     Description: "Flask Lambda Function ARN"
     Value: !GetAtt FlaskFunction.Arn
