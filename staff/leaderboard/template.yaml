@@ -24,8 +24,9 @@ Globals:
   Api:
     Cors:
       AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE'"
-      AllowHeaders: "'content-type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+      AllowHeaders: "'content-type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Forwarded-For'"
       AllowOrigin: "'*'"
+      EnableSimpleResponses: true
 
 Resources:
   GenerateCertificate:

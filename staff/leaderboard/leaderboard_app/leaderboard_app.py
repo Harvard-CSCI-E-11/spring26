@@ -10,6 +10,7 @@ from os.path import dirname
 from functools import lru_cache
 
 from flask import Flask, request, jsonify, render_template, abort
+from werkzeug.middleware.proxy_fix import ProxyFix
 from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
@@ -27,6 +28,7 @@ MAX_ITEMS = 20                  # keep it exciting
 NO_MESSAGE = None
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.logger.setLevel(logging.DEBUG)
 
 @app.template_filter('datetimeformat')
@@ -126,7 +128,7 @@ def display_leaderboard():      # pylint disable=missing-function-docstring
     active   = [leader for leader in leaders if leader['active']]
     inactive = [leader for leader in leaders if not leader['active']]
 
-    return render_template('leaderboard.html', active=active, inactive=inactive)
+    return render_template('leaderboard.html', active=active, inactive=inactive, ip_address=request.remote_addr)
 
 @app.route('/api/register', methods=['GET'])
 def api_register():
