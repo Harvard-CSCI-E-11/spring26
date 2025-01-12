@@ -1,5 +1,5 @@
 """
-Leaerboard Fask Application (src/app.py)
+Leaerboard Fask Application (src/app.py).
 """
 import time
 import os
@@ -15,7 +15,7 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-__version__ = '0.9.2'
+__version__ = '0.9.3'
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
@@ -42,18 +42,22 @@ ADJECTIVES = os.path.join( dirname(__file__), 'adjectives.txt' )
 
 # Get a list of words from a file
 def wordlist(fn):
+    """Given a file, return all of its lines as an array."""
     with open(fn,'r',encoding='utf-8') as f:
         return f.read().split('\n')
 
 @lru_cache(maxsize=1)
 def get_nouns():
+    """Return the list of nouns."""
     return wordlist( NOUNS )
 
 @lru_cache(maxsize=1)
 def get_adjectives():
+    """Return the list of adjectives."""
     return wordlist( ADJECTIVES )
 
 def random_name():
+    """make a random ADJECTIVE NOUN name"""
     return random.choice(get_adjectives()) + " " + random.choice(get_nouns())
 
 def get_serializer():
@@ -63,18 +67,23 @@ def get_serializer():
     """
     return Serializer(SECRET_KEY)
 
-def sort_leaders(leaders):
+def sorted_leaders(leaders):
     """Sort the leaders oldest .. youngest.
     Python passes a reference, so we can sort in place with this.
     """
     leaders.sort(key = lambda leader:leader['first_seen'])
+    return leaders
 
+def leader_is_active(leader):
+    """Return true if a leader is active"""
+    now = int(time.time())
+    return (now - int(leader.get('last_seen',0))) < INACTIVE_SECONDS
 
 def get_leaderboard():
     """
     Get the leaders in the leaderboard.
-    Note if they are active or inactive.
-    Return sorted by active, inactive, and then by when they were first seen
+    Note if each is active or inactive.
+    Return sorted by when first seen.
     """
     try:
         leaders = []
@@ -101,66 +110,22 @@ def get_leaderboard():
     leaders = [dict(leader) for leader in leaders]
 
     # Figure out who is active and inactive
-    now = int(time.time())
     for leader in leaders:
-        leader['active'] = (now - leader.get('last_seen',0)) < INACTIVE_SECONDS
+        leader['active'] = leader_is_active(leader)
 
-    # Now sort by age
-    sort_leaders(leaders)
-
-    return leaders
-
-@app.route('/ver', methods=['GET'])
-def app_ver():
-    return __version__
-
-@app.route('/', methods=['GET'])
-def display_leaderboard():      # pylint disable=missing-function-docstring
-    """Route for web browsers:
-    Getting / returns the HTML leaderboard pre-rendered with the leaders.
-    """
-    try:
-        leaders = get_leaderboard()
-    except ClientError as e:
-        return render_template('client_error.html', error=str(e))
-
-    # Separate active and inactive
-    active   = [leader for leader in leaders if leader['active']]
-    inactive = [leader for leader in leaders if not leader['active']]
-
-    return render_template('leaderboard.html', active=active, inactive=inactive, ip_address=request.remote_addr)
-
-@app.route('/api/register', methods=['GET'])
-def api_register():
-    """Return the registration of the name and secret key. Store hashed key in database"""
-    s = get_serializer()
-    name        = random_name()
-    first_seen  = int(time.time())
-    opaque = s.dumps({'name':name,
-                      'first_seen':first_seen})
-    return jsonify({'name':name,
-                    'opaque':opaque})
+    return sorted_leaders(leaders)
 
 
-# pylint: disable=too-many-locals
-@app.route('/api/update', methods=['POST'])
-def update_leaderboard():   # pylint disable=missing-function-docstring
-    now = int(time.time())
-    s = get_serializer()
-    opaque   = request.form['opaque']
-    try:
-        data      = s.loads(opaque)
-    except (BadSignature,BadData,KeyError) as e:
-        abort(404, 'data tampered: '+str(e))
-
-    ip_address = request.remote_addr
-    app.logger.info("data=%s",data)
+def update_leaderboard(*,data,ip_address,user_agent):
+    """Given a name that's already been validated, update the leaderboard, and return the new leaders"""
 
     # create the potential leaderboard object for this leader
+    now = int(time.time())
     this_leader = {'name':data['name'],
                    'first_seen':int(data['first_seen']),
                    'last_seen':now,
-                   'ip_address':ip_address}
+                   'ip_address':ip_address,
+                   'user_agent':user_agent}
 
     # Get the leaderboard
     app.logger.debug("this_leader=%s",this_leader)
@@ -197,7 +162,7 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
 
     # If the number of leaders on the leaderboard is still n more than MAX_ITEMS,
     # delete the youngest N items
-    sort_leaders(leaders)
+    leaders = sorted_leaders(leaders)
     n = len(leaders) - MAX_ITEMS
     if n>0:
         to_delete.extend(leaders[:-n])
@@ -215,12 +180,49 @@ def update_leaderboard():   # pylint disable=missing-function-docstring
             err.response['Error']['Message']
         )
         raise
+    return leaders
 
+
+def new_registration():
+    """Returns a new registration consisting of a signed name and first_seen."""
+    s = get_serializer()
+    name        = random_name()
+    first_seen  = int(time.time())
+    opaque = s.dumps({'name':name,
+                      'first_seen':first_seen})
+    return {'name':name,
+            'opaque':opaque}
+
+def validate_registration(opaque):
+    """Validate the opaque registration nonce and return its content."""
+    try:
+        s = get_serializer()
+        data = s.loads(opaque)
+        app.logger.info("data=%s",data)
+        return data
+    except (BadSignature,BadData,KeyError) as e:
+        abort(404, 'data tampered: '+str(e))
+
+@app.route('/ver', methods=['GET'])
+def app_ver():
+    return __version__
+
+@app.route('/', methods=['GET'])
+def display_leaderboard():      # pylint disable=missing-function-docstring
+    """Route for web browsers:
+    Getting / returns the HTML leaderboard pre-rendered with the leaders.
+    """
+    return render_template('leaderboard.html', ip_address=request.remote_addr)
+
+@app.route('/api/register', methods=['GET'])
+def api_register():
+    """Return the registration of the name and secret key. Store hashed key in database"""
+    return  jsonify(new_registration())
+
+@app.route('/api/update', methods=['POST'])
+def api_update():   # pylint disable=missing-function-docstring
+    now = int(time.time())      # because callers may not have reliable time
+    data = validate_registration(request.form['opaque'])
+    leaders = update_leaderboard(data=data, ip_address=request.remote_addr, user_agent=str(request.user_agent))
     # and return to the caller
     return jsonify({'leaderboard':leaders,'message':NO_MESSAGE, 'now':now})
-
-
-@app.route('/api/leaderboard', methods=['GET'])
-def api_leaderboard():
-    return jsonify( {'leaderboard':get_leaderboard(),
-                     'message':NO_MESSAGE})

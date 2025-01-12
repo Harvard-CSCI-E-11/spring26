@@ -1,108 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png"
+        href="data:image/png;base64,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" />
+    <link href="https://unpkg.com/tabulator-tables@5.5.2/dist/css/tabulator.min.css" rel="stylesheet">
+    <script type="text/javascript" src="https://unpkg.com/tabulator-tables@5.5.2/dist/js/tabulator.min.js"></script>
+
     <title>Leaderboard</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
         }
+
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 20px;
         }
-        th, td {
+
+        th,
+        td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
+
         th {
             background-color: #f4f4f4;
+            width: 20%;
+            /* make every column the same width */
         }
+
         h2 {
-            margin-top: 40px;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        /* Add some Tabulator-specific styling */
+        .tabulator {
+            margin: 20px 0;
+            font-size: 14px;
+            width: 100%;
+        }
+
+        #active-leaderboard {
+            margin-bottom: 40px;
         }
     </style>
-    <script>
-        // Function to fetch the full page and update the leaderboard
-        function refreshLeaderboard() {
-           fetch(window.location.href)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newLeaderboard = doc.querySelector('#leaderboard-container').innerHTML;
-                    document.querySelector('#leaderboard-container').innerHTML = newLeaderboard;
+
+</head>
+
+<body>
+    <h1>Leaderboard</h1>
+    <p>My name: <b><span id="name"></span></b></p>
+    <p>Status: <b><span id="status"></span></b></p>
+    <div id="leaderboard-container">
+        <div id='active-leaderboard'></div>
+        <div id='inactive-leaderboard'></div>
+    </div>
+    <div id='last-update'></div>
+    <div id='next-update'></div>
+    <p>Your IP address is {{ip_address}}.</p>
+</body>
+<script>
+    // This is the JavaScript Leaderboard client.
+    // First we register
+    var opaque = null;
+    var name = null;
+    const register = () => {
+        document.querySelector('#status').innerHTML = 'Registering...';
+        fetch(window.location.href + 'api/register', { method: "GET" })
+            .then(response => response.json())
+            .then(data => {
+                opaque = data.opaque;
+                name = data.name;
+                document.querySelector('#name').innerHTML = name;
+                document.querySelector('#status').innerHTML = 'Registered.';
+                refreshLeaderboard();
+            })
+            .catch(error => console.error('Error registering:', error));
+    }
+
+    // Initialize Tabulator tables
+    let activeTable, inactiveTable;
+
+    // Constants
+    const REFRESH_INTERVAL = 10; // seconds between refreshes
+    const RUNNING_MINUTES = 10; // minutes to run before stopping
+    let lastRefreshTime = 0;
+    var start = Date.now();
+
+    const refreshLeaderboard = () => {
+        const now = Date.now();
+        const secondsSinceRefresh = Math.floor((now - lastRefreshTime) / 1000);
+        const secondsUntilRefresh = REFRESH_INTERVAL - secondsSinceRefresh;
+
+        // Check if total runtime exceeded
+        if ((now - start) > RUNNING_MINUTES * 60 * 1000) {
+            document.querySelector('#status').innerHTML = 'stopped.';
+            document.querySelector('#leaderboard-container').innerHTML = 'Please click <reload> to restart the leaderboard.';
+            return;
+        }
+
+        // Update countdown display
+        document.querySelector('#next-update').innerHTML = 
+            secondsUntilRefresh <= 0 ? 'Syncing...' : `Next sync in ${secondsUntilRefresh} seconds`;
+
+        // If it's time to refresh
+        if (secondsUntilRefresh <= 0) {
+            if (!opaque) {
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("opaque", opaque);
+            fetch(window.location.href + 'api/update', { method: "POST", body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    const leaders = data.leaderboard;
+                    const activeLeaders = leaders.filter(leaders => leaders.active);
+                    const inactiveLeaders = leaders.filter(leaders => !leaders.active);
+                    
+                    // Update the tables with the new data
+                    activeTable.setData(activeLeaders);
+                    inactiveTable.setData(inactiveLeaders);
 
                     var currentdate = new Date();
                     const zeroPad = (num, places) => String(num).padStart(places, '0');
                     var datetime = "Last Sync: " +
-                                 + currentdate.getFullYear() + "-" +
-                                 + zeroPad(currentdate.getMonth()+1,2)  + "-"
-                                 + zeroPad(currentdate.getDate(),2) + " "
-                                 + zeroPad(currentdate.getHours(),2) + ":"
-                                 + zeroPad(currentdate.getMinutes(),2) + ":"
-                                 + zeroPad(currentdate.getSeconds(),2);
+                        currentdate.getFullYear() + "-" +
+                        zeroPad(currentdate.getMonth() + 1, 2) + "-" +
+                        zeroPad(currentdate.getDate(), 2) + " " +
+                        zeroPad(currentdate.getHours(), 2) + ":" +
+                        zeroPad(currentdate.getMinutes(), 2) + ":" +
+                        zeroPad(currentdate.getSeconds(), 2);
                     document.querySelector('#last-update').innerHTML = datetime;
+                    
+                    // Update the refresh time
+                    lastRefreshTime = now;
                 })
-                .catch(error => console.error('Error refreshing leaderboard:', error));
+                .catch(error => {
+                    console.error('Error refreshing leaderboard:', error);
+                    // Still update the refresh time on error to prevent rapid retries
+                    lastRefreshTime = now;
+                });
         }
 
-        // Refresh the leaderboard every 30 seconds
-        setInterval(refreshLeaderboard, 30000);
-    </script>
-</head>
-<body>
-    <h1>Leaderboard</h1>
-    <div id="leaderboard-container">
-        <h2>Active</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>IP Address</th>
-                    <th>First Seen</th>
-                    <th>Last Seen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in active %}
-                <tr>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.ip_address }}</td>
-                    <td>{{ item.first_seen | int | datetimeformat }}</td>
-                    <td>{{ item.last_seen | int | datetimeformat }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        // Schedule next check in 1 second
+        setTimeout(refreshLeaderboard, 1000);
+    };
 
-        <h2>Inactive</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>IP Address</th>
-                    <th>First Seen</th>
-                    <th>Last Seen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in inactive %}
-                <tr>
-                    <td>{{ item.name }}</td>
-                    <td>{{ item.ip_address }}</td>
-                    <td>{{ item.first_seen | int | datetimeformat }}</td>
-                    <td>{{ item.last_seen | int | datetimeformat }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div id='last-update'></div>
-    <p>Your IP address is {{ip_address}}.</p>
-</body>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Add headers before tables
+        document.getElementById('active-leaderboard').insertAdjacentHTML('beforebegin', '<h2>Active Players</h2>');
+        document.getElementById('inactive-leaderboard').insertAdjacentHTML('beforebegin', '<h2>Inactive Players</h2>');
+
+        const commonColumns = [
+            { 
+                title: "Name", 
+                field: "name", 
+                headerSort: true,
+                tooltip: true
+            },
+            {
+                title: "First Seen", 
+                field: "first_seen", 
+                headerSort: true, 
+                formatter: function (cell) {
+                    return new Date(cell.getValue() * 1000).toLocaleString();
+                },
+                tooltip: true
+            },
+            {
+                title: "Last Seen", 
+                field: "last_seen", 
+                headerSort: true, 
+                formatter: function (cell) {
+                    return new Date(cell.getValue() * 1000).toLocaleString();
+                },
+                tooltip: true
+            },
+            { 
+                title: "IP Address", 
+                field: "ip_address",
+                tooltip: true
+            },
+            { 
+                title: "User Agent", 
+                field: "user_agent",
+                tooltip: true
+            }
+        ];
+
+        activeTable = new Tabulator("#active-leaderboard", {
+            columns: commonColumns,
+            layout: "fitColumns",
+            responsiveLayout: "hide",
+            pagination: false,
+            height: "auto",
+            data: [], // Initialize with empty data
+            rowFormatter: function(row) {
+                if(row.getData().name === name) {
+                    row.getElement().style.backgroundColor = "#90EE90"; // light green
+                    const nameCell = row.getCell("name");
+                    nameCell.getElement().style.fontWeight = "bold";
+                }
+            }
+        });
+
+        inactiveTable = new Tabulator("#inactive-leaderboard", {
+            columns: commonColumns,
+            layout: "fitColumns",
+            responsiveLayout: "hide",
+            pagination: false,
+            height: "auto",
+            data: [] // Initialize with empty data
+        });
+        register();
+    });
+</script>
+
 </html>

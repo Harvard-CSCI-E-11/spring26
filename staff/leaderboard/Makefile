@@ -5,7 +5,7 @@ pylint:
 	. venv/bin/activate ; pylint app
 
 local-debug:
-	. venv/bin/activate ; python -c 'from src.leaderboard_app import app; app.run(debug=True)'
+	. venv/bin/activate ; python -c 'from leaderboard_app.leaderboard_app import app; app.run(debug=True)'
 
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-sync.html
 sam-sync:
