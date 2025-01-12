@@ -8,6 +8,7 @@ import random
 from datetime import datetime
 from os.path import dirname
 from functools import lru_cache
+import base64
 
 from flask import Flask, request, jsonify, render_template, abort
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -207,12 +208,23 @@ def validate_registration(opaque):
 def app_ver():
     return __version__
 
-@app.route('/', methods=['GET'])
-def display_leaderboard():      # pylint disable=missing-function-docstring
-    """Route for web browsers:
-    Getting / returns the HTML leaderboard pre-rendered with the leaders.
-    """
-    return render_template('leaderboard.html', ip_address=request.remote_addr)
+@app.route('/')
+def root():
+    """Return the leaderboard page"""
+    # Read and encode the icon
+    icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
+    with open(icon_path, 'rb') as f:
+        icon_data = base64.b64encode(f.read()).decode('utf-8')
+    
+    # Get the IP address
+    if request.headers.get('X-Forwarded-For'):
+        ip_address = request.headers.get('X-Forwarded-For').split(',')[0]
+    else:
+        ip_address = request.remote_addr
+    
+    return render_template('leaderboard.html', 
+                         ip_address=ip_address,
+                         FAVICO=icon_data)
 
 @app.route('/api/register', methods=['GET'])
 def api_register():
