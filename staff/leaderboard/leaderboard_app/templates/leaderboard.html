@@ -102,12 +102,12 @@
         // Check if total runtime exceeded
         if ((now - start) > RUNNING_MINUTES * 60 * 1000) {
             document.querySelector('#status').innerHTML = 'stopped.';
-            document.querySelector('#leaderboard-container').innerHTML = 'Please click <reload> to restart the leaderboard.';
+            document.querySelector('#leaderboard-container').innerHTML = 'Please click <b>reload</b> to restart the leaderboard.';
             return;
         }
 
         // Update countdown display
-        document.querySelector('#next-update').innerHTML = 
+        document.querySelector('#next-update').innerHTML =
             secondsUntilRefresh <= 0 ? 'Syncing...' : `Next sync in ${secondsUntilRefresh} seconds`;
 
         // If it's time to refresh
@@ -124,7 +124,7 @@
                     const leaders = data.leaderboard;
                     const activeLeaders = leaders.filter(leaders => leaders.active);
                     const inactiveLeaders = leaders.filter(leaders => !leaders.active);
-                    
+
                     // Update the tables with the new data
                     activeTable.setData(activeLeaders);
                     inactiveTable.setData(inactiveLeaders);
@@ -139,7 +139,7 @@
                         zeroPad(currentdate.getMinutes(), 2) + ":" +
                         zeroPad(currentdate.getSeconds(), 2);
                     document.querySelector('#last-update').innerHTML = datetime;
-                    
+
                     // Update the refresh time
                     lastRefreshTime = now;
                 })
@@ -160,37 +160,37 @@
         document.getElementById('inactive-leaderboard').insertAdjacentHTML('beforebegin', '<h2>Inactive Players</h2>');
 
         const commonColumns = [
-            { 
-                title: "Name", 
-                field: "name", 
+            {
+                title: "Name",
+                field: "name",
                 headerSort: true,
                 tooltip: true
             },
             {
-                title: "First Seen", 
-                field: "first_seen", 
-                headerSort: true, 
+                title: "First Seen",
+                field: "first_seen",
+                headerSort: true,
                 formatter: function (cell) {
                     return new Date(cell.getValue() * 1000).toLocaleString();
                 },
                 tooltip: true
             },
             {
-                title: "Last Seen", 
-                field: "last_seen", 
-                headerSort: true, 
+                title: "Last Seen",
+                field: "last_seen",
+                headerSort: true,
                 formatter: function (cell) {
                     return new Date(cell.getValue() * 1000).toLocaleString();
                 },
                 tooltip: true
             },
-            { 
-                title: "IP Address", 
+            {
+                title: "IP Address",
                 field: "ip_address",
                 tooltip: true
             },
-            { 
-                title: "User Agent", 
+            {
+                title: "User Agent",
                 field: "user_agent",
                 tooltip: true
             }
