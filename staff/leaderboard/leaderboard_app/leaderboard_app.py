@@ -215,14 +215,14 @@ def root():
     icon_path = os.path.join(os.path.dirname(__file__), 'icon.png')
     with open(icon_path, 'rb') as f:
         icon_data = base64.b64encode(f.read()).decode('utf-8')
-    
+
     # Get the IP address
     if request.headers.get('X-Forwarded-For'):
         ip_address = request.headers.get('X-Forwarded-For').split(',')[0]
     else:
         ip_address = request.remote_addr
-    
-    return render_template('leaderboard.html', 
+
+    return render_template('leaderboard.html',
                          ip_address=ip_address,
                          FAVICO=icon_data)
 
