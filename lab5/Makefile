@@ -12,8 +12,8 @@ venv:
 venv/pyvenv.cfg:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv
-	. venv/bin/activate ; python3 -m pip install --upgrade pip
-	. venv/bin/activate ; python3 -m pip install -r requirements.txt
+	venv/bin/python3 -m pip install --upgrade pip
+	venv/bin/python3 -m pip install -r requirements.txt
 
 #
 # Install the lab5.services file
@@ -37,33 +37,33 @@ install-lab5-service: venv/pyvenv.cfg
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
 local-app:
-	. venv/bin/activate; flask --app app run --debug
+	venv/bin/flask --app app run --debug
 
 # Print help for the application
 help:
-	. venv/bin/activate; flask --app app --help
+	venv/bin/flask --app app --help
 
 # Create the s3 bucket and establish the CORS policy
 init-s3:
-	. venv/bin/activate; flask --app app init-s3
+	venv/bin/flask --app app init-s3
 
 # Create a new database
 init-db:
-	. venv/bin/activate; flask --app app init-db
+	venv/bin/flask --app app init-db
 # Generate a new api-key
 new-apikey:
-	. venv/bin/activate; flask --app app new-apikey
+	venv/bin/flask --app app new-apikey
 
 # Dump the database
 dump-db:
-	. venv/bin/activate; flask --app app dump-db
+	venv/bin/flask --app app dump-db
 
 
 #
 # Software engineering targets
 
 pylint:
-	. venv/bin/activate; python3 -m pylint app
+	venv/bin/python3 -m pylint app
 
 
 

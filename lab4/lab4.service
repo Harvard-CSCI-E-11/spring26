@@ -18,9 +18,10 @@ ExecStart=/home/ec2-user/spring25/lab4/venv/bin/gunicorn \
     --access-logfile=/home/ec2-user/spring25/lab4/logs/access.log \
     --error-logfile=/home/ec2-user/spring25/lab4/logs/error.log \
     app:app
-
 # Optional: specify environment variables if needed
 # Environment="PATH=/path/to/your/venv/bin"
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target

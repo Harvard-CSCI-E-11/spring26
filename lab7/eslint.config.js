@@ -1,0 +1,1 @@
+../lab5/eslint.config.js

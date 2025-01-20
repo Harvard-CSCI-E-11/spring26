@@ -1,11 +1,6 @@
 #
-# This is a Unix Makefile for Lab 4
+# This is a Unix Makefile for Lab 5
 #
-# The best Makefile tutorial we have found is here:
-# https://opensource.com/article/18/8/what-how-makefile
-#
-# For background, see:
-# https://en.wikipedia.org/wiki/Make_(software)
 
 ################################################################
 # Installation targets
@@ -21,20 +16,20 @@ venv/pyvenv.cfg:
 	venv/bin/python3 -m pip install -r requirements.txt
 
 #
-# Install the lab4.services file
-install-lab4-service: venv/pyvenv.cfg
-	sudo install lab4.service /etc/systemd/system/
+# Install the lab7.services file
+install-lab7-service: venv/pyvenv.cfg
+	sudo install lab7.service /etc/systemd/system/
 	sudo systemctl daemon-reload
-	sudo systemctl enable lab4
-	sudo systemctl start lab4
-	@# Do not overwrite lab4 as it may have been customized
-	@if [ ! -r /etc/httpd/conf.d/lab4.conf ]; \
-		then echo installing /etc/httpd/conf.d/lab4.conf ; \
-		sudo install lab4.conf /etc/httpd/conf.d/ ; \
-		else echo /etc/httpd/conf.d/lab4.conf already installed ; \
+	sudo systemctl enable lab7
+	sudo systemctl start lab7
+	@# Do not overwrite lab7 as it may have been customized
+	@if [ ! -r /etc/httpd/conf.d/lab7.conf ]; \
+		then echo installing /etc/httpd/conf.d/lab7.conf ; \
+		sudo install lab7.conf /etc/httpd/conf.d/ ; \
+		else echo /etc/httpd/conf.d/lab7.conf already installed ; \
 	fi
 	@echo
-	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab4.conf, restart apache, run certbot, and restart apache again
+	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab7.conf, restart apache, and run certbot, and restart apache again
 	@echo You may also need to restart your web browser.
 
 ################################################################
@@ -47,6 +42,10 @@ local-app:
 # Print help for the application
 help:
 	venv/bin/flask --app app --help
+
+# Create the s3 bucket and establish the CORS policy
+init-s3:
+	venv/bin/flask --app app init-s3
 
 # Create a new database
 init-db:
@@ -70,4 +69,4 @@ pylint:
 
 # make venv always run, even if it exists
 .PHONY: venv
-.PHONY: install-lab4-service
+.PHONY: install-lab7-service

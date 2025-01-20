@@ -8,5 +8,5 @@ venv:
 venv/pyvenv.cfg:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv
-	. venv/bin/activate ; python3 -m pip install --upgrade pip
-	. venv/bin/activate ; python3 -m pip install -r requirements.txt
+	venv/bin/python3 -m pip install --upgrade pip
+	venv/bin/python3 -m pip install -r requirements.txt
