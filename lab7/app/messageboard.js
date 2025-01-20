@@ -1,1 +1,0 @@
-../../lab5/app/static/messageboard.js

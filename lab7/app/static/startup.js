@@ -1,0 +1,1 @@
+../../../lab5/app/static/startup.js
