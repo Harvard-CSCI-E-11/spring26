@@ -29,7 +29,7 @@ install-lab5-service: venv/pyvenv.cfg
 		else echo /etc/httpd/conf.d/lab5.conf already installed ; \
 	fi
 	@echo
-	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab5.conf, restart apache, and run certbot, and restart apache again
+	@echo Do not forget to edit ServerName in /etc/httpd/conf.d/lab5.conf, restart apache, and run certbot, and restart apache again
 	@echo You may also need to restart your web browser.
 
 ################################################################

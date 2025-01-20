@@ -34,7 +34,7 @@ install-lab4-service: venv/pyvenv.cfg
 		else echo /etc/httpd/conf.d/lab4.conf already installed ; \
 	fi
 	@echo
-	@echo Do not forget to edit ServerName in /etc/httpd/conf/lab4.conf, restart apache, run certbot, and restart apache again
+	@echo Do not forget to edit ServerName in /etc/httpd/conf.d/lab4.conf, restart apache, run certbot, and restart apache again
 	@echo You may also need to restart your web browser.
 
 ################################################################
