@@ -24,7 +24,7 @@ logger.info('message')
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
-DOMAIN_SUFFIXES = ['', '-lab2', '-lab4', '-lab5', '-lab6']
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
 
 # Function to extract data from S3 object
 def extract(content):
@@ -33,7 +33,8 @@ def extract(content):
     logging.info("account_id=%s my_ip=%s email=%s name=%s",account_id, my_ip, email, name)
     account_id = account_id.strip()
     my_ip = my_ip.strip()
-    hostname = "".join(email.strip().replace("@",".").split(".")[0:2])
+    email   = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email)
+    hostname = "".join(email.replace("@",".").split(".")[0:2])
     hostname = re.sub(r'[^a-zA-Z0-9]', '', hostname)
     return hostname, my_ip, email
 
