@@ -54,8 +54,8 @@
 </div>
 
 
-<!-- If we are in lab5, bring in the image interaction -->
-{% if lab_number == "5" %}
+<!-- If we are in lab5 or lab7, bring in the image interaction -->
+{% if lab_number == "5" or lab_number == "7"%}
 <div id='lab5'></div>
 <script src="static/imageboard.js"></script>
 {% endif %}

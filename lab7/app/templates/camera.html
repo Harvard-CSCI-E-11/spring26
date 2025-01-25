@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1> {% block title %} Camera{% endblock %} </h1>
+
+
+  <p>This form is for testing the Camera. Enter the API_KEY and the API_SECRET_KEY</p>
+  <form class='pure-form pure-form-aligned'
+        action="api/post-message" method="POST" onsubmit="show_messages(); return true;" target="hidden-iframe">
+    <fieldset>
+      <div class='pure-control-group'>
+        <label for='api-key'>API_KEY:</label>
+        <input type='text' id='api-key' name='api_key' class='uploadf' />
+        <span class="pure-form-message-inline">required</span>
+      </div>
+      <div class='pure-control-group'>
+        <label for='api-secret-key'>API_SECRET_KEY:</label>
+        <input type='text' id='api-secret-key' name='api_secret_key' class='uploadf'/>
+        <span class="pure-form-message-inline">required</span>
+      </div>
+      <div class='pure-control-group' id='submit-group'>
+        <label for='run-button'>Click to start camera:</label>
+        <input id='run-button' type='button' value='start' class='uploadf' />
+      </div>
+    </fieldset>
+  </form>
+  <div id='status-message'></div>
+</div>
+
+<!-- bring in the messageboard -->
+
+<script src="static/camera.js"> </script>
+
+{% endblock %}
+<!-- index end -->

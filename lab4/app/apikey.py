@@ -7,7 +7,7 @@ import os
 import os.path
 from hashlib import pbkdf2_hmac
 import flask
-from flask import request, jsonify, current_app, abort, redirect
+from flask import request, abort, redirect
 
 import click
 from .db import get_db

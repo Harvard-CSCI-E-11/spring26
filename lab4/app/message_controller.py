@@ -4,7 +4,7 @@ messages must be authenticated but anyone can view.
 
 """
 
-from flask import request, current_app, abort, redirect
+from flask import request
 from . import apikey
 from .db import get_db
 

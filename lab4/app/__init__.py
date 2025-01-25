@@ -92,6 +92,12 @@ def create_app(test_config=None):
     def about():
         return render_template('about.html')
 
+    # This is for lab7
+    @app.route('/camera')
+    def camera():
+        return render_template('camera.html')
+
+
     # Initialize all of the plug-ins
     db.init_app(app)
     apikey.init_app(app)

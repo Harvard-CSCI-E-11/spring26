@@ -12,10 +12,10 @@ listing, and processing JPEG images.
 import os
 import json
 import socket
+import logging
 
 import click
 import boto3
-import logging
 from botocore.exceptions import BotoCoreError,ClientError
 
 from flask import request, jsonify, current_app, redirect
@@ -60,11 +60,12 @@ def recognize_celebrities(bucket_name, object_key):
         list: A list of dictionaries containing information about recognized celebrities.
     """
     # Initialize the Rekognition client
-    rekognition_client = boto3.client('rekognition',region_name=S3_REGION)
+    rekognition = boto3.client('rekognition',region_name=S3_REGION)
 
     # Call the recognize_celebrities API
     try:
-        response = rekognition_client.recognize_celebrities(
+        current_app.logger.info("rekognize bucket_name=%s object_key=%s",bucket_name,object_key)
+        response = rekognition.recognize_celebrities(
             Image={
                 'S3Object': {
                     'Bucket': bucket_name,
@@ -75,8 +76,8 @@ def recognize_celebrities(bucket_name, object_key):
         # Extract and return details about recognized celebrities as a block of HTML
         return response.get('CelebrityFaces', [])
     except BotoCoreError as e:
-        print(f"Error: {e}")
-        return None
+        current_app.logger.error("Error: %s",e)
+        return []
 
 @click.command('init-s3')
 def create_bucket_and_apply_cors():
@@ -108,7 +109,11 @@ def list_images():
 
     """
     db = get_db()
-    return db.execute('select message_id,messages.created as created,message,image_id,celeb_json,s3key from messages left join images where messages.message_id = images.linked_message_id;').fetchall()
+    return db.execute("""select message_id,messages.created as created,message,
+                                image_id,celeb_json,s3key
+                         from messages
+                         left join images
+                         where messages.message_id = images.linked_message_id;""").fetchall()
 
 def get_image_info(image_id):
     """Return a dict for a specific image."""
@@ -217,21 +222,32 @@ def init_app(app):
         # Get all of the images and convert each SQLite3 Row object to a dictionary
         # (so we can modify it)
 
+        app.logger.info("get-images")
         db = get_db()
         rows = [dict(row) for row in list_images()]
 
         # Now, for each row:
         # 1. If we don't celeb info for it, generate the JSON and store that in the database
-        # 2. Add a signed url for the s3key
+        # 2. If we get an error, delete the image from the database
+        # 3. Add a signed url for the s3key
+        ret = []
         for row in rows:
             if row['celeb_json']:
                 celeb = json.loads(row['celeb_json'])
                 del row['celeb_json'] # remove undecoded
             else:
-                celeb = recognize_celebrities(S3_BUCKET, row['s3key'])
-                db.execute("UPDATE images set celeb_json=? where s3key=?",(json.dumps(celeb),row['s3key']))
-                db.commit()
+                # Get the celeb
+                try:
+                    celeb = recognize_celebrities(S3_BUCKET, row['s3key'])
+                    db.execute("UPDATE images set celeb_json=? where s3key=?",
+                               (json.dumps(celeb),row['s3key']))
+                    db.commit()
+                except rekognition.exceptions.InvalidS3ObjectException as e:
+                    current_app.logger.error("InvalidS3ObjectException: %s. Deleting %s",e,row['s3key'])
+                    db.execute("DELETE from images where s3key=?", (row['s3key']))
+                    db.commit()
+                    continue
             row['celeb'] = celeb
-        return rows
-
+            ret.append(row)
+        return ret
     app.cli.add_command(create_bucket_and_apply_cors)
