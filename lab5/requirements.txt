@@ -1,1 +1,6 @@
-../lab4/requirements.txt
+tabulate
+click
+flask
+boto3
+gunicorn
+pylint
