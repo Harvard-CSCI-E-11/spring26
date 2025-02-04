@@ -62,7 +62,8 @@ async def connect_and_run(host, username, password, command):
                                     password=password,
                                     known_hosts=None) as conn:
             result = await conn.run(command, check=True)
-            return f"{host}: {result.stdout.strip()}"
+            out = result.stdout.strip()
+            return f"{host}: {out}"
     except Exception as e:
         return f"{host}: Failed with error: {e}"
 
@@ -93,3 +94,10 @@ if __name__ == "__main__":
     results = asyncio.run(run_on_all_machines(list(hosts)))
     for r in results:
         print(r)
+    with open(LOG,"a") as f:
+        print("Total denied:",len( [e for e in results if "denied" in e]))
+        print("Total denied:",len( [e for e in results if "denied" in e]),file=f)
+    print("successfully attacked:")
+    for r in sorted(results):
+        if "denied" in r:
+            print(r.split(":")[0])
