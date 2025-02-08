@@ -4,10 +4,8 @@ sudo journalctl --output=short-full  --since "14 days ago" -g  'Invalid user' > 
 """
 
 import sqlite3
-import os
 import re
 from datetime import datetime, timezone
-import time
 
 DATABASE_FILE="logs.db"
 SCHEMA="""
