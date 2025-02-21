@@ -1,24 +1,17 @@
+### /etc/systemd/system/lab3.service ###
 [Unit]
-Description=Gunicorn instance to serve Flask application for lab 3
+Description=Gunicorn instance to serve Flask application for Lab 3
 After=network.target
 
 [Service]
 User=ec2-user
 Group=ec2-user
-WorkingDirectory=/home/ec2-user/app
-
-# Run gunicorn:
-# --reload - automatically reloads the app when the program changes
-# -w 4     - four workers
-# -b 127.0.0.1:8003 - listens on localhost, port 8003
-# app:app  - runs the 'app' attribute instead a module called 'app'
-
-ExecStart=/usr/local/bin/gunicorn --reload -w 4 -b 127.0.0.1:8003 app:app
+WorkingDirectory=/home/ec2-user
+Environment="PATH=/home/ec2-user/venv/bin"
+ExecStart=/home/ec2-user/venv/bin/gunicorn -w 2 -b 127.0.0.1:8003 --reload app.app:app
 Restart=always
-RestartSec=10
+RestartSec=5
 
-# Optional: specify environment variables if needed
-# Environment="PATH=/path/to/your/venv/bin"
 
 [Install]
 WantedBy=multi-user.target
