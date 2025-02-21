@@ -6,10 +6,12 @@ import sys
 import asyncio
 import asyncssh
 import boto3
+import datetime
 
 S3_BUCKET = 'cscie-11'
 S3_PREFIX = 'students/'
 PROFILE = 'fas'
+LOG = os.path.join(os.path.dirname(__file__), 'attack.log')
 
 # Get the HIDDEN value
 try:
@@ -53,12 +55,15 @@ class S3ObjectIterator:
 async def connect_and_run(host, username, password, command):
     """co-routine to connect to the host and try to execute a command"""
     try:
+        with open(LOG,"a") as f:
+            print(datetime.datetime.now().isoformat()[0:19], host,username,file=f)
         async with asyncssh.connect(host,
                                     username=username,
                                     password=password,
                                     known_hosts=None) as conn:
             result = await conn.run(command, check=True)
-            return f"{host}: {result.stdout.strip()}"
+            out = result.stdout.strip()
+            return f"{host}: {out}"
     except Exception as e:
         return f"{host}: Failed with error: {e}"
 
@@ -74,12 +79,25 @@ async def run_on_all_machines(hosts):
 
 
 if __name__ == "__main__":
-    hosts = []
+    hosts = set()
     for urn, content in S3ObjectIterator(S3_BUCKET, S3_PREFIX, profile_name=PROFILE):
         print(f"URN: {urn}")
         print(f"Content: {content}")
-        (account_id, ipaddr, email, name) = content.strip().split(',')
-        hosts.append(ipaddr.strip())
-    results = asyncio.run(run_on_all_machines(hosts))
+        try:
+            (account_id, ipaddr, email, name) = content.strip().split(',')
+            hosts.add(ipaddr.strip())
+        except ValueError:
+            with open(LOG,"a") as f:
+                print("value error: ",content)
+                print("value error: ",content,file=f)
+            pass
+    results = asyncio.run(run_on_all_machines(list(hosts)))
     for r in results:
         print(r)
+    with open(LOG,"a") as f:
+        print("Total denied:",len( [e for e in results if "denied" in e]))
+        print("Total denied:",len( [e for e in results if "denied" in e]),file=f)
+    print("successfully attacked:")
+    for r in sorted(results):
+        if "denied" in r:
+            print(r.split(":")[0])

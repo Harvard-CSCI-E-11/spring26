@@ -1,0 +1,1 @@
+0 * * * *  cd /Users/simsong/gits/csci_e-11/staff/lab1 && HIDDEN=csci-e-11-veritas-E11 venv/bin/python attack_student_instances.py
