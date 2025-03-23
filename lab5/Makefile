@@ -66,6 +66,15 @@ pylint:
 	venv/bin/python3 -m pylint app
 
 
+################################################################
+## Healthcheck - before you start lab3
+
+.PHONY: healthcheck
+healthcheck:
+	python3 -m healthcheck.main
+
+pylint-healthcheck:
+	venv/bin/python3 -m pylint  --rcfile=healthcheck/.pylintrc healthcheck
 
 # make venv always run, even if it exists
 .PHONY: venv
