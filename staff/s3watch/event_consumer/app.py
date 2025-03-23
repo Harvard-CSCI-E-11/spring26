@@ -36,7 +36,7 @@ def extract(content):
     email   = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email)
     hostname = "".join(email.replace("@",".").split(".")[0:2])
     hostname = re.sub(r'[^a-zA-Z0-9]', '', hostname)
-    return hostname, my_ip, email
+    return hostname, my_ip, email, name
 
 # Lambda handler
 # pylint: disable=unused-argument
@@ -55,7 +55,7 @@ def lambda_handler(event, context):
     logger.error("s3 object content=%s",content)
 
     # Extract data using the extract function
-    hostname, ip_address, email = extract(content)
+    hostname, ip_address, email, name = extract(content)
 
     # Create DNS records in Route53
     changes = []

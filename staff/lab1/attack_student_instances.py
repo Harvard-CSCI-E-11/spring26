@@ -98,6 +98,6 @@ if __name__ == "__main__":
         print("Total denied:",len( [e for e in results if "denied" in e]))
         print("Total denied:",len( [e for e in results if "denied" in e]),file=f)
     print("successfully attacked:")
-    for r in sorted(results):
-        if "denied" in r:
-            print(r.split(":")[0])
+    ipaddrs = [a[0:a.find(":")] for a in results if "denied" in a]
+    for r in sorted(ipaddrs,key=lambda a:[int(i) for i in a.split(".")]):
+        print(r)

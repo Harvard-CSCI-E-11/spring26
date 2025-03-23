@@ -3,17 +3,25 @@
 import sys
 import os
 import glob
+import argparse
 from os.path import dirname,join,basename
 from subprocess import call,Popen, PIPE
+import shutil
+
+MYDIR = dirname(__file__)
 
 sys.path.append( join(dirname(dirname(__file__))))
 
 from s3watch.event_consumer.app import extract
-OUTDIR = join(dirname(__file__),'out')
 
-def collect():
+def collect(OUTDIR,lab):
     print(OUTDIR)
-    for fn in glob.glob(f"{OUTDIR}/*.org"):
+    # Clear the outdir
+    os.makedirs(OUTDIR, exist_ok = True)
+    os.makedirs(OUTDIR+"/html", exist_ok = True)
+    for fn in glob.glob(f"{OUTDIR}/*.org*"):
+        os.unlink(fn)
+    for fn in glob.glob(f"{OUTDIR}/html/*"):
         os.unlink(fn)
 
     students = {}
@@ -27,22 +35,33 @@ def collect():
             pass
     print("student count:",len(students))
     lines = []
+    if lab==3:
+        append = ''
+    else:
+        append = f'-lab{lab}'
     for st in students:
-        domain = st+".csci-e-11.org"
-        call(['curl','--connect-timeout','5','-o',f'{OUTDIR}/{domain}',f'https://{domain}/'])
+        domain = st+append+".csci-e-11.org"
+        fn = f'{OUTDIR}/{domain}.txt'
+        call(['curl','--connect-timeout','5','-o',fn,f'https://{domain}/'])
+        if os.path.exists(fn):
+            shutil.copyfile(fn,f'{OUTDIR}/html/{domain}.html')
 
 if __name__=="__main__":
-    if len(sys.argv)==2:
-        fn = sys.argv[1]
-        print(f"extract {fn} = ")
-        with open(fn,"r") as f:
-            print(extract(f.read()))
-        exit(0)
-    collect()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--nocollect",action='store_true',help='do not collect the sites, just do the analysis')
+    parser.add_argument("--lab", type=int, default=3,help='specify which lab')
+    args = parser.parse_args()
+
+    OUTDIR = f"{MYDIR}/out/lab{args.lab}"
+    if not args.nocollect:
+        collect(OUTDIR,args.lab)
     count = 0
-    for fn in sorted(glob.glob(f"{OUTDIR}/*.org")):
-        pfn = basename(fn).replace(".csci-e-11.org","")[0:3]+"*****" + ".csci-e-11.org"
-        print(pfn,os.path.getsize(fn))
+
+    def pfname(fn):
+        return basename(fn).replace(".csci-e-11.org.txt","")[0:3]+"*****" + ".csci-e-11.org"
+
+    for fn in sorted(glob.glob(f"{OUTDIR}/*.org.txt")):
+        print(pfname(fn),os.path.getsize(fn))
         count +=1
 
     print("")
@@ -50,13 +69,12 @@ if __name__=="__main__":
 
     print("And here are the outputs that do not have 'Search Student Database' in them:")
     invalid = 0
-    for fn in sorted(glob.glob(f"{OUTDIR}/*.org")):
-        pfn = basename(fn).replace(".csci-e-11.org","")[0:3]+"*****" + ".csci-e-11.org"
+    for fn in sorted(glob.glob(f"{OUTDIR}/*.org.txt")):
         length = os.path.getsize(fn)
         with open(fn) as f:
             data = f.read()
         if 'Search Student Database' not in data:
-            print(f"host: {pfn}  length: {length}")
+            print(f"host: {pfname(fn)}  length: {length}")
             print(data)
             print("")
             invalid += 1
