@@ -1,5 +1,7 @@
 """
 testlib support for healtchecks.
+
+registry is an array of functions that registered themsevles with the @testcase decorator.
 """
 
 

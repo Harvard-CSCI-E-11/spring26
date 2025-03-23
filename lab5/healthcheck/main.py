@@ -1,4 +1,4 @@
-Created largely """
+"""
 CSCI E-11 healthcheck test regime
 (C) Simson Garfinkel 2025
 with significant help from ChatGpT 4o
@@ -22,17 +22,25 @@ def run_tests():
     load_all_tests()
     print("\nRunning Health Checks...\n")
     failures = []
+    status_messages = []
     for test in registry:
         meta = test._metadata
         name = meta['name']
         desc = meta['description']
-        print(f"{name:<40} ... ", end="")
+        print(f"{name:<50} ... ", end="")
         try:
-            test()
+            result = test()
             print("✅ PASS")
-        except Exception as e:
+            if result:
+                status_messages.append((name, str(result)))
+        except Exception:  # pylint: disable=broad-exception-caught
             print("❌ FAIL")
             failures.append((name, desc, traceback.format_exc()))
+
+    if status_messages:
+        print("\nAdditional Status Info:\n")
+        for name, msg in status_messages:
+            print(f"{name}:\n  {msg}")
 
     if failures:
         print("\nFailures:\n")
