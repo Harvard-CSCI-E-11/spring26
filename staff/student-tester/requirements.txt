@@ -1,0 +1,6 @@
+tqdm
+requests
+cryptography
+matplotlib
+numpy
+boto3
