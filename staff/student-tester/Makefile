@@ -1,13 +1,25 @@
-.PHONY: testall
-testall:
-	make students
-	/Users/simsong/venv/bin/python3 tester.py
+.PHONY: all testall venv students clean
 
-.PHONY: venv
-venv:
-	python3 -m venv venv
-	venv/bin/pip install -r requirements.txt
+VENV = venv
+PYTHON = python3
 
-.PHONY: students
+# Default target
+all: testall
+
+# Run the full test suite
+testall: $(VENV) students
+	$(VENV)/bin/$(PYTHON) tester.py --lab 5
+
+# Set up virtual environment and install dependencies
+$(VENV): requirements.txt
+	$(PYTHON) -m venv $(VENV)
+	$(VENV)/bin/pip install --upgrade pip
+	$(VENV)/bin/pip install -r requirements.txt
+
+# Sync student data from S3
 students:
 	aws --profile=fas s3 sync s3://cscie-11/students/ students/
+
+# Clean up generated files
+clean:
+	rm -rf $(VENV) students out

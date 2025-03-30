@@ -30,6 +30,7 @@ DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-l
 def extract(content):
     """Given the content that the student uploaded to S3, extract the hostname, IP, and email"""
     (account_id, my_ip, email, name) = content.split(",")
+    name=name.strip()
     logging.info("account_id=%s my_ip=%s email=%s name=%s",account_id, my_ip, email, name)
     account_id = account_id.strip()
     my_ip = my_ip.strip()
