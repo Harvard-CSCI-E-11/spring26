@@ -3,6 +3,7 @@ import socket
 import ssl
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
+import re
 
 
 from healthcheck.testlib import testcase
@@ -65,3 +66,38 @@ def test_https_cert():
 
     except Exception as e:
         raise AssertionError(f"Failed to validate cert: {e}")
+
+def validate_file(fname,line):
+    stripped_line = re.sub(r"\s+","",line)
+    with open(fname,"r") as f:
+        for l2 in f:
+            l2 = re.sub(r"\s+","",l2)
+            if stripped_line == l2:
+                return
+    raise AssertionError(f"Cannot find {line} in {fname}")
+
+
+@testcase(name="Lab4 Apache Conf", description="Check to make sure Apache lab4 conf is correct")
+def test_lab4_http():
+    validate_file("/etc/httpd/conf.d/lab4.conf",'DocumentRoot /home/ec2-user/spring25/lab4/www')
+    validate_file("/etc/httpd/conf.d/lab4.conf",'ProxyPass "/" "http://127.0.0.1:8004/"')
+    validate_file("/etc/httpd/conf.d/lab4.conf",'ProxyPassReverse "/" "http://127.0.0.1:8004/"')
+
+@testcase(name="Lab4 Apache SSL Conf", description="Check to make sure Apache lab4 SSL conf is correct")
+def test_lab4_http():
+    validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'DocumentRoot /home/ec2-user/spring25/lab4/www')
+    validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'ProxyPass "/" "http://127.0.0.1:8004/"')
+    validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'ProxyPassReverse "/" "http://127.0.0.1:8004/"')
+
+@testcase(name="Lab5 Apache Conf", description="Check to make sure Apache lab5 conf is correct")
+def test_lab5_http():
+    validate_file("/etc/httpd/conf.d/lab5.conf",'DocumentRoot /home/ec2-user/spring25/lab5/www')
+    validate_file("/etc/httpd/conf.d/lab5.conf",'ProxyPass "/" "http://127.0.0.1:8005/"')
+    validate_file("/etc/httpd/conf.d/lab5.conf",'ProxyPassReverse "/" "http://127.0.0.1:8005/"')
+
+@testcase(name="Lab5 Apache SSL Conf", description="Check to make sure Apache lab5 SSL conf is correct")
+def test_lab5_http():
+    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ServerName '+LAB_HOSTNAME)
+    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'DocumentRoot /home/ec2-user/spring25/lab5/www')
+    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ProxyPass "/" "http://127.0.0.1:8005/"')
+    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ProxyPassReverse "/" "http://127.0.0.1:8005/"')
