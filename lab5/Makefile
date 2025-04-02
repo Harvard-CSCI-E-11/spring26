@@ -36,26 +36,36 @@ install-lab5-service: venv/pyvenv.cfg
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
+.PHONY: local-app
 local-app:
 	venv/bin/flask --app app run --debug
 
 # Print help for the application
+.PHONY: help
 help:
 	venv/bin/flask --app app --help
 
+# Create a new database
+instance/server_db.sqlite:
+	venv/bin/flask --app app init-db
+
 # Create the s3 bucket and establish the CORS policy
+.PHONY: init-s3
 init-s3:
 	venv/bin/flask --app app init-s3
 
-# Create a new database
+.PHONY: init-db
 init-db:
 	venv/bin/flask --app app init-db
+
 # Generate a new api-key
-new-apikey:
+.PHONY: new-apikey
+new-apikey: instance/server_db.sqlite
 	venv/bin/flask --app app new-apikey
 
 # Dump the database
-dump-db:
+.PHONY: dump-db
+dump-db: instance/server_db.sqlite
 	venv/bin/flask --app app dump-db
 
 
