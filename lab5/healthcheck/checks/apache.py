@@ -7,9 +7,12 @@ import re
 
 
 from healthcheck.testlib import testcase
-from healthcheck.config import COURSE_DOMAIN,COURSE_NAME,DOT_COURSE_DOMAIN,LAB_NAME
+from healthcheck.config import COURSE_DOMAIN,COURSE_NAME,DOT_COURSE_DOMAIN,LAB_NAME,LAB3_NAME,LAB4_NAME,LAB5_NAME
 
 LOCALHOST = "127.0.0.1"
+LAB3_HOSTNAME = socket.gethostname().replace(DOT_COURSE_DOMAIN,"-"+LAB3_NAME+DOT_COURSE_DOMAIN)
+LAB4_HOSTNAME = socket.gethostname().replace(DOT_COURSE_DOMAIN,"-"+LAB4_NAME+DOT_COURSE_DOMAIN)
+LAB5_HOSTNAME = socket.gethostname().replace(DOT_COURSE_DOMAIN,"-"+LAB5_NAME+DOT_COURSE_DOMAIN)
 LAB_HOSTNAME = socket.gethostname().replace(DOT_COURSE_DOMAIN,"-"+LAB_NAME+DOT_COURSE_DOMAIN)
 
 @testcase(name=f'{COURSE_NAME} Hostname set', description='Check to make sure hostname was properly set')
@@ -79,25 +82,28 @@ def validate_file(fname,line):
 
 @testcase(name="Lab4 Apache Conf", description="Check to make sure Apache lab4 conf is correct")
 def test_lab4_http():
+    validate_file("/etc/httpd/conf.d/lab4.conf",'ServerName '+LAB4_HOSTNAME)
     validate_file("/etc/httpd/conf.d/lab4.conf",'DocumentRoot /home/ec2-user/spring25/lab4/www')
     validate_file("/etc/httpd/conf.d/lab4.conf",'ProxyPass "/" "http://127.0.0.1:8004/"')
     validate_file("/etc/httpd/conf.d/lab4.conf",'ProxyPassReverse "/" "http://127.0.0.1:8004/"')
 
 @testcase(name="Lab4 Apache SSL Conf", description="Check to make sure Apache lab4 SSL conf is correct")
 def test_lab4_http():
+    validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'ServerName '+LAB4_HOSTNAME)
     validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'DocumentRoot /home/ec2-user/spring25/lab4/www')
     validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'ProxyPass "/" "http://127.0.0.1:8004/"')
     validate_file("/etc/httpd/conf.d/lab4-le-ssl.conf",'ProxyPassReverse "/" "http://127.0.0.1:8004/"')
 
 @testcase(name="Lab5 Apache Conf", description="Check to make sure Apache lab5 conf is correct")
 def test_lab5_http():
+    validate_file("/etc/httpd/conf.d/lab5.conf",'ServerName '+LAB5_HOSTNAME)
     validate_file("/etc/httpd/conf.d/lab5.conf",'DocumentRoot /home/ec2-user/spring25/lab5/www')
     validate_file("/etc/httpd/conf.d/lab5.conf",'ProxyPass "/" "http://127.0.0.1:8005/"')
     validate_file("/etc/httpd/conf.d/lab5.conf",'ProxyPassReverse "/" "http://127.0.0.1:8005/"')
 
 @testcase(name="Lab5 Apache SSL Conf", description="Check to make sure Apache lab5 SSL conf is correct")
 def test_lab5_http():
-    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ServerName '+LAB_HOSTNAME)
+    validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ServerName '+LAB5_HOSTNAME)
     validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'DocumentRoot /home/ec2-user/spring25/lab5/www')
     validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ProxyPass "/" "http://127.0.0.1:8005/"')
     validate_file("/etc/httpd/conf.d/lab5-le-ssl.conf",'ProxyPassReverse "/" "http://127.0.0.1:8005/"')
