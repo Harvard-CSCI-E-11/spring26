@@ -9,6 +9,7 @@ import os
 import requests
 import socket
 import ssl
+import math
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -82,6 +83,7 @@ def collect(outdir, lab):
         current_date = datetime.now()
         valid_certs = 0
         invalid_certs = 0
+        message_count = []
 
         def process_host(host_data):
             domain, outdir = host_data
@@ -91,6 +93,17 @@ def collect(outdir, lab):
                     for path in [f'{outdir}/{domain}.txt', f'{outdir}/html/{domain}.html']:
                         with open(path, "w") as f:
                             f.write(resp['root_page_content'])
+
+                if lab in (4,5):
+                    url = f'https://{domain}/api/get-messages'
+                    try:
+                        data = requests.get(url).json()
+                        message_count.append(len(data))
+                    except requests.exceptions.SSLError:
+                        print("invalid SSL:",domain)
+                    except requests.exceptions.JSONDecodeError:
+                        print("Bad JSON:",url)
+
                 return resp
             except AssertionError as e:
                 logger.warning(f"{domain}: {e}")
@@ -105,11 +118,13 @@ def collect(outdir, lab):
             for v in sorted([ (r['expires'],r['tls_certificate_names']) for r in results]):
                 print(v)
 
-
-
-
         logger.info("expiration_times: %s",expiration_times)
         logger.info("dns_lab_certs: %s",dns_lab_certs)
+        logger.info("Domains with operaitonal API: %s  with >0 messages: %s  average number of messages: %s  max: %s",
+                    len(message_count),
+                    len([m for m in message_count if m>0]),
+                    math.fsum(message_count)/len(message_count),
+                    max(message_count))
 
         if expiration_times:
             days_until_expiration = [(exp - current_date).days for exp in expiration_times]
@@ -148,6 +163,8 @@ def main():
 
     if args.collect or (os.path.exists(outdir) and (time.time() - os.path.getmtime(outdir)) > MAX_CACHE_SECONDS):
         collect(outdir, args.lab)
+
+    logging.info("outdir: %s",outdir)
 
     count = 0
     def pfname(fn):
