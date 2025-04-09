@@ -118,7 +118,8 @@ def get_leaderboard():
 
 
 def update_leaderboard(*,data,ip_address,user_agent):
-    """Given a name that's already been validated, update the leaderboard, and return the new leaders"""
+    """Given a name that's already been validated,
+    update the leaderboard, and return the new leaders"""
 
     # create the potential leaderboard object for this leader
     now = int(time.time())
@@ -127,27 +128,25 @@ def update_leaderboard(*,data,ip_address,user_agent):
                    'last_seen':now,
                    'ip_address':ip_address,
                    'user_agent':user_agent}
-
-
-    # Get the leaderboard
     app.logger.debug("this_leader=%s",this_leader)
+
+    # Update this leader on the leaderboard
+    try:
+        leaderboard_table.put_item(Item=this_leader) # replaces if already there
+    except ClientError as err:
+        app.logger.error(
+            "Couldn't put_item on leaders: %s: %s",
+            err.response['Error']['Code'],
+            err.response['Error']['Message']
+        )
+        raise
+
+    # Get the leaderboard (will include this_leader, and this_leader should be active)
     leaders = get_leaderboard()
 
-    # Add this leader to the leaderboard if this leader not there
-    # It's too confusing otherwise
-    if this_leader['name'] not in set( (leader['name'] for leader in leaders) ):
-        try:
-            leaderboard_table.put_item(Item=this_leader) # replaces if already there
-        except ClientError as err:
-            app.logger.error(
-                "Couldn't put_item on leaders: %s: %s",
-                err.response['Error']['Code'],
-                err.response['Error']['Message']
-            )
-            raise
-
-        this_leader['active'] = True
-        leaders.append(this_leader)
+    me = [leader for leader in leaders if leader['name']==this_leader['name']]
+    assert len(me)==1
+    assert me[0]['active'] is True
 
 
     # If the number of leaders on the leaderboard is more than MAX_ITEMS, delete all the inactives
@@ -222,6 +221,7 @@ def api_register():
 def api_update():   # pylint disable=missing-function-docstring
     now = int(time.time())      # because callers may not have reliable time
     data = validate_registration(request.form['opaque'])
-    leaders = update_leaderboard(data=data, ip_address=request.remote_addr, user_agent=str(request.user_agent))
+    leaders = update_leaderboard(data=data, ip_address=request.remote_addr,
+                                 user_agent=str(request.user_agent))
     # and return to the caller
     return jsonify({'leaderboard':leaders,'message':NO_MESSAGE, 'now':now})

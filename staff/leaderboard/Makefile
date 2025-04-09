@@ -2,7 +2,7 @@ pytest:
 	venv/bin/pytest --log-cli-level=DEBUG
 
 pylint:
-	. venv/bin/activate ; pylint app
+	venv/bin/pylint leaderboard_app
 
 local-debug:
 	. venv/bin/activate ; python -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
