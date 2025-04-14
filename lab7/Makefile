@@ -1,11 +1,15 @@
 #
-# This is a Unix Makefile for Lab 5
+# This is a Unix Makefile for Lab 7
 #
 
 ################################################################
 # Installation targets
 #
-# Create the virtual environment
+# Create the Python virtual environment
+# The .PHONY: command makes this target always run when you type 'make venv',
+# even if the 'venv' directory already exists.
+#
+.PHONY: venv
 venv:
 	make venv/pyvenv.cfg
 
@@ -17,6 +21,7 @@ venv/pyvenv.cfg:
 
 #
 # Install the lab7.services file
+.PHONY: install-lab7-service
 install-lab7-service: venv/pyvenv.cfg
 	sudo install lab7.service /etc/systemd/system/
 	sudo systemctl daemon-reload
@@ -44,18 +49,32 @@ help:
 	venv/bin/flask --app app --help
 
 # Create the s3 bucket and establish the CORS policy
+.PHONY: init-s3
 init-s3:
 	venv/bin/flask --app app init-s3
 
-# Create a new database
+.PHONY: init-db
 init-db:
+	make instance/server_db.sqlite
+
+# Wipe the database and start over
+.PHONY: wipe-db
+wipe-db:
+	/bin/rm -f instance/server_db.sqlite
+	make init-db
+
+# Create a new database
+instance/server_db.sqlite:
 	venv/bin/flask --app app init-db
+
 # Generate a new api-key
-new-apikey:
+.PHONY: new-apikey
+new-apikey: instance/server_db.sqlite
 	venv/bin/flask --app app new-apikey
 
 # Dump the database
-dump-db:
+.PHONY: dump-db
+dump-db: instance/server_db.sqlite
 	venv/bin/flask --app app dump-db
 
 
@@ -64,9 +83,3 @@ dump-db:
 
 pylint:
 	venv/bin/python3 -m pylint app
-
-
-
-# make venv always run, even if it exists
-.PHONY: venv
-.PHONY: install-lab7-service

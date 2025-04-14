@@ -1,5 +1,5 @@
 // Ensure this script is hosted on an HTTPS server
-const UPLOAD_INTERVAL_SECONDS = 2;
+const UPLOAD_INTERVAL_SECONDS = 5;
 const UPLOAD_TIMEOUT_SECONDS = 60;
 var  frames_uploaded = 0;
 

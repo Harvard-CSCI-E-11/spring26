@@ -1,4 +1,4 @@
-/* lab5 startup
+/* lab7 startup
  * See https://developer.mozilla.org/en-US/docs/Web/API/Window/setInterval
  * for an expaination of this.
  */

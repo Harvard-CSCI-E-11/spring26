@@ -12,7 +12,7 @@ const MAX_FILE_UPLOAD = 10*1000*1000;
 /** lab5 show_images() function.
  */
 function show_images() {
-    console.log("lab5 images_messages");
+    console.log("lab7 images_messages");
     fetch('api/get-images', { method: "GET" })
         .then(r => {
             if (!r.ok) {
@@ -61,7 +61,7 @@ function show_images() {
                             }
                         }
                     ],
-                    placeholder: "No lab5 messages yet", // Displayed when there is no data
+                    placeholder: "No lab7 messages yet", // Displayed when there is no data
                 });
                 initImagePopups();
             }
@@ -188,7 +188,7 @@ function upload_image()
 }
 
 $( document ).ready( function() {
-    console.log("lab5 ready function running.")
+    console.log("lab7 ready function running.")
 
     // add the field to the form
     const pos = document.getElementById('submit-group');

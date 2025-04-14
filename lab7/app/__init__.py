@@ -19,7 +19,7 @@ from . import db
 from . import apikey
 from . import message_controller
 
-# lab5 includes the image_controller.
+# lab7 includes the image_controller.
 # Load it if image_controller.py is in the current directory
 # If not, this throws an error, and we set image_controller to Null
 #
@@ -31,7 +31,7 @@ try:
 except ImportError as e:
     image_controller = None
 
-LOG_LEVEL   = logging.DEBUG
+LOG_LEVEL   = logging.INFO
 USERNAME    = 'simsong'
 DBFILE_NAME = 'server_db.sqlite'
 
@@ -90,20 +90,19 @@ def create_app(test_config=None):
 
     @app.route('/about')
     def about():
-        return render_template('about.html')
+        return render_template('about.html',lab_number=app.config['LAB_NUMBER'])
 
     # This is for lab7
     @app.route('/camera')
     def camera():
-        return render_template('camera.html')
-
+        return render_template('camera.html',lab_number=app.config['LAB_NUMBER'])
 
     # Initialize all of the plug-ins
     db.init_app(app)
     apikey.init_app(app)
     message_controller.init_app(app)
 
-    # If we loaded the image_controler (lab5), initialize it:
+    # If we loaded the image_controler (lab7), initialize it:
     if image_controller is not None:
         image_controller.init_app(app)
 

@@ -58,6 +58,12 @@ init-s3:
 init-db:
 	venv/bin/flask --app app init-db
 
+# Wipe the database and start over
+.PHONY: wipe-db
+wipe-db:
+	/bin/rm -f instance/server_db.sqlite
+	make init-db
+
 # Generate a new api-key
 .PHONY: new-apikey
 new-apikey: instance/server_db.sqlite

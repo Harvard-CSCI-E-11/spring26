@@ -24,7 +24,7 @@ from .db import get_db
 from . import apikey
 from . import message_controller
 
-S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
+S3_BUCKET = socket.gethostname().replace('.','-') + '-lab7-bucket'
 S3_REGION = 'us-east-1'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
@@ -200,7 +200,9 @@ def init_app(app):
         image_id = request.values.get('image_id', type=int, default=0)
         s3key    = get_image_info(image_id)['s3key']
         presigned_url = presigned_url_for_s3key(s3key)
-        app.logger.info("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
+        client_ip = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+        app.logger.info("%s image_id=%d s3key=%s",client_ip,image_id,s3key)
+        app.logger.debug("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
 
         # Now redirect to it.
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
