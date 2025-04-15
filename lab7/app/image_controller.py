@@ -29,6 +29,9 @@ S3_REGION = 'us-east-1'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
 
+# Initialize the Rekognition client
+rekognition = boto3.client('rekognition',region_name=S3_REGION)
+
 # Define the Cross Origin Resource Sharing Policy for the S3 bucket.
 # This tells the browser that it is safe to retrieve the S3 objects it gets the redirect
 # from the application.
@@ -59,8 +62,6 @@ def recognize_celebrities(bucket_name, object_key):
     Returns:
         list: A list of dictionaries containing information about recognized celebrities.
     """
-    # Initialize the Rekognition client
-    rekognition = boto3.client('rekognition',region_name=S3_REGION)
 
     # Call the recognize_celebrities API
     try:
@@ -200,7 +201,9 @@ def init_app(app):
         image_id = request.values.get('image_id', type=int, default=0)
         s3key    = get_image_info(image_id)['s3key']
         presigned_url = presigned_url_for_s3key(s3key)
-        client_ip = request.headers.getlist("X-Forwarded-For")[0] if request.headers.getlist("X-Forwarded-For") else request.remote_addr
+        client_ip = (request.headers.getlist("X-Forwarded-For")[0]
+                     if request.headers.getlist("X-Forwarded-For")
+                     else request.remote_addr)
         app.logger.info("%s image_id=%d s3key=%s",client_ip,image_id,s3key)
         app.logger.debug("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
 
@@ -245,9 +248,7 @@ def init_app(app):
                                (json.dumps(celeb),row['s3key']))
                     db.commit()
                 except rekognition.exceptions.InvalidS3ObjectException as e:
-                    current_app.logger.error("InvalidS3ObjectException: %s. Deleting %s",e,row['s3key'])
-                    db.execute("DELETE from images where s3key=?", (row['s3key']))
-                    db.commit()
+                    current_app.logger.error("InvalidS3ObjectException: s3key=%s. e=%s",row['s3key'],str(e))
                     continue
             row['celeb'] = celeb
             ret.append(row)
