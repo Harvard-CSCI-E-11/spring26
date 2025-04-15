@@ -24,7 +24,7 @@ from .db import get_db
 from . import apikey
 from . import message_controller
 
-S3_BUCKET = socket.gethostname().replace('.','-') + '-lab7-bucket'
+S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
 S3_REGION = 'us-east-1'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
