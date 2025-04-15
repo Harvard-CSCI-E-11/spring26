@@ -24,10 +24,13 @@ from .db import get_db
 from . import apikey
 from . import message_controller
 
-S3_BUCKET = socket.gethostname().replace('.','-') + '-lab5-bucket'
+S3_BUCKET = socket.gethostname().replace('.','-') + '-lab7-bucket'
 S3_REGION = 'us-east-1'
 MAX_IMAGE_SIZE=10_000_000
 JPEG_MIME_TYPE = 'image/jpeg'
+
+# Initialize the Rekognition client
+rekognition = boto3.client('rekognition',region_name=S3_REGION)
 
 # Define the Cross Origin Resource Sharing Policy for the S3 bucket.
 # This tells the browser that it is safe to retrieve the S3 objects it gets the redirect
@@ -59,8 +62,6 @@ def recognize_celebrities(bucket_name, object_key):
     Returns:
         list: A list of dictionaries containing information about recognized celebrities.
     """
-    # Initialize the Rekognition client
-    rekognition = boto3.client('rekognition',region_name=S3_REGION)
 
     # Call the recognize_celebrities API
     try:
@@ -200,7 +201,11 @@ def init_app(app):
         image_id = request.values.get('image_id', type=int, default=0)
         s3key    = get_image_info(image_id)['s3key']
         presigned_url = presigned_url_for_s3key(s3key)
-        app.logger.info("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
+        client_ip = (request.headers.getlist("X-Forwarded-For")[0]
+                     if request.headers.getlist("X-Forwarded-For")
+                     else request.remote_addr)
+        app.logger.info("%s image_id=%d s3key=%s",client_ip,image_id,s3key)
+        app.logger.debug("image_id=%d s3key=%s presigned_url=%s",image_id,s3key,presigned_url)
 
         # Now redirect to it.
         # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
@@ -242,11 +247,8 @@ def init_app(app):
                     db.execute("UPDATE images set celeb_json=? where s3key=?",
                                (json.dumps(celeb),row['s3key']))
                     db.commit()
-                except Exception as e:
-                    current_app.logger.error("InvalidS3ObjectException: %s. row: %s",e,row)
-                    #db.execute("DELETE from images where s3key=?", (row['s3key']))
-                    #db.commit()
-                    celeb = {'error':True}
+                except rekognition.exceptions.InvalidS3ObjectException as e:
+                    current_app.logger.error("InvalidS3ObjectException: s3key=%s. e=%s",row['s3key'],str(e))
                     continue
             row['celeb'] = celeb
             ret.append(row)
