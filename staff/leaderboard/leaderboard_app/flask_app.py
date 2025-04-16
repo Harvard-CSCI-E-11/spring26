@@ -25,7 +25,7 @@ DEFAULT_LEADERBOARD_TABLE = 'Leaderboard'
 dynamodb = boto3.resource( 'dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', DEFAULT_LEADERBOARD_TABLE))
 SECRET_KEY = 'to be changed'    # for its dangerous
-MAX_ITEMS = 20                  # keep it exciting
+MAX_ITEMS = 100                 # we have 90 students in the class
 NO_MESSAGE = None
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
@@ -118,7 +118,8 @@ def get_leaderboard():
 
 
 def update_leaderboard(*,data,ip_address,user_agent):
-    """Given a name that's already been validated, update the leaderboard, and return the new leaders"""
+    """Given a name that's already been validated,
+    update the leaderboard, and return the new leaders"""
 
     # create the potential leaderboard object for this leader
     now = int(time.time())
@@ -127,47 +128,32 @@ def update_leaderboard(*,data,ip_address,user_agent):
                    'last_seen':now,
                    'ip_address':ip_address,
                    'user_agent':user_agent}
-
-    # Get the leaderboard
     app.logger.debug("this_leader=%s",this_leader)
+
+    # Update this leader on the leaderboard
+    try:
+        leaderboard_table.put_item(Item=this_leader) # replaces if already there
+    except ClientError as err:
+        app.logger.error(
+            "Couldn't put_item on leaders: %s: %s",
+            err.response['Error']['Code'],
+            err.response['Error']['Message']
+        )
+        raise
+
+    # Get the leaderboard (will include this_leader, and this_leader should be active)
     leaders = get_leaderboard()
+
+    me = [leader for leader in leaders if leader['name']==this_leader['name']]
+    assert len(me)==1
+    assert me[0]['active'] is True
+
 
     # If the number of leaders on the leaderboard is more than MAX_ITEMS, delete all the inactives
     to_delete = []
     if len(leaders) > MAX_ITEMS:
         to_delete.extend([leader for leader in leaders if not leader['active']])
         leaders = [leader for leader in leaders if leader['active']]
-
-    # Write this_leader to the leaderboard if:
-    # - There are less than MAX_ITEMS on the leaderboard
-    # - This is older than the youngest on the leaderboard
-    if leaders:
-        youngest_leader = max( (leader['first_seen'] for leader in leaders) )
-    else:
-        youngest_leader = now
-
-    # Add this leader to the leaderboard if this leader not there
-    if ( this_leader['first_seen'] < youngest_leader) or (len(leaders) < MAX_ITEMS):
-        try:
-            leaderboard_table.put_item(Item=this_leader) # replaces if already there
-        except ClientError as err:
-            app.logger.error(
-                "Couldn't put_item on leaders: %s: %s",
-                err.response['Error']['Code'],
-                err.response['Error']['Message']
-            )
-            raise
-        if this_leader['name'] not in set( (leader['name'] for leader in leaders) ):
-            this_leader['active'] = True
-            leaders.append(this_leader)
-
-    # If the number of leaders on the leaderboard is still n more than MAX_ITEMS,
-    # delete the youngest N items
-    leaders = sorted_leaders(leaders)
-    n = len(leaders) - MAX_ITEMS
-    if n>0:
-        to_delete.extend(leaders[:-n])
-        leaders = leaders[-n:]
 
     # Delete all in to_delete from DynamoDB
     try:
@@ -235,6 +221,7 @@ def api_register():
 def api_update():   # pylint disable=missing-function-docstring
     now = int(time.time())      # because callers may not have reliable time
     data = validate_registration(request.form['opaque'])
-    leaders = update_leaderboard(data=data, ip_address=request.remote_addr, user_agent=str(request.user_agent))
+    leaders = update_leaderboard(data=data, ip_address=request.remote_addr,
+                                 user_agent=str(request.user_agent))
     # and return to the caller
     return jsonify({'leaderboard':leaders,'message':NO_MESSAGE, 'now':now})

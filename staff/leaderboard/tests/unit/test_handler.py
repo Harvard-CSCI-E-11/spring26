@@ -5,7 +5,7 @@ test_handler.py
 import json
 import pytest
 
-from lambda_handler import lambda_app
+from lambda_app import lambda_app
 
 @pytest.fixture()
 def apigw_event():
