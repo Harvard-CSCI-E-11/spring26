@@ -15,28 +15,52 @@ from config import API_KEY,API_SECRET_KEY,POST_IMAGE_URL
 
 import sys
 import time
+import gc
 
 data = {'frames_uploaded':0}
 
-# Is my script running on Micropython?
 try:
+    # Is my script running on Micropython?
+    from machine import Pin
     # use led.off() to turn it on (it's active-low)
     # and led.on() to turn it off.
-    from machine import Pin
     led = Pin(ESP32_WROVER_BLUE_LED_PIN, Pin.OUT)
     led.on()
 except ImportError:
     led = None
 
-# Import urequests on micropython, else import requests as urequests
+
+def connect_wifi(ssid, password, timeout=10):
+    """Connect to Wi-Fi, retrying for `timeout` seconds. Returns True if successful."""
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print(f"Connecting to {ssid}...")
+        wlan.connect(ssid, password)
+        for _ in range(timeout * 10):  # retry in 100ms steps
+            if wlan.isconnected():
+                break
+            time.sleep(0.1)
+    if wlan.isconnected():
+        print("Wi-Fi connected:", wlan.ifconfig())
+        return True
+    else:
+        print("Failed to connect to Wi-Fi")
+        return False
+
 if led is not None:
+    # Micropython
+    # Import urequests connect to wifi
     import urequests
+    import network
+    from config import WIFI_SSID, WIFI_PASSWORD
+    connect_wifi(WIFI_SSID, WIFI_PASSWORD)
 else:
+    # Cpython.
     import requests as urequests
 
-def error_led(message, times, delay=0.2):
-    """Function for flashing the blue LED"""
-    print(message)
+def blink_led(times, delay=0.2):
+    """Just blink the LED with no error"""
     if led is None:
         return
     for _ in range(times):
@@ -44,6 +68,20 @@ def error_led(message, times, delay=0.2):
         time.sleep(delay)
         led.on()
         time.sleep(delay)
+
+def error_led(message, times, delay=0.2):
+    """Function for flashing the blue LED"""
+    print(message)
+    blink_led(times, delay)
+
+def quote(s):
+    # encode only a-zA-Z0-9 and '-_.~'
+    safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
+    return ''.join(c if c in safe else '%%%02X' % ord(c) for c in s)
+
+def urlencode(params):
+    # basic urlencode implementation for MicroPython
+    return '&'.join(f'{quote(str(k))}={quote(str(v))}' for k, v in params.items())
 
 def post_image(image):
     #
@@ -57,13 +95,23 @@ def post_image(image):
            'message':f' frame {uploaded}'
            }
 
-    r = urequests.post(POST_IMAGE_URL, data = obj)
-    if not r.ok:
+    print(POST_IMAGE_URL)
+    print("obj=",obj)
+    form_data = urlencode(obj)
+    print("form_data=",form_data)
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    r = urequests.post(POST_IMAGE_URL, headers=headers, data = form_data)
+    print("r=",r,r.text)
+    if not (200 <= r.status_code < 300 ):
         print("url=",POST_IMAGE_URL,"r=",r,r.text)
         error_led("first post failed",ERROR_FIRST_POST_FAILED)
         raise RuntimeError("first post failed")
     presigned_post = r.json()['presigned_post']
     r.close()
+    blink_led(1,0.5)      # Let socket & TCP stack settle
+    gc.collect()          # force GC
 
     # now upload to S3 using the presigned post and a hand-crafted file POST
     # since Micropython doesn't have the files= option.
@@ -92,11 +140,11 @@ def post_image(image):
     # POST the request
     r = urequests.post(presigned_post["url"], data=body, headers=headers)
 
-    print("Status:", r.status_code)
-    print("Response:", r.text)
     r.close()
+    blink_led(1,0.5)      # Let socket & TCP stack settle
+    gc.collect()          # force GC
 
-    if not r.ok:
+    if not (200 <= r.status_code < 300):
         error_led("S3 upload failed",ERROR_S3_POST_FAILED)
         raise RuntimeError("second post failed")
     print(f"[{time.time()}] Uploaded frame {uploaded}")
@@ -104,9 +152,10 @@ def post_image(image):
 
 #
 # Actual program for running in MicroPython
-#
+# Initialize WiFi
 if led is not None:
     import camera
+
 
     camera.deinit()
     if not camera.init(0, d0=4, d1=5, d2=18, d3=19, d4=36, d5=39, d6=34, d7=35,format=camera.JPEG, framesize=camera.FRAME_VGA, xclk_freq=camera.XCLK_20MHz, href=23, vsync=25, reset=-1, pwdn=-1,sioc=27, siod=26, xclk=21, pclk=22,fb_location=camera.PSRAM):
@@ -118,8 +167,14 @@ if led is not None:
         print("taking picture",n)
         image = camera.capture()
         post_image(image)
-        time.sleep(UPLOAD_INTERVAL_SECONDS)
-
+        if n==UPLOAD_ATTEMPTS-1:
+            break
+        if UPLOAD_INTERVAL_SECONDS<5:
+            time.sleep(UPLOAD_INTERVAL_SECONDS)
+        else:
+            # Something a bit more creative
+            blink_led(UPLOAD_INTERVAL_SECONDS-5,0.5)
+            blink_led(50,0.05)
 
 #
 # Test program for running on MacOS
