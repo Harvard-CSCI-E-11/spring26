@@ -19,8 +19,13 @@ from datetime import datetime
 from os.path import dirname, join, basename
 from subprocess import call
 from threading import Lock
+import io
+import mimetypes
+from urllib.parse import urlparse
 
 LABS = [4, 5, 7]
+RETRIES = 3
+RETRY_DELAY = 2
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,31 +36,47 @@ MYDIR = dirname(__file__)
 sys.path.append(join(dirname(dirname(__file__))))
 from s3watch.event_consumer.app import extract
 
+report = io.StringIO()
+
+def download_image(image_url, save_path):
+    r = requests.get(image_url, stream=True)
+    if r.status_code == 200:
+        with open(save_path, 'wb') as f:
+            for chunk in r.iter_content(1024):
+                f.write(chunk)
+        return True
+    return False
+
 def test_https_cert(hostname):
     """Test HTTPS certificate and fetch root page content."""
-    try:
-        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        with socket.create_connection((hostname, 443), timeout=3) as sock:
-            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                der_cert = ssock.getpeercert(binary_form=True)
-        cert = x509.load_der_x509_certificate(der_cert, default_backend())
-        san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
-        dns_names = san.value.get_values_for_type(x509.DNSName)
-        ret = {'hostname':hostname,
-               'expires':cert.not_valid_after,
-               'tls_certificate_names': sorted(dns_names),
-               'dns_lab_cert':hostname in dns_names}
-        if ret['dns_lab_cert']:
-            logger.debug("** hostname: %s",hostname)
-            response = requests.get(f"https://{hostname}", timeout=5)
-            response.raise_for_status()
-            ret["root_page_content"] = response.text
-        return ret
-
-    except Exception as e:
-        raise AssertionError(f"Failed to validate cert or get page: {e}")
+    for attempt in range(RETRIES):
+        try:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((hostname, 443), timeout=3) as sock:
+                with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    der_cert = ssock.getpeercert(binary_form=True)
+            cert = x509.load_der_x509_certificate(der_cert, default_backend())
+            san = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+            dns_names = san.value.get_values_for_type(x509.DNSName)
+            ret = {'hostname':hostname,
+                   'expires':cert.not_valid_after,
+                   'tls_certificate_names': sorted(dns_names),
+                   'dns_lab_cert':hostname in dns_names}
+            if ret['dns_lab_cert']:
+                response = requests.get(f"https://{hostname}", timeout=5)
+                response.raise_for_status()
+                ret["root_page_content"] = response.text
+            return ret
+        except (requests.exceptions.ConnectionError, socket.gaierror) as e:
+            logger.warning(f"Connection error for {hostname} (attempt {attempt+1}/{RETRIES}): {e}")
+            if attempt < RETRIES - 1:
+                time.sleep(RETRY_DELAY)
+            else:
+                raise AssertionError(f"Failed to validate cert or get page for {hostname} after {RETRIES} attempts: {e}")
+        except Exception as e:
+            raise AssertionError(f"Failed to validate cert or get page: {e}")
 
 def collect(*,outdir, lab, limit=None, livecdf=False, hostnames_for_cdf=None):
     """Collect student website data and generate expiration CDF."""
@@ -97,17 +118,52 @@ def collect(*,outdir, lab, limit=None, livecdf=False, hostnames_for_cdf=None):
                         with open(path, "w") as f:
                             f.write(resp['root_page_content'])
 
+                images_found = 0
+                images_downloaded = 0
                 if lab in LABS:
                     url = f'https://{domain}/api/get-messages'
-                    try:
-                        logger.debug("** url: %s",url)
-                        data = requests.get(url).json()
-                        message_count.append(len(data))
-                    except requests.exceptions.SSLError:
-                        logger.info("** invalid SSL: %s",domain)
-                    except requests.exceptions.JSONDecodeError:
-                        logger.info("** Bad JSON: %s",url)
-
+                    for attempt in range(RETRIES):
+                        try:
+                            logger.debug("** url: %s", url)
+                            data = requests.get(url).json()
+                            message_count.append(len(data))
+                            if lab in [5, 7]:
+                                images_dir = os.path.join(outdir, "images")
+                                os.makedirs(images_dir, exist_ok=True)
+                                for msg in data:
+                                    msg_id = msg.get("message_id")
+                                    if msg_id is not None:
+                                        img_api_url = f"https://{domain}/api/get-image?image_id={msg_id}"
+                                        img_resp = requests.get(img_api_url, allow_redirects=False)
+                                        if img_resp.status_code == 302:
+                                            s3_url = img_resp.headers.get("Location")
+                                            if s3_url and "amazonaws.com" in s3_url:
+                                                images_found += 1
+                                                ext = os.path.splitext(urlparse(s3_url).path)[1]
+                                                if not ext:
+                                                    head = requests.head(s3_url)
+                                                    ext = mimetypes.guess_extension(head.headers.get("Content-Type", ""))
+                                                    if not ext:
+                                                        ext = ".img"
+                                                save_path = os.path.join(images_dir, f"{domain}.{msg_id}{ext}")
+                                                if download_image(s3_url, save_path):
+                                                    images_downloaded += 1
+                            break  # Success, exit retry loop
+                        except requests.exceptions.SSLError:
+                            logger.info("** invalid SSL: %s", domain)
+                            break
+                        except requests.exceptions.JSONDecodeError:
+                            logger.info("** Bad JSON: %s", url)
+                            break
+                        except requests.exceptions.ConnectionError as e:
+                            logger.warning(f"Connection error for {domain} (attempt {attempt+1}/{RETRIES}): {e}")
+                            if attempt < RETRIES - 1:
+                                time.sleep(RETRY_DELAY)
+                            else:
+                                logger.error(f"Failed to connect to {domain} after {RETRIES} attempts.")
+                if lab in [5, 7]:
+                    resp['images_found'] = images_found
+                    resp['images_downloaded'] = images_downloaded
                 return resp
             except AssertionError as e:
                 logger.warning(f"{domain}: {e}")
@@ -131,22 +187,40 @@ def collect(*,outdir, lab, limit=None, livecdf=False, hostnames_for_cdf=None):
             avg = 'n/a'
             mx  = 'n/a'
 
+        logger.debug("dns_lab_certs: %s",dns_lab_certs)
         logger.debug("expiration_times: %s",expiration_times)
-        logger.info("dns_lab_certs: %s",dns_lab_certs)
-        logger.info("Domains with operaitonal API: %s  with >0 messages: %s  average number of messages: %s  max: %s",
-                    len(message_count),
-                    len([m for m in message_count if m>0]),
-                    avg, mx)
+        line = ("Domains with operational API: %s  with >0 messages: %s  average number of messages: %s  max: %s" %
+                (len(message_count), len([m for m in message_count if m>0]), avg, mx))
+        logger.info(line)
+        report.write(line + "\n")
 
         # Count unique certificate names containing each lab
         lab_counts = {f'lab{lab}': set() for lab in LABS}
+        exclusive_counts = {f'lab{lab}': set() for lab in LABS}
         for r in results:
-            for name in r['tls_certificate_names']:
+            names = r['tls_certificate_names']
+            labs_in_names = set()
+            for name in names:
                 for lab in lab_counts:
                     if lab in name:
                         lab_counts[lab].add(name)
+                        labs_in_names.add(lab)
+            # Check for exclusivity: only one lab present, and all names are for that lab
+            if len(labs_in_names) == 1:
+                only_lab = next(iter(labs_in_names))
+                if all(only_lab in name for name in names):
+                    exclusive_counts[only_lab].update(names)
         for lab, names in lab_counts.items():
-            logger.info(f"Number of unique tls_certificate_names containing '{lab}': {len(names)}")
+            line = f"{lab}: {len(names)} hosts, exclusive hosts: {len(exclusive_counts[lab])}"
+            logger.info(line)
+            report.write(line + "\n")
+
+        if lab in [5, 7]:
+            total_images_found = sum(r.get('images_found', 0) for r in results)
+            total_images_downloaded = sum(r.get('images_downloaded', 0) for r in results)
+            line = f"Lab {lab}: {total_images_found} messages with images in S3, {total_images_downloaded} images downloaded."
+            logger.info(line)
+            report.write(line + "\n")
 
         if expiration_times:
             host_exp_pairs = [(r['expires'], r['hostname']) for r in results]
@@ -267,7 +341,9 @@ def main():
                 logger.info("====================================================")
                 invalid += 1
         logger.info(f"Invalid responses: {invalid}")
-    return 0 if invalid == 0 else 1
+    return report.getvalue(), (0 if invalid == 0 else 1)
 
 if __name__ == "__main__":
-    sys.exit(main())
+    rep, rc = main()
+    print(rep)
+    sys.exit(rc)
