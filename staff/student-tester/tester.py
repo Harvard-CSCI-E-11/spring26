@@ -48,7 +48,7 @@ def test_https_cert(hostname):
                'tls_certificate_names': sorted(dns_names),
                'dns_lab_cert':hostname in dns_names}
         if ret['dns_lab_cert']:
-            logger.debug("** hostname:",hostname)
+            logger.debug("** hostname: %s",hostname)
             response = requests.get(f"https://{hostname}", timeout=5)
             response.raise_for_status()
             ret["root_page_content"] = response.text
@@ -57,7 +57,7 @@ def test_https_cert(hostname):
     except Exception as e:
         raise AssertionError(f"Failed to validate cert or get page: {e}")
 
-def collect(outdir, lab, limit=None):
+def collect(*,outdir, lab, limit=None, livecdf=False, hostnames_for_cdf=None):
     """Collect student website data and generate expiration CDF."""
     logger.info(f"Collecting {outdir} for lab {lab}")
     try:
@@ -149,13 +149,17 @@ def collect(outdir, lab, limit=None):
             logger.info(f"Number of unique tls_certificate_names containing '{lab}': {len(names)}")
 
         if expiration_times:
-            days_until_expiration = [(exp - current_date).days for exp in expiration_times]
+            host_exp_pairs = [(r['expires'], r['hostname']) for r in results]
+            days_until_expiration = [(exp - current_date).days for exp, hn in host_exp_pairs]
             days_until_expiration = [d for d in days_until_expiration if d >= 0]
             if days_until_expiration:
-                sorted_days = np.sort(days_until_expiration)
+                # Sort both expiration days and hostnames together
+                sorted_pairs = sorted([(exp, hn) for exp, hn in host_exp_pairs if (exp - current_date).days >= 0])
+                sorted_days = np.array([(exp - current_date).days for exp, hn in sorted_pairs])
+                sorted_hostnames = [hn for exp, hn in sorted_pairs]
                 cdf = np.arange(1, len(sorted_days) + 1) / len(sorted_days)
                 plt.figure(figsize=(12, 8))
-                plt.plot(sorted_days, cdf, marker='.', linestyle='none')
+                scatter = plt.scatter(sorted_days, cdf, marker='.', color='b')
                 plt.grid(True)
                 plt.xlabel('Days Until Certificate Expiration')
                 plt.ylabel('Cumulative Probability')
@@ -164,10 +168,40 @@ def collect(outdir, lab, limit=None):
                 plt.legend()
                 plot_path = join(outdir, 'certificate_expiration_cdf.png')
                 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-                plt.close()
                 logger.info(f"CDF plot saved as {plot_path}")
-                logger.info(f"Certificates analyzed: {len(days_until_expiration)}")
-                logger.info(f"Median days until expiration: {np.median(days_until_expiration):.0f}")
+
+                if livecdf:
+                    # Interactive mouse-over for hostnames
+                    annot = plt.gca().annotate("", xy=(0,0), xytext=(20,20),
+                                               textcoords="offset points",
+                                               bbox=dict(boxstyle="round", fc="w"),
+                                               arrowprops=dict(arrowstyle="->"))
+                    annot.set_visible(False)
+                    def update_annot(ind):
+                        pos = scatter.get_offsets()[ind["ind"][0]]
+                        annot.xy = pos
+                        text = f"{sorted_hostnames[ind['ind'][0]]}"
+                        annot.set_text(text)
+                        annot.get_bbox_patch().set_alpha(0.8)
+                    def hover(event):
+                        vis = annot.get_visible()
+                        if event.inaxes == plt.gca():
+                            cont, ind = scatter.contains(event)
+                            if cont:
+                                update_annot(ind)
+                                annot.set_visible(True)
+                                plt.gcf().canvas.draw_idle()
+                            else:
+                                if vis:
+                                    annot.set_visible(False)
+                                    plt.gcf().canvas.draw_idle()
+                    plt.gcf().canvas.mpl_connect("motion_notify_event", hover)
+                    print("Showing interactive CDF plot...")
+                    plt.show()
+                else:
+                    plt.close()
+                logger.info(f"Certificates analyzed: {len(sorted_days)}")
+                logger.info(f"Median days until expiration: {np.median(sorted_days):.0f}")
             else:
                 logger.info("No valid expiration dates to plot (all certificates expired)")
     except Exception as e:
@@ -180,6 +214,7 @@ def main():
     parser.add_argument("--lab", type=int, default=3, help='Specify which lab')
     parser.add_argument("--debug", action='store_true', help='Enable debug logging')
     parser.add_argument("--limit", type=int, default=None, help='Limit the number of hosts to examine')
+    parser.add_argument("--livecdf", action='store_true', help='Show CDF plot in a window with interactive hostnames')
     args = parser.parse_args()
 
     if args.debug:
@@ -189,7 +224,14 @@ def main():
     os.makedirs(outdir, exist_ok=True)
 
     if args.collect or (os.path.exists(outdir) and (time.time() - os.path.getmtime(outdir)) > MAX_CACHE_SECONDS):
-        collect(outdir, args.lab, args.limit)
+        # Prepare hostnames for CDF if livecdf is requested
+        hostnames_for_cdf = None
+        if args.livecdf:
+            # You need to pass the hostnames in the same order as expiration_times
+            # This requires a small change in collect() to accept and use this list
+            # For now, just pass None and let collect() handle it
+            pass
+        collect(outdir=outdir, lab=args.lab, limit=args.limit, livecdf=args.livecdf, hostnames_for_cdf=hostnames_for_cdf)
 
     logger.info("outdir: %s",outdir)
 
