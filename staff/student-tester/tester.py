@@ -20,6 +20,8 @@ from os.path import dirname, join, basename
 from subprocess import call
 from threading import Lock
 
+LABS = [4, 5, 7]
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -94,15 +96,15 @@ def collect(outdir, lab):
                         with open(path, "w") as f:
                             f.write(resp['root_page_content'])
 
-                if lab in (4,5):
+                if lab in LABS:
                     url = f'https://{domain}/api/get-messages'
                     try:
                         data = requests.get(url).json()
                         message_count.append(len(data))
                     except requests.exceptions.SSLError:
-                        print("invalid SSL:",domain)
+                        logger.info("** invalid SSL:",domain)
                     except requests.exceptions.JSONDecodeError:
-                        print("Bad JSON:",url)
+                        logger.info("** Bad JSON:",url)
 
                 return resp
             except AssertionError as e:
@@ -112,11 +114,11 @@ def collect(outdir, lab):
         host_data = [(st + append + ".csci-e-11.org", outdir) for st in students]
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = executor.map(process_host, host_data)
-            results = [r for r in results if r is not None]
-            expiration_times = [r['expires'] for r in results]
-            dns_lab_certs    = [r['dns_lab_cert'] for r in results]
-            for v in sorted([ (r['expires'],r['tls_certificate_names']) for r in results]):
-                print(v)
+        results = [r for r in results if r is not None]
+        expiration_times = [r['expires'] for r in results]
+        dns_lab_certs    = [r['dns_lab_cert'] for r in results]
+        for v in sorted([ (r['expires'],r['tls_certificate_names']) for r in results]):
+            logger.info(v)
 
         try:
             avg = math.fsum(message_count)/len(message_count)
@@ -125,12 +127,22 @@ def collect(outdir, lab):
             avg = 'n/a'
             mx  = 'n/a'
 
-        logger.info("expiration_times: %s",expiration_times)
+        logger.debug("expiration_times: %s",expiration_times)
         logger.info("dns_lab_certs: %s",dns_lab_certs)
         logger.info("Domains with operaitonal API: %s  with >0 messages: %s  average number of messages: %s  max: %s",
                     len(message_count),
                     len([m for m in message_count if m>0]),
                     avg, mx)
+
+        # Count unique certificate names containing each lab
+        lab_counts = {f'lab{lab}': set() for lab in LABS}
+        for r in results:
+            for name in r['tls_certificate_names']:
+                for lab in lab_counts:
+                    if lab in name:
+                        lab_counts[lab].add(name)
+        for lab, names in lab_counts.items():
+            logger.info(f"Number of unique tls_certificate_names containing '{lab}': {len(names)}")
 
         if expiration_times:
             days_until_expiration = [(exp - current_date).days for exp in expiration_times]
@@ -170,7 +182,7 @@ def main():
     if args.collect or (os.path.exists(outdir) and (time.time() - os.path.getmtime(outdir)) > MAX_CACHE_SECONDS):
         collect(outdir, args.lab)
 
-    logging.info("outdir: %s",outdir)
+    logger.info("outdir: %s",outdir)
 
     count = 0
     def pfname(fn):
