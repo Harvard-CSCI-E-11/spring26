@@ -118,13 +118,19 @@ def collect(outdir, lab):
             for v in sorted([ (r['expires'],r['tls_certificate_names']) for r in results]):
                 print(v)
 
+        try:
+            avg = math.fsum(message_count)/len(message_count)
+            mx  = max(message_count)
+        except ZeroDivisionError:
+            avg = 'n/a'
+            mx  = 'n/a'
+
         logger.info("expiration_times: %s",expiration_times)
         logger.info("dns_lab_certs: %s",dns_lab_certs)
         logger.info("Domains with operaitonal API: %s  with >0 messages: %s  average number of messages: %s  max: %s",
                     len(message_count),
                     len([m for m in message_count if m>0]),
-                    math.fsum(message_count)/len(message_count),
-                    max(message_count))
+                    avg, mx)
 
         if expiration_times:
             days_until_expiration = [(exp - current_date).days for exp in expiration_times]
@@ -185,9 +191,9 @@ def main():
         srch = None
 
     logger.info(f"Total responses: {count}")
+    invalid = 0
     if srch:
         logger.info(f"Outputs without '{srch}':")
-        invalid = 0
         for fn in sorted(glob.glob(f"{outdir}/*.org.txt")):
             length = os.path.getsize(fn)
             with open(fn) as f:
