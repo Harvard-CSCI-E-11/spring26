@@ -48,6 +48,7 @@ def test_https_cert(hostname):
                'tls_certificate_names': sorted(dns_names),
                'dns_lab_cert':hostname in dns_names}
         if ret['dns_lab_cert']:
+            logger.debug("** hostname:",hostname)
             response = requests.get(f"https://{hostname}", timeout=5)
             response.raise_for_status()
             ret["root_page_content"] = response.text
@@ -56,7 +57,7 @@ def test_https_cert(hostname):
     except Exception as e:
         raise AssertionError(f"Failed to validate cert or get page: {e}")
 
-def collect(outdir, lab):
+def collect(outdir, lab, limit=None):
     """Collect student website data and generate expiration CDF."""
     logger.info(f"Collecting {outdir} for lab {lab}")
     try:
@@ -99,12 +100,13 @@ def collect(outdir, lab):
                 if lab in LABS:
                     url = f'https://{domain}/api/get-messages'
                     try:
+                        logger.debug("** url: %s",url)
                         data = requests.get(url).json()
                         message_count.append(len(data))
                     except requests.exceptions.SSLError:
-                        logger.info("** invalid SSL:",domain)
+                        logger.info("** invalid SSL: %s",domain)
                     except requests.exceptions.JSONDecodeError:
-                        logger.info("** Bad JSON:",url)
+                        logger.info("** Bad JSON: %s",url)
 
                 return resp
             except AssertionError as e:
@@ -112,6 +114,8 @@ def collect(outdir, lab):
                 return None
 
         host_data = [(st + append + ".csci-e-11.org", outdir) for st in students]
+        if limit is not None:
+            host_data = host_data[:limit]
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = executor.map(process_host, host_data)
         results = [r for r in results if r is not None]
@@ -174,13 +178,18 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter, description='Test the student VMs')
     parser.add_argument("--collect", action='store_true', help='Collect the sites. By default do this if we have not run in an hour')
     parser.add_argument("--lab", type=int, default=3, help='Specify which lab')
+    parser.add_argument("--debug", action='store_true', help='Enable debug logging')
+    parser.add_argument("--limit", type=int, default=None, help='Limit the number of hosts to examine')
     args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
 
     outdir = os.path.abspath(f"{MYDIR}/out/lab{args.lab}")
     os.makedirs(outdir, exist_ok=True)
 
     if args.collect or (os.path.exists(outdir) and (time.time() - os.path.getmtime(outdir)) > MAX_CACHE_SECONDS):
-        collect(outdir, args.lab)
+        collect(outdir, args.lab, args.limit)
 
     logger.info("outdir: %s",outdir)
 
