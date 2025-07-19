@@ -1,0 +1,9 @@
+# 1. Copy this file to csci-e-11-config.yaml
+# 2. Edit the file as necessary
+
+email: student@fas.harvard.edu
+name: Elle L. Emm
+HUID: 12312123
+
+# https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+Timezone: America/New_York

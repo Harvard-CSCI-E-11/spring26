@@ -1,7 +1,7 @@
-.aws_sam
-lab1/s3watch/.aws-sam/deps/
-*~
 .DS_Store
+csci-e-11-config.toml
+.aws_sam
+*~
 __pycache__
 venv
 *.sqlite
