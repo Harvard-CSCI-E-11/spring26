@@ -91,5 +91,7 @@ if [ "$SUCCESS" -eq 0 ]; then
     exit 1
 fi
 
+ssh ubuntu@$IPADDR 'sudo apt install git && git checkout https://github.com/Harvard-CSCI-E-11/spring26.git && spring26/etc/install-e11'
+
 echo terminating instance $InstanceId
 aws ec2 terminate-instances --instance-ids $InstanceId --region $REGION
