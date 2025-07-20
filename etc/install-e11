@@ -11,20 +11,13 @@ sudo apt -y install python3.13 pipx
 pipx ensurepath
 
 
-# Set up path
-
-if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
-    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-fi
-
-
+source ~/.bashrc
 
 # Give the student a more powerful editor
 sudo snap install --classic emacs
 
 # Install some python packages for the ec2-user cli:
 pipx install poetry
-
 
 # Finally check that Poetry works
 source ~/.bashrc
