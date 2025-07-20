@@ -22,7 +22,7 @@ list-running-instances:
 	aws ec2 describe-instances \
 	  --filters "Name=instance-state-name,Values=running" \
 	  --region us-east-2 \
-	  --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,PublicIP:PublicIpAddress,LaunchTime:LaunchTime}' \
+	  --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,PublicIP:PublicIpAddress,LaunchTime:LaunchTime,AZ:Placement.AvailabilityZone}' \
 	  --output table
 
 list-security-groups:

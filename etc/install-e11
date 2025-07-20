@@ -18,7 +18,3 @@ sudo snap install --classic emacs
 
 # Install some python packages for the ec2-user cli:
 pipx install poetry
-
-# Finally check that Poetry works
-source ~/.bashrc
-poetry about
