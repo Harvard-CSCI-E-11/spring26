@@ -2,6 +2,14 @@
 
 This is the CSCI E-11 git repo for the Spring of 2026. It contains sample code, templates, and the text of the labs themselves.
 
+To use this repo, log into your AWS instance and type these commands at the `$` prompt (you do not type the prompt below):
+```
+$ sudo apt install git
+$ git checkout https://Harvard-CSCI-E-11/spring26.git
+$ spring26/etc/install-e11
+```
+
+
 The student labs are identified:
 
 |Lab |Due |Content  |Security Topcics|
