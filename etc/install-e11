@@ -1,2 +1,31 @@
 #!/bin/bash
-echo Setting up Ubuntu 22.04 LTS
+set -euo pipefail
+
+PYTHON=python3.13
+
+echo Setting up Ubuntu 22.04 LTS for CSCI E-11
+sudo snap install --classic aws-cli
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+sudo apt update
+sudo apt -y install python3.13 pipx
+pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions with --global argument
+
+# Set up path
+
+if ! grep -q 'export PATH="$HOME/.local/bin:$PATH"' ~/.bashrc; then
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+fi
+
+
+
+# Give the student a more powerful editor
+sudo snap install --classic emacs
+
+# Install some python packages for the ec2-user cli:
+pipx install poetry
+
+
+# Finally check that Poetry works
+source ~/.bashrc
+poetry about

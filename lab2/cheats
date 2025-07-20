@@ -1,0 +1,7 @@
+# Here are some cheats for Lab 2
+
+# Let the student install certbot
+# sudo snap install --classic certbot
+
+# Let the student install nginx
+# sudo apt -y install nginx
