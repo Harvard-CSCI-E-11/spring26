@@ -10,10 +10,7 @@ sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt -y install python3.13 pipx
 
-# We use --no-modify-shell on pipx because it updated the path after the
-# exit if being run on non-local shells. Then we manually update .bashrc
-# to update the PATH at the top of the file, not the bottom
-pipx ensurepath --no-modify-shell
+# Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
     sed -i '1s|^|export PATH="$HOME/.local/bin:$PATH"\n|' ~/.bashrc
 
