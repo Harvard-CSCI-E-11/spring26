@@ -9,9 +9,18 @@ echo Install apt items
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt -y install python3.13 pipx
-pipx ensurepath
+
+# We use --no-modify-shell on pipx because it updated the path after the
+# exit if being run on non-local shells. Then we manually update .bashrc
+# to update the PATH at the top of the file, not the bottom
+pipx ensurepath --no-modify-shell
+grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
+    sed -i '1s|^|export PATH="$HOME/.local/bin:$PATH"\n|' ~/.bashrc
+
+source $HOME/.bashrc
 pipx install poetry
 
+################################################################
 echo Wait for system to complete seeding...
 sudo snap wait system seed.loaded
 sudo snap install --classic aws-cli

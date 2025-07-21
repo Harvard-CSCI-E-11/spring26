@@ -95,7 +95,7 @@ echo Installing...
 ssh ubuntu@$IPADDR 'sudo apt install git && git clone https://github.com/Harvard-CSCI-E-11/spring26.git && spring26/etc/install-e11'
 
 echo Testing...
-ssh ubuntu@IPADDR poetry about
+ssh ubuntu@$IPADDR poetry about
 
 echo Terminating instance $InstanceId
 aws ec2 terminate-instances --instance-ids $InstanceId --region $REGION
