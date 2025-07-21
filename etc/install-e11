@@ -1,20 +1,20 @@
 #!/bin/bash
 set -euo pipefail
+set -v				# enter verbose mode
+
+echo Setting up Ubuntu 24.04 LTS for CSCI E-11
 
 PYTHON=python3.13
-
-echo Setting up Ubuntu 22.04 LTS for CSCI E-11
-sudo snap install --classic aws-cli
+echo Install apt items
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt update
 sudo apt -y install python3.13 pipx
 pipx ensurepath
+pipx install poetry
 
-
-source ~/.bashrc
+echo Wait for system to complete seeding...
+sudo snap wait system seed.loaded
+sudo snap install --classic aws-cli
 
 # Give the student a more powerful editor
 sudo snap install --classic emacs
-
-# Install some python packages for the ec2-user cli:
-pipx install poetry
