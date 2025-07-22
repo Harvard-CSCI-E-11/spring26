@@ -2,6 +2,30 @@
 
 set -euo pipefail
 
+# Default behavior is to terminate the instance
+TERMINATE_INSTANCE=true
+
+usage() {
+    echo "Usage: $0 [-noterm]"
+    exit 1
+}
+
+# Parse arguments
+for arg in "$@"; do
+    case $arg in
+        -noterm)
+            TERMINATE_INSTANCE=false
+            ;;
+	-h|--help)
+            usage
+            ;;
+	*)
+            echo "Unknown option: $arg"
+            usage
+            ;;
+    esac
+done
+
 CANONICAL_OWNER_ID=099720109477
 SSH_KEY_NAME=Seasons
 AMI=ami-05eb56e0befdb025f
@@ -97,5 +121,10 @@ ssh ubuntu@$IPADDR 'sudo apt install git && git clone https://github.com/Harvard
 echo Testing...
 ssh ubuntu@$IPADDR poetry about
 
-echo Terminating instance $InstanceId
-aws ec2 terminate-instances --instance-ids $InstanceId --region $REGION
+if [ "$TERMINATE_INSTANCE" = true ]; then
+    echo Terminating instance $InstanceId
+    aws ec2 terminate-instances --instance-ids $InstanceId --region $REGION
+else
+    echo "Skipping instance termination due to -noterm flag."
+    echo "Access instance with: ssh ubuntu@$IPADDR"
+fi

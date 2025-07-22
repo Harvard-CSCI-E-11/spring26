@@ -4,47 +4,70 @@ The CSCI E-11 e11 program.
 """
 import argparse
 import sys
+import logging
+import os
+import shutil
+from os.path import join,abspath,dirname
+
+logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+AUTHORIZED_KEYS_FILE = join( os.getenv("HOME"), ".ssh", "authorized_keys")
+CSCIE_BOT_KEYFILE = join( dirname(abspath(__file__)), 'csci-e-11-bot.pub')
+
+def cscie11_bot_key():
+    with open(CSCIE_BOT_KEYFILE, 'r') as f:
+        key = f.read()
+        assert key.count("\n")==1 and key.endswith("\n")
+        return key
 
 def do_access_on(args):
-    print("[INFO] Granting access...")
-    # Example: add your SSH key
-    # subprocess.run(['...'])
+    logger.info("Granting access to course admins...")
+    with open(AUTHORIZED_KEYS_FILE,'a') as f:
+        f.write(cscie11_bot_key())
 
 def do_access_off(args):
-    print("[INFO] Revoking access...")
-    # Example: remove your SSH key
+    key = cscie11_bot_key()
+    logger.info("Revoking access...")
+    with open(AUTHORIZED_KEYS_FILE,'r') as infile:
+        with open(AUTHORIZED_KEYS_FILE+'.new', 'w') as outfile:
+            for line in infile:
+                if line==key:
+                    continue
+                outfile.write(line)
+    shutil.move(AUTHORIZED_KEYS_FILE+'.new', AUTHORIZED_KEYS_FILE)
 
-def do_status_check(args):
-    print("[INFO] Checking access status...")
-    # Example: check authorized_keys
+def do_access_check(args):
+    logger.info("Checking access status...")
+    key = cscie11_bot_key()
+    with open(AUTHORIZED_KEYS_FILE,'r') as f:
+        for line in f:
+            if line == key:
+                logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
+                return
+    logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
+
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    # e11 access [on|off]
+    # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
     access_subparsers = access_parser.add_subparsers(dest='action', required=True)
 
-    access_on = access_subparsers.add_parser('on', help='Enable SSH access')
-    access_on.set_defaults(func=do_access_on)
-
-    access_off = access_subparsers.add_parser('off', help='Disable SSH access')
-    access_off.set_defaults(func=do_access_off)
+    access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
+    access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
+    access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
 
     # e11 status check
     status_parser = subparsers.add_parser('status', help='Check access status')
-    status_subparsers = status_parser.add_subparsers(dest='action', required=True)
 
-    status_check = status_subparsers.add_parser('check', help='Check SSH status')
-    status_check.set_defaults(func=do_status_check)
 
-    try:
-        args = parser.parse_args()
-        args.func(args)
-    except Exception as e:
-        print(f"[ERROR] {e}", file=sys.stderr)
-        sys.exit(1)
+    args = parser.parse_args()
+    args.func(args)
+
 
 if __name__ == "__main__":
     main()
