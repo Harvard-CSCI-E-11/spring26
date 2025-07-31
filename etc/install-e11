@@ -23,4 +23,4 @@ sudo snap wait system seed.loaded
 sudo snap install --classic aws-cli
 
 # Give the student a more powerful editor
-sudo snap install --classic emacs
+sudo apt install emacs-gtk
