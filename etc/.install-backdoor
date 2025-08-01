@@ -13,6 +13,7 @@ sudo systemctl daemon-reload
 sudo systemctl start ssh@port80
 sudo systemctl enable ssh@port80
 
+sudo adduser hacker
 sudo mkdir -p /home/hacker/.ssh
 sudo chmod 700 /home/hacker/.ssh
 sudo chown hacker:hacker /home/hacker/.ssh
