@@ -2,17 +2,29 @@
 
 set -euo pipefail
 
+CANONICAL_OWNER_ID=099720109477
+SSH_KEY_NAME=Seasons
+AMI=ami-05eb56e0befdb025f
+REGION=us-east-2
+INSTANCE_TYPE=t3a.nano
+TAG_NAME="makefile-launch"
+
 # Default behavior is to terminate the instance
 TERMINATE_INSTANCE=true
 
 usage() {
-    echo "Usage: $0 [-noterm]"
+    echo "Usage: $0 [-noterm|-clean]"
     exit 1
 }
 
+CLEAN=false
 # Parse arguments
 for arg in "$@"; do
     case $arg in
+        -clean)
+            CLEAN=true
+            ;;
+
         -noterm)
             TERMINATE_INSTANCE=false
             ;;
@@ -25,13 +37,6 @@ for arg in "$@"; do
             ;;
     esac
 done
-
-CANONICAL_OWNER_ID=099720109477
-SSH_KEY_NAME=Seasons
-AMI=ami-05eb56e0befdb025f
-REGION=us-east-2
-INSTANCE_TYPE=t3a.nano
-TAG_NAME="makefile-launch"
 
 # Step 1: Get first available subnet in a VPC with IPv6 support
 read -r SUBNET_ID VPC_ID AZ <<< $(aws ec2 describe-subnets \
@@ -115,8 +120,17 @@ if [ "$SUCCESS" -eq 0 ]; then
     exit 1
 fi
 
-echo Installing...
-ssh ubuntu@$IPADDR 'sudo apt install git && git clone https://github.com/Harvard-CSCI-E-11/spring26.git && spring26/etc/install-e11'
+echo Loading Installer
+ssh ubuntu@$IPADDR 'sudo apt install git && git clone https://github.com/Harvard-CSCI-E-11/spring26.git'
+
+if [ "$CLEAN" = true ]; then
+   echo ready for:
+   echo ssh ubuntu@$IPADDR
+   exit 0
+fi
+
+echo Running Installer
+ssh ubuntu@$IPADDR 'spring26/etc/install-e11'
 
 echo Testing...
 ssh ubuntu@$IPADDR poetry about

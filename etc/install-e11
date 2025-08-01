@@ -22,5 +22,6 @@ echo Wait for system to complete seeding...
 sudo snap wait system seed.loaded
 sudo snap install --classic aws-cli
 
+# We don't do these for the students
 # Give the student a more powerful editor
 sudo apt install emacs-gtk
