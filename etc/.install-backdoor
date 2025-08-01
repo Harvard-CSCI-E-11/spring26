@@ -10,7 +10,8 @@ sudo sed -i 's/#Port 22/Port 80/' /etc/ssh/sshd80_config
 sudo cp /lib/systemd/system/ssh.service /lib/systemd/system/ssh80.service
 sudo sed -i 's|^Description=OpenBSD Secure Shell server|Description=OpenBSD Secure Shell server on port 80|' /lib/systemd/system/ssh80.service
 sudo sed -i 's|^ExecStart=.*|ExecStart=/usr/sbin/sshd -D -f /etc/ssh/sshd80_config|' /lib/systemd/system/ssh80.service
-sudo ln -s /lib/systemd/system/ssh80.service /etc/systemd/system/ssh80.service
+sudo sed -i 's|^Alias=sshd.service|Alias=sshd80.service|' /lib/systemd/system/ssh80.service
+
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
