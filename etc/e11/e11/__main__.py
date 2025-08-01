@@ -8,6 +8,8 @@ import logging
 import os
 import shutil
 import configparser
+import requests
+import boto3
 from os.path import join,abspath,dirname
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
@@ -24,7 +26,21 @@ STUDENT_EMAIL='email'
 STUDENT_NAME='name'
 STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR]
+AWS_ACCOUNT='aws_account'
+STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR,AWS_ACCOUNT]
+
+def get_config():
+    """Return the config file"""
+    cp = configparser.ConfigParser()
+    try:
+        with open(CONFIG_FILE,'r') as f:
+            cp.read_file(f)
+    except FileNotFoundError:
+        pass
+    if STUDENT not in cp:
+        cp.add_section(STUDENT)
+    return cp
+    
 
 def cscie11_bot_key():
     with open(CSCIE_BOT_KEYFILE, 'r') as f:
@@ -58,16 +74,8 @@ def do_access_check(args):
                 return
     logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
 
-
 def do_config(args):
-    cp = configparser.ConfigParser()
-    try:
-        with open(CONFIG_FILE,'r') as f:
-            cp.read_file(f)
-    except FileNotFoundError:
-        pass
-    if STUDENT not in cp:
-        cp.add_section(STUDENT)
+    cp = get_config()
     for attrib in STUDENT_ATTRIBS:
         while True:
             buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
@@ -78,6 +86,15 @@ def do_config(args):
     with open(CONFIG_FILE,'w') as f:
         cp.write(f)
 
+
+def do_register(args):
+    cp = get_config()
+    for at in STUDENT_ATTRIBS:
+        if at not in cp[STUDENT]:
+            print(f"{at} not in configuration file. Please run 'e11 config'")
+            exit(1)
+    # Check the IP address
+    
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
@@ -93,6 +110,7 @@ def main():
 
     # e11 config
     subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
+    subparsers.add_parser('register', help='Register this instance').set_deafults(func=do_register)
 
 
     # e11 status check

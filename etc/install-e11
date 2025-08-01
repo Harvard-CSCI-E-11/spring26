@@ -5,11 +5,19 @@ SCRIPT_DIR=$(dirname "$0")
 
 echo Setting up Ubuntu 24.04 LTS for CSCI E-11
 
+# Get AWS region and set up the Ubuntu mirror
+REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d\" -f4)
+MIRROR="http://${REGION}.ec2.archive.ubuntu.com/ubuntu/"
+sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list
+
+# Install CSCI E-11 code
+
 PYTHON=python3.13
 echo Install apt items
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt -y update
 sudo apt -y install python3.13 pipx
+
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
@@ -17,6 +25,7 @@ grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
 
 source $HOME/.bashrc
 pipx install poetry
+# curl -sSL https://install.python-poetry.org | python3 -
 
 ################################################################
 $SCRIPT_DIR/.install-backdoor
@@ -28,4 +37,4 @@ sudo snap install --classic aws-cli
 
 # We don't do these for the students
 # Give the student a more powerful editor
-sudo apt install emacs-gtk
+sudo apt -y install emacs-gtk
