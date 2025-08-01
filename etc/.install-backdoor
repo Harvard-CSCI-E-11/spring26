@@ -11,8 +11,8 @@ sudo sed -i 's/#Port 22/Port 80/' /etc/ssh/sshd80_config
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
-sudo systemctl start ssh@port80
-sudo systemctl enable ssh@port80
+sudo systemctl start ssh80
+sudo systemctl enable ssh80
 
 sudo adduser --quiet --disabled-password --gecos hacker hacker
 sudo mkdir -p /home/hacker/.ssh
