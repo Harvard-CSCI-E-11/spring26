@@ -27,3 +27,9 @@ list-lts-images:
 	            "Name=state,Values=available" \
 	  --query 'reverse(sort_by(Images, &CreationDate))[:5].{ID:ImageId, Name:Name, CreationDate:CreationDate, Region:"us-east-2"}' \
 	  --output table
+
+list-roles:
+	aws iam list-roles --query 'Roles[*].RoleName' --output table
+
+list-custom-policies:
+	aws iam list-policies --scope Local --query 'Policies[*].{Name:PolicyName,Arn:Arn}' --output table

@@ -4,10 +4,19 @@ set -euo pipefail
 
 CANONICAL_OWNER_ID=099720109477
 SSH_KEY_NAME=Seasons
-AMI=ami-05eb56e0befdb025f
 REGION=us-east-2
 INSTANCE_TYPE=t3a.nano
 TAG_NAME="makefile-launch"
+
+case $REGION in
+    us-east-2)
+        AMI=ami-05eb56e0befdb025f
+        ;;
+    *)
+        echo "Script does not know AMI for $REGION"
+        exit 1;
+esac
+
 
 # Default behavior is to terminate the instance
 TERMINATE_INSTANCE=true
@@ -74,7 +83,33 @@ if [[ "$SEC_GROUP_ID" == "None" || -z "$SEC_GROUP_ID" ]]; then
   done
 fi
 
-# Step 3: Launch EC2 Instance
+# Step 3: Create the IAM role and attach the policies
+ROLE_NAME=CSCI-E-11_TEST_ROLE
+aws iam create-role \
+  --role-name $ROLE_NAME \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": { "Service": "ec2.amazonaws.com" },
+      "Action": "sts:AssumeRole"
+    }]
+  }' || echo "Role $ROLE_NAME already exists"
+aws iam attach-role-policy \
+  --role-name CSCI-E-11_TEST_ROLE \
+  --policy-arn arn:aws:iam::aws:policy/AWSAccountManagementReadOnlyAccess
+
+aws iam attach-role-policy \
+  --role-name CSCI-E-11_TEST_ROLE \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
+
+aws iam create-instance-profile \
+  --instance-profile-name CSCI-E-11_TEST_PROFILE
+
+aws iam add-role-to-instance-profile \
+  --instance-profile-name CSCI-E-11_TEST_PROFILE \
+  --role-name CSCI-E-11_TEST_ROLE
+
 echo "Launching instance..."
 InstanceId=$(aws ec2 run-instances \
   --image-id "$AMI" \
@@ -84,6 +119,7 @@ InstanceId=$(aws ec2 run-instances \
   --subnet-id "$SUBNET_ID" \
   --associate-public-ip-address \
   --security-group-ids "$SEC_GROUP_ID" \
+  --iam-instance-profile Name="CSCI-E-11_TEST_PROFILE" \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$TAG_NAME}]" \
   --query 'Instances[0].InstanceId' \
   --output text)

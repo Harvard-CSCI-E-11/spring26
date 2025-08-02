@@ -24,8 +24,9 @@ grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
     sed -i '1s|^|export PATH="$HOME/.local/bin:$PATH"\n|' ~/.bashrc
 
 source $HOME/.bashrc
-pipx install poetry
-# curl -sSL https://install.python-poetry.org | python3 -
+pipx install poetry             # downloads and installed in $HOME/.local/bin
+(cd $SCRIPT_DIR/etc/e11; pipx install .)
+
 
 ################################################################
 $SCRIPT_DIR/.install-backdoor

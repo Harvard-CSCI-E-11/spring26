@@ -10,7 +10,15 @@ import shutil
 import configparser
 import requests
 import boto3
+from validate_email_address import validate_email
 from os.path import join,abspath,dirname
+import dns
+
+import boto3
+import requests
+from dns import resolver,reversename
+
+REPO_YEAR='spring26'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -18,16 +26,19 @@ logger.setLevel(logging.INFO)
 
 HOME_DIR = os.getenv("HOME")
 AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
-CSCIE_BOT_KEYFILE = join( dirname(abspath(__file__)), 'csci-e-11-bot.pub')
+ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
+if not os.path.exists(ETC_DIR):
+    ETC_DIR = join( HOME_DIR, "gits", "csci-e-11", "etc")
+
 CONFIG_FILE = join( HOME_DIR, 'e11-config.ini')
+CSCIE_BOT_KEYFILE = join(ETC_DIR, 'csci-e-11-bot.pub')
 # Student properties
 STUDENT='student'
 STUDENT_EMAIL='email'
 STUDENT_NAME='name'
 STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
-AWS_ACCOUNT='aws_account'
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR,AWS_ACCOUNT]
+STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR]
 
 def get_config():
     """Return the config file"""
@@ -40,7 +51,11 @@ def get_config():
     if STUDENT not in cp:
         cp.add_section(STUDENT)
     return cp
-    
+
+
+def get_ip():
+    r = requests.get('https://checkip.amazonaws.com')
+    return r.text.strip()
 
 def cscie11_bot_key():
     with open(CSCIE_BOT_KEYFILE, 'r') as f:
@@ -65,7 +80,7 @@ def do_access_off(args):
     shutil.move(AUTHORIZED_KEYS_FILE+'.new', AUTHORIZED_KEYS_FILE)
 
 def do_access_check(args):
-    logger.info("Checking access status...")
+    logger.info(f"Checking access status for {get_ip()}:")
     key = cscie11_bot_key()
     with open(AUTHORIZED_KEYS_FILE,'r') as f:
         for line in f:
@@ -88,17 +103,75 @@ def do_config(args):
 
 
 def do_register(args):
+    errors = 0
     cp = get_config()
     for at in STUDENT_ATTRIBS:
         if at not in cp[STUDENT]:
-            print(f"{at} not in configuration file. Please run 'e11 config'")
-            exit(1)
+            print(f"ERROR: {at} not in configuration file. Please run 'e11 config'")
+            errors += 1
+        if cp[STUDENT][ap] == "":
+            print(f"ERROR: {at} is empty in configuration file. Please run 'e11 config'")
+            errors += 1
     # Check the IP address
-    
+    if cp[STUDENT][INSTANCE_IPADDR] != get_ipaddr():
+        print(f"ERROR: This instance does not have the public IP address {cp[STUDENT][INSTANCE_IPADDR]}. Please correct and re-register.")
+        errors += 1
+    email = cp[STUDENT][STUDENT_EMAIL]
+    if not validate_email(email, check_mx=False):
+        print(f"ERROR: '{email}' is not a valid email address.")
+        errors += 1
+
+    if errors>0:
+        print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file. Exiting.")
+        exit(0)
+
+    # write to the S3 storage with the email address as the key
+
+
+def do_status(args):
+    ipaddr = get_ip()
+    print("Instance IP address: ", ipaddr)
+    try:
+        raddr = resolver.resolve(reversename.from_address(ipaddr), "PTR")[0]
+        print("Reverse DNS: ", raddr)
+    except dns.resolver.NXDOMAIN:
+        print("No reverse DNS for",ipaddr)
+    print("\nE11 config variables from /home/ubuntu/e11-config.ini:")
+    cp = get_config()
+    for at in cp[STUDENT]:
+        print(f"{at} = {cp[STUDENT][at]}")
+
+
+UPDATE_CMDS="""
+git stash
+git pull
+(cd etc/e11; pipx install .)
+git stash apply
+"""
+
+def do_update(args):
+    if not os.path.exists(REPO_YEAR):
+        print(f"{REPO_YEAR} does not exist",file=sys.stderr)
+        exit(1)
+    os.chdir(f"/home/ubuntu/{REPO_YEAR_}")
+    for cmd in UPDATE_CMDS.split('\n'):
+        print(cmd)
+        os.system(cmd)
+
+def do_version(args):
+
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     subparsers = parser.add_subparsers(dest='command', required=True)
+
+    # primary commands
+    subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
+    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
+    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
+    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
+    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
+
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
@@ -107,10 +180,6 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
-
-    # e11 config
-    subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
-    subparsers.add_parser('register', help='Register this instance').set_deafults(func=do_register)
 
 
     # e11 status check
