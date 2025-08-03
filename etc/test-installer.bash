@@ -85,6 +85,7 @@ fi
 
 # Step 3: Create the IAM role and attach the policies
 ROLE_NAME=CSCI-E-11_TEST_ROLE
+PROFILE_NAME=CSCI-E-11_TEST_PROFILE
 aws iam create-role \
   --role-name $ROLE_NAME \
   --assume-role-policy-document '{
@@ -96,19 +97,19 @@ aws iam create-role \
     }]
   }' || echo "Role $ROLE_NAME already exists"
 aws iam attach-role-policy \
-  --role-name CSCI-E-11_TEST_ROLE \
+  --role-name $ROLE_NAME \
   --policy-arn arn:aws:iam::aws:policy/AWSAccountManagementReadOnlyAccess
 
 aws iam attach-role-policy \
-  --role-name CSCI-E-11_TEST_ROLE \
+  --role-name $ROLE_NAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess
 
 aws iam create-instance-profile \
-  --instance-profile-name CSCI-E-11_TEST_PROFILE
+  --instance-profile-name $PROFILE_NAME || echo "Instance profile $PROFILE_NAME already exists."
 
 aws iam add-role-to-instance-profile \
-  --instance-profile-name CSCI-E-11_TEST_PROFILE \
-  --role-name CSCI-E-11_TEST_ROLE
+  --instance-profile-name $PROFILE_NAME \
+  --role-name $ROLE_NAME || echo "$PROFILE_NAME already has a role."
 
 echo "Launching instance..."
 InstanceId=$(aws ec2 run-instances \
@@ -119,7 +120,7 @@ InstanceId=$(aws ec2 run-instances \
   --subnet-id "$SUBNET_ID" \
   --associate-public-ip-address \
   --security-group-ids "$SEC_GROUP_ID" \
-  --iam-instance-profile Name="CSCI-E-11_TEST_PROFILE" \
+  --iam-instance-profile Name="$PROFILE_NAME" \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$TAG_NAME}]" \
   --query 'Instances[0].InstanceId' \
   --output text)

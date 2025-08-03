@@ -12,11 +12,10 @@ sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list
 
 # Install CSCI E-11 code
 
-PYTHON=python3.13
+PYTHON=python3.10               # default ubuntu24.04 python
 echo Install apt items
-sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt -y update
-sudo apt -y install python3.13 pipx
+sudo apt -y install pipx
 
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.

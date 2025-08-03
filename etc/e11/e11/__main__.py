@@ -10,15 +10,17 @@ import shutil
 import configparser
 import requests
 import boto3
-from validate_email_address import validate_email
+import subprocess
 from os.path import join,abspath,dirname
-import dns
 
+from validate_email import validate_email
+import dns
 import boto3
 import requests
 from dns import resolver,reversename
 
 REPO_YEAR='spring26'
+__version__ = '0.1.0'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
 logger = logging.getLogger(__name__)
@@ -40,6 +42,9 @@ STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
 STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR]
 
+def do_version(args):
+    print("version",__version__)
+
 def get_config():
     """Return the config file"""
     cp = configparser.ConfigParser()
@@ -56,6 +61,13 @@ def get_config():
 def get_ip():
     r = requests.get('https://checkip.amazonaws.com')
     return r.text.strip()
+
+def on_ec2():
+    """Per AWS documentation, this the system-uuid starts with ec2 when running in ec2."""
+    r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
+                       encoding='utf8',
+                       capture_output=True)
+    return r.stdout.startswith('ec2')
 
 def cscie11_bot_key():
     with open(CSCIE_BOT_KEYFILE, 'r') as f:
@@ -158,9 +170,6 @@ def do_update(args):
         print(cmd)
         os.system(cmd)
 
-def do_version(args):
-
-
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -171,6 +180,7 @@ def main():
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
+    parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
 
 
     # e11 access [on|off|check]
@@ -182,10 +192,11 @@ def main():
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
 
 
-    # e11 status check
-    #status_parser = subparsers.add_parser('status', help='Check access status')
-
     args = parser.parse_args()
+    if not on_ec2():
+        print("ERROR: This must be run on EC2")
+        if not args.force:
+            exit(1)
     args.func(args)
 
 
