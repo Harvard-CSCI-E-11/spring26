@@ -63,7 +63,7 @@ def get_ip():
     return r.text.strip()
 
 def on_ec2():
-    """Per AWS documentation, this the system-uuid starts with ec2 when running in ec2."""
+    """https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html"""
     r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
                        encoding='utf8',
                        capture_output=True)
