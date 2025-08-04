@@ -5,12 +5,15 @@ set -euo pipefail
 CANONICAL_OWNER_ID=099720109477
 SSH_KEY_NAME=Seasons
 REGION=us-east-2
-INSTANCE_TYPE=t3a.nano
+INSTANCE_TYPE=t4g.micro         # https://aws.amazon.com/ec2/pricing/on-demand/ (ARM)
 TAG_NAME="makefile-launch"
+
+# https://cloud-images.ubuntu.com/locator/ec2/ - AMI finder
 
 case $REGION in
     us-east-2)
-        AMI=ami-05eb56e0befdb025f
+        AMI=ami-05eb56e0befdb025f # x86_64
+        AMI=ami-0999f93ce3bb94c61 # arm
         ;;
     *)
         echo "Script does not know AMI for $REGION"
@@ -141,6 +144,7 @@ IPADDR=$(aws ec2 describe-instances --region "$REGION" --instance-ids "$Instance
 	     --query 'Reservations[].Instances[].{IPv4:PublicIpAddress}' --output text)
 
 
+SUCCESS=0
 MAX_RETRIES=50
 DELAY=0.2
 for ((i=1; i<=MAX_RETRIES; i++)); do
@@ -158,7 +162,7 @@ if [ "$SUCCESS" -eq 0 ]; then
 fi
 
 echo Loading Installer
-ssh ubuntu@$IPADDR 'sudo apt install git && git clone https://github.com/Harvard-CSCI-E-11/spring26.git'
+ssh ubuntu@$IPADDR 'git clone https://github.com/Harvard-CSCI-E-11/spring26.git'
 
 if [ "$CLEAN" = true ]; then
    echo ready for:
