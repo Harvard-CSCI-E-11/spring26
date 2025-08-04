@@ -3,7 +3,25 @@ set -euo pipefail
 
 SCRIPT_DIR=$(dirname "$0")
 
-echo Setting up Ubuntu 24.04 LTS for CSCI E-11
+if [ ! -r /etc/os-release ]; then
+    echo /etc/os-release not found. Exiting.
+    exit 1
+fi
+
+source /etc/os-release
+if [ $VERSION_ID != 24.04 ]; then
+    echo This script can only run on Ubuntu 24.04
+    exit 1
+fi
+
+SYSTEM_UUID=$(sudo -n dmidecode --string system-uuid)
+FIRST_THREE=$(echo $SYSTEM_UUID | awk '{print substr($0,1,2)}')
+if [ $FIRST_THREE != 'ec2' ]; then
+    echo This script can only be run on EC2
+    exit 1
+fi
+
+echo Setting up Ubuntu 24.04 LTS on EC2 for CSCI E-11
 
 # Get AWS region and set up the Ubuntu mirror
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d\" -f4)

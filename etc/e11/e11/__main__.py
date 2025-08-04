@@ -40,7 +40,8 @@ STUDENT_EMAIL='email'
 STUDENT_NAME='name'
 STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR]
+INSTANCE_ID='instanceId'
+STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR,INSTANCE_ID]
 
 def do_version(args):
     print("version",__version__)
@@ -69,6 +70,18 @@ def on_ec2():
                        capture_output=True)
     return r.stdout.startswith('ec2')
 
+def get_instanceId():
+    token_url = "http://169.254.169.254/latest/api/token"
+    headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
+    response = requests.put(token_url, headers=headers, timeout=1)
+    response.raise_for_status()
+    token = response.text
+    metadata_url = "http://169.254.169.254/latest/meta-data/instance-id"
+    headers = {"X-aws-ec2-metadata-token": token}
+    response = requests.get(metadata_url, headers=headers, timeout=1)
+    response.raise_for_status()
+    return response.text
+    
 def cscie11_bot_key():
     with open(CSCIE_BOT_KEYFILE, 'r') as f:
         key = f.read()
@@ -121,16 +134,21 @@ def do_register(args):
         if at not in cp[STUDENT]:
             print(f"ERROR: {at} not in configuration file. Please run 'e11 config'")
             errors += 1
-        if cp[STUDENT][ap] == "":
+        if cp[STUDENT][at] == "":
             print(f"ERROR: {at} is empty in configuration file. Please run 'e11 config'")
             errors += 1
     # Check the IP address
-    if cp[STUDENT][INSTANCE_IPADDR] != get_ipaddr():
-        print(f"ERROR: This instance does not have the public IP address {cp[STUDENT][INSTANCE_IPADDR]}. Please correct and re-register.")
+    ipaddr = cp[STUDENT][INSTANCE_IPADDR]
+    if ipaddr != get_ipaddr():
+        print(f"ERROR: This instance does not have the public IP address {ipaddr}. Please re-reun 'e11 config' and re-register.")
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     if not validate_email(email, check_mx=False):
         print(f"ERROR: '{email}' is not a valid email address.")
+        errors += 1
+    instanceId = get_instanceId()
+    if cp[STUDENT][INSTANCE_ID] != instanceId:
+        printf(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance. Please re-run 'e11 config' and re-register.")
         errors += 1
 
     if errors>0:
