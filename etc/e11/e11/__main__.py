@@ -59,7 +59,7 @@ def get_config():
     return cp
 
 
-def get_ip():
+def get_ipaddr():
     r = requests.get('https://checkip.amazonaws.com')
     return r.text.strip()
 
@@ -105,7 +105,7 @@ def do_access_off(args):
     shutil.move(AUTHORIZED_KEYS_FILE+'.new', AUTHORIZED_KEYS_FILE)
 
 def do_access_check(args):
-    logger.info(f"Checking access status for {get_ip()}:")
+    logger.info(f"Checking access status for {get_ipaddr()}:")
     key = cscie11_bot_key()
     with open(AUTHORIZED_KEYS_FILE,'r') as f:
         for line in f:
@@ -128,19 +128,20 @@ def do_config(args):
 
 
 def do_register(args):
+    again = "Please re-run 'e11 config' and re-register."
     errors = 0
     cp = get_config()
     for at in STUDENT_ATTRIBS:
         if at not in cp[STUDENT]:
-            print(f"ERROR: {at} not in configuration file. Please run 'e11 config'")
+            print(f"ERROR: {at} not in configuration file. {again}")
             errors += 1
         if cp[STUDENT][at] == "":
-            print(f"ERROR: {at} is empty in configuration file. Please run 'e11 config'")
+            print(f"ERROR: {at} is empty in configuration file. {again}")
             errors += 1
     # Check the IP address
     ipaddr = cp[STUDENT][INSTANCE_IPADDR]
     if ipaddr != get_ipaddr():
-        print(f"ERROR: This instance does not have the public IP address {ipaddr}. Please re-reun 'e11 config' and re-register.")
+        print(f"ERROR: This instance does not have the public IP address {ipaddr}. {again}")
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     if not validate_email(email, check_mx=False):
@@ -148,18 +149,37 @@ def do_register(args):
         errors += 1
     instanceId = get_instanceId()
     if cp[STUDENT][INSTANCE_ID] != instanceId:
-        printf(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance. Please re-run 'e11 config' and re-register.")
+        print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance. {again}")
         errors += 1
+
+    huid = cp[STUDENT][STUDENT_HUID]
+    if not huid.isdigit():
+        print(f"ERROR: '{huid}' contains non-digit characters and is not a valid HUDI. {again}")
+        errors += 1
+
+    name = cp[STUDENT][STUDENT_NAME].strip()
+    if len(name)<3 or name.count(" ")<1:
+        print(f"ERROR: '{name}' is not a valid name.")
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file. Exiting.")
         exit(0)
 
+    print("Attempting to register...")
+
     # write to the S3 storage with the email address as the key
+    content = ",".join([huid,ipaddr,email,name])+"\n"
+    s3 = boto3.client("s3")
+    s3.put_object(Bucket="cscie-11",
+                  Key=f"students/{email}",
+                  Body=content,
+                  ACL="bucket-owner-full-control" )
+    print("Registered! Please check your email.")
+    print("If you do not receive a message in 60 seconds, check your email address and try again.")
 
 
 def do_status(args):
-    ipaddr = get_ip()
+    ipaddr = get_ipaddr()
     print("Instance IP address: ", ipaddr)
     try:
         raddr = resolver.resolve(reversename.from_address(ipaddr), "PTR")[0]

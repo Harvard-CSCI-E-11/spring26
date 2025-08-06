@@ -18,3 +18,9 @@ The command implements these subcommands:
 
 # How it works
 This program can be found on [GitHub in the spring26 repo](https://github.com/Harvard-CSCI-E-11/spring26/tree/main/etc/e11). The repo is checked out by the student and then installed in `$HOME/.local/bin` using `pipx` by the [install-e11](https://github.com/Harvard-CSCI-E-11/spring26/blob/main/etc/install-e11) installation script.
+
+You can run out of this repo with these commands:
+```
+$ poetry sync
+$ poetry run e11
+```

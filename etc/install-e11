@@ -21,7 +21,7 @@ if [ $FIRST_THREE != 'ec2' ]; then
     exit 1
 fi
 
-echo Setting up Ubuntu 24.04 LTS for CSCI E-11
+echo Setting up Ubuntu 24.04 LTS on EC2 for CSCI E-11
 
 # Get AWS region and set up the Ubuntu mirror
 REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d\" -f4)
