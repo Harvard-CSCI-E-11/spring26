@@ -81,7 +81,7 @@ def get_instanceId():
     response = requests.get(metadata_url, headers=headers, timeout=1)
     response.raise_for_status()
     return response.text
-    
+
 def cscie11_bot_key():
     with open(CSCIE_BOT_KEYFILE, 'r') as f:
         key = f.read()
@@ -176,6 +176,7 @@ def do_register(args):
                   ACL="bucket-owner-full-control" )
     print("Registered! Please check your email.")
     print("If you do not receive a message in 60 seconds, check your email address and try again.")
+
 
 
 def do_status(args):
