@@ -22,11 +22,18 @@ if [ $FIRST_THREE != 'ec2' ]; then
 fi
 
 echo Setting up Ubuntu 24.04 LTS on EC2 for CSCI E-11
+TOKEN=$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+METADATA=$(curl -sS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document)
+if [ ${METADATA}x = "x" ]; then
+        echo Instance does not have access to dynamic metadata. You must fix this in the AWS console before continuing
+        exit 1
+fi
 
 # Get AWS region and set up the Ubuntu mirror
-REGION=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d\" -f4)
-echo AWS Region: $REGION
+REGION=$(echo $METADATA | jq .region)
 MIRROR="http://${REGION}.ec2.archive.ubuntu.com/ubuntu/"
+echo AWS Region: $REGION
+echo Setting Ubuntu mirror to $MIRROR
 sudo sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list.d/ubuntu.sources
 
 # Install CSCI E-11 code
