@@ -205,7 +205,7 @@ def do_update(args):
     if not os.path.exists(REPO_YEAR):
         print(f"{REPO_YEAR} does not exist",file=sys.stderr)
         exit(1)
-    os.chdir(f"/home/ubuntu/{REPO_YEAR_}")
+    os.chdir(f"/home/ubuntu/{REPO_YEAR}")
     for cmd in UPDATE_CMDS.split('\n'):
         print(cmd)
         os.system(cmd)
