@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
 if [ ! -r /etc/os-release ]; then
     echo /etc/os-release not found. Exiting.
@@ -30,7 +30,7 @@ if [ ${METADATA}x = "x" ]; then
 fi
 
 # Get AWS region and set up the Ubuntu mirror
-REGION=$(echo $METADATA | jq .region)
+REGION=$(echo $METADATA | jq -r .region)
 MIRROR="http://${REGION}.ec2.archive.ubuntu.com/ubuntu/"
 echo AWS Region: $REGION
 echo Setting Ubuntu mirror to $MIRROR
@@ -49,7 +49,12 @@ grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
 
 source $HOME/.bashrc
 pipx install poetry             # downloads and installed in $HOME/.local/bin
-(cd $SCRIPT_DIR/etc/e11; pipx install .)
+
+if [ ! -r $SCRIPT_DIR/e11 ]; then
+    echo Error: $SCRIPT_DIR/e11 not found.
+    exit 1
+fi
+(cd $SCRIPT_DIR/e11; pipx install .)
 
 
 ################################################################
