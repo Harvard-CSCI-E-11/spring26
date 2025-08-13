@@ -15,7 +15,7 @@ if [ $VERSION_ID != 24.04 ]; then
 fi
 
 SYSTEM_UUID=$(sudo -n dmidecode --string system-uuid)
-FIRST_THREE=$(echo $SYSTEM_UUID | awk '{print substr($0,1,2)}')
+FIRST_THREE=$(echo $SYSTEM_UUID | awk '{print substr($0,1,3)}')
 if [ $FIRST_THREE != 'ec2' ]; then
     echo This script can only be run on EC2
     exit 1
