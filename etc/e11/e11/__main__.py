@@ -128,20 +128,19 @@ def do_config(args):
 
 
 def do_register(args):
-    again = "Please re-run 'e11 config' and re-register."
     errors = 0
     cp = get_config()
     for at in STUDENT_ATTRIBS:
         if at not in cp[STUDENT]:
-            print(f"ERROR: {at} not in configuration file. {again}")
+            print(f"ERROR: {at} not in configuration file.")
             errors += 1
         if cp[STUDENT][at] == "":
-            print(f"ERROR: {at} is empty in configuration file. {again}")
+            print(f"ERROR: {at} is empty in configuration file.")
             errors += 1
     # Check the IP address
     ipaddr = cp[STUDENT][INSTANCE_IPADDR]
     if ipaddr != get_ipaddr():
-        print(f"ERROR: This instance does not have the public IP address {ipaddr}. {again}")
+        print(f"ERROR: This instance does not have the public IP address {ipaddr}.")
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     if not validate_email(email, check_mx=False):
@@ -149,20 +148,22 @@ def do_register(args):
         errors += 1
     instanceId = get_instanceId()
     if cp[STUDENT][INSTANCE_ID] != instanceId:
-        print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance. {again}")
+        print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
     huid = cp[STUDENT][STUDENT_HUID]
     if not huid.isdigit():
-        print(f"ERROR: '{huid}' contains non-digit characters and is not a valid HUDI. {again}")
+        print(f"ERROR: '{huid}' contains non-digit characters and is not a valid HUDI.")
         errors += 1
 
     name = cp[STUDENT][STUDENT_NAME].strip()
     if len(name)<3 or name.count(" ")<1:
-        print(f"ERROR: '{name}' is not a valid name.")
+        print(f"ERROR: '{name}' is not a valid student name.")
+        errors += 1
 
     if errors>0:
-        print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file. Exiting.")
+        print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
+        print("Please re-run 'e11 config' and then re-run 'e11 config'.")
         exit(0)
 
     print("Attempting to register...")
