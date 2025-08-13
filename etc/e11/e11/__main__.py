@@ -194,10 +194,11 @@ def do_status(args):
         print(f"{at} = {cp[STUDENT][at]}")
 
 
-UPDATE_CMDS="""
+UPDATE_CMDS=f"""
+cd /home/ubuntu/{REPO_YEAR}
 git stash
 git pull
-(cd etc/e11; pipx install .)
+(cd etc/e11; pipx install . --force)
 git stash apply
 """
 
