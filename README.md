@@ -19,7 +19,7 @@ The student labs are identified:
 | [lab4](lab4/) | | Add images to your message board. | AWS signed HTTP POSTs and URLs.|
 | [lab5](lab5/) | | AI image analysis with AWS Rekognition| Face detection and matching |
 | [lab6](lab6/) | | Accessing the leaderboard from a microcontroler | Introduction to CircuitPython.|
-| [lab5](lab7/) | | Uploading images from the edge | AI, Internet of Things, and Cybersecurity|
+| [lab7](lab7/) | | Uploading images from the edge | AI, Internet of Things, and Cybersecurity|
 
 
 The staff/ directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.
