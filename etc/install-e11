@@ -51,3 +51,5 @@ $SCRIPT_DIR/.install-backdoor
 echo Wait for system to complete seeding...
 sudo snap wait system seed.loaded
 sudo snap install --classic aws-cli
+
+echo Installer ran to completion
