@@ -208,7 +208,7 @@ def do_update(args):
         exit(1)
     os.chdir(f"/home/ubuntu/{REPO_YEAR}")
     for cmd in UPDATE_CMDS.split('\n'):
-        print(cmd)
+        print(f"$ {cmd}")
         os.system(cmd)
 
 def main():
