@@ -210,6 +210,10 @@ def do_update(args):
         print(f"$ {cmd}")
         os.system(cmd)
 
+def do_grade(args):
+    print("args=",args)
+    print("Grading not implemented yet")
+
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     subparsers = parser.add_subparsers(dest='command', required=True)
@@ -225,17 +229,24 @@ def main():
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
-    access_subparsers = access_parser.add_subparsers(dest='action', required=True)
+    access_subparsers = access_parser.add_subparsers(dest='action')
 
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
 
+    # e11 grade [lab]
+    grade_parser = subparsers.add_parser('grade', help='Grade a lab')
+    grade_parser.add_argument(dest='lab', help='Lab to grade')
+    grade_parser.set_defaults(func=do_grade)
+
 
     args = parser.parse_args()
     if not on_ec2():
-        print("ERROR: This must be run on EC2")
-        if not args.force:
+        if args.force:
+            print("WARNING: This should be run on EC2")
+        else:
+            print("ERROR: This must be run on EC2")
             exit(1)
     args.func(args)
 
