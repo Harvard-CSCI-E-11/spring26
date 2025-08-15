@@ -47,8 +47,10 @@ sudo apt -y install pipx
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
     sed -i '1s|^|export PATH="$HOME/.local/bin:$PATH"\n|' ~/.bashrc
 
-source $HOME/.bashrc
-pipx install poetry             # downloads and installed in $HOME/.local/bin
+source $HOME/.bashrc			  # update the PATH
+pipx install poetry                       # downloads and installed in $HOME/.local/bin
+poetry config virtualenvs.in-project true # store local environment in .venv
+
 
 if [ ! -r $SCRIPT_DIR/e11 ]; then
     echo Error: $SCRIPT_DIR/e11 not found.
