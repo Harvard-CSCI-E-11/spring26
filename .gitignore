@@ -5,3 +5,4 @@ csci-e-11-config.toml
 __pycache__
 venv
 *.sqlite
+*.bak
