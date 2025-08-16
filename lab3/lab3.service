@@ -8,7 +8,7 @@ User=ubuntu
 Group=ubuntu
 WorkingDirectory=/home/ubuntu/spring26/lab3
 Environment="PATH=/home/ubuntu/spring26/lab3/.venv/bin"
-ExecStart=/home/ubuntu/spring26/lab3/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8003 --reload simple_flask_application:app
+ExecStart=/home/ubuntu/spring26/lab3/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8003 --reload server:app
 Restart=always
 RestartSec=1
 

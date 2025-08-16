@@ -62,7 +62,7 @@ HTML_TEMPLATE = '''
 # Create the database (if it doesnt exist) and Get the database connection
 def lookup(student_id):
     """Lookup a student by id"""
-    cur = conn.cursor()
+    cur = student_database_connection().cursor()
     cmd = f'select * from students where student_id = "{student_id}"'
     app.logger.info("cmd=%s student_id=%s",cmd,student_id)
     return cur.execute(cmd).fetchall()
