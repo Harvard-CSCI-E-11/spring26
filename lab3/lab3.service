@@ -12,6 +12,5 @@ ExecStart=/home/ubuntu/spring26/lab3/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8003 -
 Restart=always
 RestartSec=1
 
-
 [Install]
 WantedBy=multi-user.target

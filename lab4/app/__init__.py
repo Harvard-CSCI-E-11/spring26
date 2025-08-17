@@ -32,8 +32,7 @@ except ImportError as e:
     image_controller = None
 
 LOG_LEVEL   = logging.DEBUG
-USERNAME    = 'simsong'
-DBFILE_NAME = 'server_db.sqlite'
+DBFILE_NAME = 'message_board.db'
 
 # pylint: disable=redefined-outer-name
 def create_app(test_config=None):
