@@ -5,13 +5,13 @@ Run a simple web server with an SQL injection vulnerability.
 
 import logging
 import sqlite3
+from os.path import abspath,join,dirname
 
 from flask import Flask, request, render_template_string
+from student_data import student_database_connection
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)  # Set the logging level directly
-
-DB_FILE = '/home/ec2-user/students.db'
 
 # HTML template with form for inputs
 HTML_TEMPLATE = '''
@@ -59,12 +59,10 @@ HTML_TEMPLATE = '''
 '''
 
 
-# Get the database connection
-conn  = sqlite3.connect( DB_FILE )
-
+# Create the database (if it doesnt exist) and Get the database connection
 def lookup(student_id):
     """Lookup a student by id"""
-    cur = conn.cursor()
+    cur = student_database_connection().cursor()
     cmd = f'select * from students where student_id = "{student_id}"'
     app.logger.info("cmd=%s student_id=%s",cmd,student_id)
     return cur.execute(cmd).fetchall()

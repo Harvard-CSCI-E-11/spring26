@@ -36,19 +36,19 @@ echo AWS Region: $REGION
 echo Setting Ubuntu mirror to $MIRROR
 sudo sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list.d/ubuntu.sources
 
-# Install CSCI E-11 code
-
+# Install CSCI E-11 pipx, poetry, and the e11 command
 echo Install apt items
 sudo apt -y update
 sudo apt -y install pipx
-
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
     sed -i '1s|^|export PATH="$HOME/.local/bin:$PATH"\n|' ~/.bashrc
 
-source $HOME/.bashrc
-pipx install poetry             # downloads and installed in $HOME/.local/bin
+source $HOME/.bashrc			  # update the PATH
+pipx install poetry                       # downloads and installed in $HOME/.local/bin
+poetry config virtualenvs.in-project true # store local environment in .venv
+
 
 if [ ! -r $SCRIPT_DIR/e11 ]; then
     echo Error: $SCRIPT_DIR/e11 not found.
@@ -56,9 +56,53 @@ if [ ! -r $SCRIPT_DIR/e11 ]; then
 fi
 (cd $SCRIPT_DIR/e11; pipx install .)
 
-
-################################################################
+# Install the CSCI E-11 backdoor for lab1
 $SCRIPT_DIR/.install-backdoor
+
+# Copy the simple_flask_application to server.py
+(cd $HOME/spring26/lab3 && /bin/rm -f server.py && cp -p simple_flask_application.py server.py)
+
+# Make linux a bit friendlier
+cat >>"$HOME/.bashrc" <<'EOF'
+alias cp="cp -i"
+alias mv="mv -i"
+alias rm="rm -i"
+EOF
+
+# Make emacs a bit friendler
+touch $HOME/.emacs
+cat >>"$HOME/.emacs" <<'EOF'
+;; Revert changed files/buffers quietly
+(global-auto-revert-mode 1)
+(setq global-auto-revert-non-file-buffers t
+      auto-revert-verbose nil)
+
+;; Trim whitespace only in programming modes, buffer-locally
+(add-hook 'prog-mode-hook
+          (lambda ()
+            (add-hook 'before-save-hook #'delete-trailing-whitespace nil t)))
+
+(setq-default indent-tabs-mode nil)
+(setq-default ttl-indent-level 4)
+(setq c-basic-offset 4)
+(setq require-final-newline t)
+
+;; Clipboard: disable only in terminal Emacs (e.g., iTerm2); keep GUI normal
+(when (not (display-graphic-p))
+  (when (fboundp 'xterm-clipboard-mode) (xterm-clipboard-mode -1))
+  (setq interprogram-cut-function nil
+        interprogram-paste-function nil))
+;; (Optional) leave this true so GUI clipboards still work:
+;; (setq select-enable-clipboard t)
+
+(defun my-suspend-hook ()
+  "Save some buffers and perform auto-save before suspending Emacs."
+  (save-some-buffers t)
+  (do-auto-save t))
+(add-hook 'suspend-hook #'my-suspend-hook)
+
+(add-hook 'makefile-mode-hook (lambda () (setq indent-tabs-mode t)))
+EOF
 
 ################################################################
 echo Wait for system to complete seeding...
