@@ -26,9 +26,8 @@ jobs:
 
       - name: Install pipx and Poetry
         run: |
-          sudo apt-get update
-          sudo apt-get install -y pipx python3-venv
-          python3 -m pipx ensurepath
+          sudo apt -y update
+          sudo apt -y install python3-venv pipx
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           pipx install poetry
           poetry --version
