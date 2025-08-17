@@ -14,27 +14,31 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.12", "3.11", "3.10" ]
+        python-version: [ "3.12"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Set up pipx
+        run: |
+          sudo apt -y update
+          sudo apt -y install pipx
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true   # creates .venv in repo (your preference)
-          installer-parallel: true
+      - name: Set up poetry
+        run: |
+          pipx install poetry
+          poetry config virtualenvs.in-project true
 
-      - name: Install deps with Poetry
-        run: poetry install --sync
+      - name: Install e11 deps with Poetry
+        run: |
+          cd spring26/etc/e11
+          pwd
+          poetry install --sync
 
       - name: Run tests with coverage
-        run: poetry run make pytest
+        run: |
+          pwd
+          poetry run make pytest
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
