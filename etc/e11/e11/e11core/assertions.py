@@ -5,6 +5,7 @@ from typing import Optional
 @dataclass
 class TestFail(Exception):
     message: str
+    __test__ = False            # tell pytest not to treat this as a test case
     context: Optional[str] = None
     line: Optional[int] = None
 

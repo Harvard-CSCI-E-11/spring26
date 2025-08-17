@@ -60,7 +60,8 @@ HTML_TEMPLATE = '''
 
 
 # Create the database (if it doesnt exist) and Get the database connection
-def lookup(student_id):
+# Do not rename this function or change its inputs or outputs - it is used by the grader
+def lookup(student_id:str):
     """Lookup a student by id"""
     cur = student_database_connection().cursor()
     cmd = f'select * from students where student_id = "{student_id}"'

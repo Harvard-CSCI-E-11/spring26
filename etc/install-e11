@@ -56,10 +56,12 @@ if [ ! -r $SCRIPT_DIR/e11 ]; then
 fi
 (cd $SCRIPT_DIR/e11; pipx install .)
 
-# Install the CSCI E-11 backdoor for lab1
+################################################################
+
+# Lab 1 setup
 $SCRIPT_DIR/.install-backdoor
 
-# Copy the simple_flask_application to server.py
+# Lab3 setup
 (cd $HOME/spring26/lab3 && /bin/rm -f server.py && cp -p simple_flask_application.py server.py)
 
 # Make linux a bit friendlier

@@ -1,8 +1,7 @@
-import configparser
-import os
+import configparser, os, re
 from pathlib import Path
 
-CONFIG_PATH = Path.home() / ".e11-config.ini"
+CONFIG_FILENAME = "e11-config.ini"
 
 class E11Config:
     def __init__(self):
@@ -14,10 +13,11 @@ class E11Config:
     @classmethod
     def load(cls):
         cfg = cls()
-        if not CONFIG_PATH.exists():
+        config_path = Path.home() / CONFIG_FILENAME
+        if not config_path.exists():
             return cfg
         p = configparser.ConfigParser()
-        p.read(CONFIG_PATH)
+        p.read(config_path)
         s = p["e11"] if "e11" in p else p["DEFAULT"]
         cfg.email = s.get("email")
         cfg.smashedemail = s.get("smashedemail")

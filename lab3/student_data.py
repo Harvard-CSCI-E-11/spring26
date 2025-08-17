@@ -8,7 +8,6 @@ DB_FILE = join(dirname(abspath(__file__)),'students.db')
 
 def student_database_connection():
     """Return a connection to the student database. If it doesn't exist, create the scehema. If it has no data in it, fill it."""
-
     con  = sqlite3.connect( DB_FILE )
     c  = con.cursor()
     try:
@@ -22,7 +21,7 @@ def student_database_connection():
         make_fake_student_data(con)
     return con
 
-    
+
 def make_fake_student_data( con ):
     c = con.cursor()
     fake = Faker()
