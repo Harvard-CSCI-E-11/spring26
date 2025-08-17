@@ -24,8 +24,18 @@ jobs:
           sudo apt -y install pipx
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Set up poetry
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Update GITHUB_PATH and install Python dependencies for local development
         run: |
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Set up pipx and poetry
+        run: |
+          sudo apt -y install pipx
           pipx install poetry
           poetry config virtualenvs.in-project true
 
