@@ -1,4 +1,6 @@
 # CSCI E-11 git repo
+[![CI (pip)](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci.yml/badge.svg)]([https://github.com/Plant-Tracer/webapp/actions/workflows/continuous-integration-pip.yml](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci.yml))
+[![codecov](https://codecov.io/github/Harvard-CSCI-E-11/spring26/graph/badge.svg?token=GI7Z8W3YC5)](https://codecov.io/github/Harvard-CSCI-E-11/spring26)
 
 This is the CSCI E-11 git repo for the Spring of 2026. It contains sample code, templates, and the text of the labs themselves.
 
