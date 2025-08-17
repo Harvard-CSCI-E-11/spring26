@@ -208,10 +208,11 @@ git stash apply
 """
 
 def do_update(args):
-    if not os.path.exists(REPO_YEAR):
+    repo_dir = f"/home/ubuntu/{REPO_YEAR}"
+    if not os.path.exists(repo_dir):
         print(f"{REPO_YEAR} does not exist",file=sys.stderr)
         exit(1)
-    os.chdir(f"/home/ubuntu/{REPO_YEAR}")
+    os.chdir(repo_dir)
     for cmd in UPDATE_CMDS.split('\n'):
         print(f"$ {cmd}")
         os.system(cmd)
