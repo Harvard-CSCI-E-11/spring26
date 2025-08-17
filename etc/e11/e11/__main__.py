@@ -19,6 +19,12 @@ import boto3
 import requests
 from dns import resolver,reversename
 
+from e11.e11core.context import build_ctx, chdir_to_lab
+from e11.e11core.loader import discover_and_run
+from e11.e11core.render import print_summary
+from e11.e11core.doctor import run_doctor
+
+
 REPO_YEAR='spring26'
 __version__ = '0.1.0'
 
@@ -213,6 +219,27 @@ def do_update(args):
 def do_grade(args):
     print("args=",args)
     print("Grading not implemented yet")
+    ctx = build_ctx(args.lab)
+    chdir_to_lab(ctx)
+    # local preview (optional): comment out if you want server-only
+    summary = discover_and_run(ctx)
+    print_summary(summary, verbose=getattr(args, "verbose", False))
+    # TODO: POST to grader API with HMAC if desired; for now, exit with local status
+    sys.exit(0 if not summary["fails"] else 1)
+
+
+def do_check(args):
+    print("args=",args)
+    ctx = build_ctx(args.lab)          # args.lab like 'lab3'
+    chdir_to_lab(ctx)
+    summary = discover_and_run(ctx)
+    print_summary(summary, verbose=getattr(args, "verbose", False))
+    sys.exit(0 if not summary["fails"] else 1)
+
+    print("Checking not implemented yet")
+
+def do_doctor(args):
+    print("Doctor not implemented yet")
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
@@ -224,6 +251,7 @@ def main():
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
+    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=do_doctor)
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
 
 
@@ -239,6 +267,11 @@ def main():
     grade_parser = subparsers.add_parser('grade', help='Grade a lab')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.set_defaults(func=do_grade)
+
+    # e11 check [lab]
+    check_parser = subparsers.add_parser('check', help='Check a lab')
+    check_parser.add_argument(dest='lab', help='Lab to check')
+    check_parser.set_defaults(func=do_check)
 
 
     args = parser.parse_args()

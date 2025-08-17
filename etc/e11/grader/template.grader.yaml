@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: e11 grader Lambda (uses existing DynamoDB table)
+
+Parameters:
+  DynamoTableArn:
+    Type: String
+    Description: ARN of existing DynamoDB table for grades/logs
+  SesFromAddress:
+    Type: String
+    Description: Verified SES sender address
+  SshSecretId:
+    Type: String
+    Description: Secrets Manager SecretId/ARN containing the SSH private key
+
+Resources:
+  E11GraderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: grader.app.handler
+      CodeUri: .
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          DDB_TABLE_ARN: !Ref DynamoTableArn
+          SES_FROM: !Ref SesFromAddress
+          SSH_SECRET_ID: !Ref SshSecretId
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: DynWrite
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:DescribeTable
+              Resource: !Ref DynamoTableArn
+            - Sid: SesSend
+              Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+            - Sid: SecretsGet
+              Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref SshSecretId
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  GraderFunction:
+    Description: Grader Lambda function name
+    Value: !Ref E11GraderFunction
