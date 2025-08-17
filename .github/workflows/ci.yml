@@ -10,50 +10,44 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: e11
+        working-directory: etc/e11   # <-- correct path inside repo
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ "3.12"]
+        python-version: ["3.12"]
+
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up pipx
-        run: |
-          sudo apt -y update
-          sudo apt -y install pipx
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Update GITHUB_PATH and install Python dependencies for local development
+      - name: Install pipx and Poetry
         run: |
+          sudo apt-get update
+          sudo apt-get install -y pipx python3-venv
+          python3 -m pipx ensurepath
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Set up pipx and poetry
-        run: |
-          sudo apt -y install pipx
           pipx install poetry
+          poetry --version
+
+      - name: Configure Poetry (.venv in project)
+        run: |
+          poetry config virtualenvs.create true
           poetry config virtualenvs.in-project true
 
-      - name: Install e11 deps with Poetry
-        run: |
-          cd spring26/etc/e11
-          pwd
-          poetry install --sync
+      - name: Sync deps
+        run: poetry sync
 
       - name: Run tests with coverage
-        run: |
-          pwd
-          poetry run make pytest
+        run: poetry run make pytest
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: e11/coverage.xml
+          files: coverage.xml          # <-- correct path relative to working dir
           flags: unittests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}  # not needed for public repos
+          token: ${{ secrets.CODECOV_TOKEN }}  # required if repo is private
