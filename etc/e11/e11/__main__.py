@@ -218,8 +218,7 @@ def do_update(args):
         os.system(cmd)
 
 def do_grade(args):
-    print("args=",args)
-    print("Grading not implemented yet")
+    print("Attempting to grade...")
     ctx = build_ctx(args.lab)
     chdir_to_lab(ctx)
     # local preview (optional): comment out if you want server-only
@@ -230,7 +229,6 @@ def do_grade(args):
 
 
 def do_check(args):
-    print("args=",args)
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     chdir_to_lab(ctx)
     summary = discover_and_run(ctx)

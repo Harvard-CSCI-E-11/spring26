@@ -63,8 +63,16 @@ def handler(event, _ctx):
     if smashed: ctx["smashedemail"] = smashed
     if ip: ctx["public_ip"] = ip
 
-    # Run shared tests. In grader mode, your primitives should use SSH for on-box actions
-    summary = discover_and_run(ctx)
+    # NEW: fetch SSH key and open the remote session
+    secret = _secrets.get_secret_value(SecretId=SSH_SECRET_ID)
+    key_pem = secret.get("SecretString") or secret["SecretBinary"]
+    e11ssh.configure(host=ctx["public_ip"], username="ubuntu", port=22, pkey_pem=key_pem, timeout=10)
+    e11ssh.set_working_dir(ctx["labdir"])
+
+    try:
+        summary = discover_and_run(ctx)
+    finally:
+        e11ssh.close()
 
     subject = f"[e11] {lab} score {summary['score']}/5.0"
     # Simple text mail body

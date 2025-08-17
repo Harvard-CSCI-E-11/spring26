@@ -1,3 +1,12 @@
+This directory contains the following:
+* e11/ - The source code for the e11 command
+* grader/ - The code for the auto-grader that runs on AWS Lambda
+* tests/ - tests for the e11 and grader system (because nothing should be written without a
+
+You will also find in this directory:
+* e11/e11/lab_tests - the actual tests for your labs.
+
+
 # The `e11` command
 CSCI E-11 uses the `e11` command to let students control access to their AWS Instance.
 

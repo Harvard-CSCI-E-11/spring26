@@ -1,3 +1,7 @@
+#
+# This test is for the pytest self-test
+#
+
 import os, sys, re
 from pathlib import Path
 from e11.e11core.decorators import timeout
