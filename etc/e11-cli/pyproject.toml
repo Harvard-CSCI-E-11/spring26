@@ -22,5 +22,9 @@ dependencies = [
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry]
+name = "e11"
+packages = [{ include="e11"}]
+
 [tool.poetry.scripts]
 e11 = "e11.__main__:main"

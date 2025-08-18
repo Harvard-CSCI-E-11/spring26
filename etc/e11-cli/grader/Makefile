@@ -8,8 +8,17 @@ SES_FROM        ?= noreply@csci-e-11.org
 SSH_SECRET_ID   ?= e11/grader/ssh_private_key
 RESOLVE_S3      ?= --resolve-s3
 POETRY          ?= poetry
+SOURCE_DIR     ?= $(CURDIR)
+ARTIFACTS_DIR  ?= $(CURDIR)/.aws-sam/build/E11GraderFunction
+PKG_ROOT        ?= ..
+PY              = python3.12
+PIP             = $(PY) -m pip
+# Resolve paths from where THIS Makefile lives (robust under sam's temp SOURCE_DIR)
+MAKEFILE_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
+PROJECT_ROOT := $(abspath $(MAKEFILE_DIR)/..)
 
-.SILENT:
+
+
 .PHONY: help print check build deploy \
         build-E11GraderFunction clean-E11GraderFunction
 
@@ -43,16 +52,17 @@ deploy: check build
 
 # SAM build hooks for Lambda logical ID: E11GraderFunction
 build-E11GraderFunction:
-	@: # Build local e11 wheel with Poetry (includes e11/lab_tests)
-	$(POETRY) -C ../e11 build -f wheel
-	WHL=$$(ls -1 ../e11/dist/*.whl | tail -n1); \
-	echo "==> Using wheel $$WHL"; \
-	python -m pip install --upgrade pip >/dev/null; \
-	@: # Install Lambda deps + local wheel into artifact
-	python -m pip install -r $(SOURCE_DIR)/grader/requirements.txt -t $(ARTIFACTS_DIR)
-	python -m pip install "$$WHL" -t $(ARTIFACTS_DIR)
-	@: # Copy handler code
-	rsync -a --exclude '__pycache__' $(SOURCE_DIR)/grader/ $(ARTIFACTS_DIR)/
+	@echo "PY=$(PY)"
+	@echo "SOURCE_DIR=$(SOURCE_DIR)"
+	@echo "PROJECT_ROOT=$(PROJECT_ROOT)"
+	@echo "ARTIFACTS_DIR=$(ARTIFACTS_DIR)"
+	mkdir -p $(ARTIFACTS_DIR)
+	poetry export  --without-hashes -o requirements.txt
+	@[ -f "$(PROJECT_ROOT)/pyproject.toml"  ] || { echo "$(PROJECT_ROOT)/pyproject.toml is missing"; exit 2; }
+	@[ -f "$(PROJECT_ROOT)/e11/__init__.py" ] || { echo "$(PROJECT_ROOT)/e11/__init__.py is missing"; exit 2; }
+	$(PIP) install -r $(SOURCE_DIR)/requirements.txt -t $(ARTIFACTS_DIR)
+	$(PIP) install $(PROJECT_ROOT) -t $(ARTIFACTS_DIR)
+	cp -f $(SOURCE_DIR)/grader.py $(ARTIFACTS_DIR)/
 
 clean-E11GraderFunction:
 	rm -rf $(ARTIFACTS_DIR)/*
