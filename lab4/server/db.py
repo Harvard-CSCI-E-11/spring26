@@ -71,6 +71,7 @@ def dump_db_command():
         else:
             header = rows[0].keys()
             click.echo(tabulate.tabulate(rows,header))
+        print("")
 
 def init_app(app):
     """Initialize"""

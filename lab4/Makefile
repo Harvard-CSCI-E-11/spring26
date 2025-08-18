@@ -11,63 +11,52 @@
 # Installation targets
 #
 # Create the virtual environment
-venv:
-	make venv/pyvenv.cfg
-
-venv/pyvenv.cfg:
-	echo create the virtual environment and install the requirements
-	python3 -m venv venv
-	venv/bin/python3 -m pip install --upgrade pip
-	venv/bin/python3 -m pip install -r requirements.txt
+.venv/pyvenv.cfg:
+	poetry install
 
 #
 # Install the lab4.services file
-install-lab4-service: venv/pyvenv.cfg
+install-lab4-service: .venv/pyvenv.cfg
+	poetry install
+	poetry sync
 	sudo install lab4.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab4
 	sudo systemctl start lab4
-	@# Do not overwrite lab4 as it may have been customized
-	@if [ ! -r /etc/httpd/conf.d/lab4.conf ]; \
-		then echo installing /etc/httpd/conf.d/lab4.conf ; \
-		sudo install lab4.conf /etc/httpd/conf.d/ ; \
-		else echo /etc/httpd/conf.d/lab4.conf already installed ; \
-	fi
 	@echo
-	@echo Do not forget to edit ServerName in /etc/httpd/conf.d/lab4.conf, restart apache, run certbot, and restart apache again
-	@echo You may also need to restart your web browser.
+	@echo Do not forget to edit /etc/nginx/sites-available/default
+	@echo and restart the web server
 
 ################################################################
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app:
-	venv/bin/flask --app app run --debug
+local-app: .venv/pyvenv.cfg
+	.venv/bin/flask --app server:app run --debug --port 8004 --reload
 
 # Print help for the application
-help:
-	venv/bin/flask --app app --help
+help: .venv/pyvenv.cfg
+	.venv/bin/flask --app server:app --help
 
 # Create a new database
-init-db:
-	venv/bin/flask --app app init-db
+init-db: .venv/pyvenv.cfg
+	.venv/bin/flask --app server:app init-db
+
 # Generate a new api-key
-new-apikey:
-	venv/bin/flask --app app new-apikey
+new-apikey: .venv/pyvenv.cfg
+	.venv/bin/flask --app server:app new-apikey
 
 # Dump the database
-dump-db:
-	venv/bin/flask --app app dump-db
-
+dump-db: .venv/pyvenv.cfg
+	.venv/bin/flask --app server:app dump-db
 
 #
 # Software engineering targets
 
-pylint:
-	venv/bin/python3 -m pylint app
+pylint: .venv/pyvenv.cfg
+	.venv/bin/python3 -m pylint app
 
 
 
 # make venv always run, even if it exists
-.PHONY: venv
-.PHONY: install-lab4-service
+.PHONY: install-lab4-service local-app help init-db new-apikey dump-db
