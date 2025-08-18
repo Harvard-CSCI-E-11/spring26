@@ -1,0 +1,131 @@
+# HOW TO DEPLOY WITH SAM (creates samconfig.toml on first guided deploy):
+#   cd grader
+#   sam build -t template.yaml
+#   sam deploy -t template.yaml --guided --profile FAS
+#     # Answer the prompts; you'll be asked for:
+#     #   - Stack Name (e.g., e11-grader)
+#     #   - AWS Region (e.g., us-east-1)
+#     #   - Parameters: DynamoTableArn, SesFromAddress, SshSecretId, HostedZoneId
+#     #   - (Optional) CertificateArn; leave blank to auto-create one in ACM
+#   # On next runs:
+#   sam build && sam deploy
+#
+# Result:
+#   - An HTTP API at https://grader.csci-e-11.org/
+#   - Routes handled by the Lambda handler in grader.py (lambda_handler)
+#   - JSON API (POST) for grading; also supports ping/ping-mail actions
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: e11 grader Lambda with custom domain (grader.csci-e-11.org)
+
+Parameters:
+  DynamoTableArn:
+    Type: String
+    Description: ARN of existing DynamoDB table for grades/logs
+  SesFromAddress:
+    Type: String
+    Description: Verified SES sender address (e.g., noreply@csci-e-11.org)
+  SshSecretId:
+    Type: String
+    Description: Secrets Manager SecretId/ARN containing the SSH private key
+  HostedZoneId:
+    Type: String
+    Description: Route53 Hosted Zone ID for csci-e-11.org (e.g., Z123ABC...)
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: "(Optional) Existing ACM certificate ARN for grader.csci-e-11.org. Leave blank to auto-create."
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET]
+    Description: Default LOG_LEVEL environment value for the function
+
+Conditions:
+  CreateAcmCert: !Equals [!Ref CertificateArn, ""]
+
+Resources:
+  # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
+  GraderCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCert
+    Properties:
+      DomainName: grader.csci-e-11.org
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: grader.csci-e-11.org
+          HostedZoneId: !Ref HostedZoneId
+
+  # HTTP API fronting the Lambda, bound to grader.csci-e-11.org in Route53
+  GraderHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: prod
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowMethods: ['GET','POST','OPTIONS']
+      Domain:
+        DomainName: grader.csci-e-11.org
+        CertificateArn: !If [CreateAcmCert, !Ref GraderCertificate, !Ref CertificateArn]
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+
+  # Lambda function — JSON-only API (no Flask)
+  E11GraderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: grader.lambda_handler          # NOTE: file is grader.py now
+      CodeUri: .
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          DDB_TABLE_ARN: !Ref DynamoTableArn
+          SES_FROM: !Ref SesFromAddress
+          SSH_SECRET_ID: !Ref SshSecretId
+          LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: DynWrite
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:DescribeTable
+              Resource: !Ref DynamoTableArn
+            - Sid: SesSend
+              Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+            - Sid: SecretsGet
+              Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref SshSecretId
+      Events:
+        AnyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref GraderHttpApi
+            Path: /
+            Method: ANY
+        AnyProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref GraderHttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  GraderFunction:
+    Description: Grader Lambda function name
+    Value: !Ref E11GraderFunction
+  ApiId:
+    Description: HTTP API ID
+    Value: !Ref GraderHttpApi
+  CustomDomainUrl:
+    Description: Public base URL
+    Value: "https://grader.csci-e-11.org/"
