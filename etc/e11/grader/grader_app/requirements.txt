@@ -1,0 +1,8 @@
+# requirements.txt for the deployed lambda function
+gunicorn
+itsdangerous
+Jinja2
+Flask
+requests
+apig_wsgi
+boto3

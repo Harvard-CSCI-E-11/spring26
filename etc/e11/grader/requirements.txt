@@ -1,2 +1,5 @@
-boto3~=1.34
-paramiko~=3.4
+# requirements.txt for running locally
+# This should be added to src/requirements.txt
+pylint
+pylint-pytest
+pytest
