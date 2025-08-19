@@ -1,0 +1,15 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "grader-app"
+resolve_s3 = true
+s3_prefix = "grader-app"
+region = "us-east-1"
+profile = "fas"
+template_file = "template.yaml"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+parameter_overrides = "DynamoTableArn=\"arn:aws:dynamodb:us-east-1:586794483136:table/e11-grades\" SesFromAddress=\"admin@csci-e-11.org\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"INFO\""
+image_repositories = []
+code = true
+watch = true
