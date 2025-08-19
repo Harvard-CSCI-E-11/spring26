@@ -13,3 +13,7 @@ parameter_overrides = "DynamoTableArn=\"arn:aws:dynamodb:us-east-1:586794483136:
 image_repositories = []
 code = true
 watch = true
+
+[default.build.parameters]
+cached = false
+clean = true

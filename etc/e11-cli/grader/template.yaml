@@ -1,7 +1,7 @@
 # HOW TO DEPLOY WITH SAM (creates samconfig.toml on first guided deploy):
 #   cd grader
 #   sam build -t template.yaml
-#   sam deploy -t template.yaml --guided --profile FAS
+#   sam deploy -t template.yaml --guided --profile fas
 #     # Answer the prompts; you'll be asked for:
 #     #   - Stack Name (e.g., e11-grader)
 #     #   - AWS Region (e.g., us-east-1)
@@ -10,10 +10,20 @@
 #   # On next runs:
 #   sam build && sam deploy
 #
+# Live:
+#   sam sync --stack-name e11-grader --template template.yaml
 # Result:
 #   - An HTTP API at https://grader.csci-e-11.org/
 #   - Routes handled by the Lambda handler in grader.py (lambda_handler)
 #   - JSON API (POST) for grading; also supports ping/ping-mail actions
+#
+# Watch:
+# aws logs tail "/aws/lambda/grader-app-E11GraderFunction-Z2cp02sKKeiW"   --since 15m --follow --region us-east-1 --profile fas
+#
+# Grab zip of deployment:
+# FUNC=grader-app-E11GraderFunction-Z2cp02sKKeiW
+# aws lambda get-function --function-name "$FUNC" --query 'Code.Location' --output text --region us-east-1 --profile fas | xargs curl -sSLo /tmp/grader.zip
+# unzip -l /tmp/grader.zip | egrep '(^.* grader\.py$|^e11/|/e11/)'
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31

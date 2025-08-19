@@ -13,7 +13,7 @@ import boto3
 import subprocess
 from os.path import join,abspath,dirname
 
-from validate_email import validate_email
+from email_validator import validate_email, EmailNotValidError
 import dns
 import boto3
 import requests
@@ -149,8 +149,11 @@ def do_register(args):
         print(f"ERROR: This instance does not have the public IP address {ipaddr}.")
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
-    if not validate_email(email, check_mx=False):
-        print(f"ERROR: '{email}' is not a valid email address.")
+    try:
+        emailinfo = validate_email(email, check_deliverability=False)
+        email = email.normalized
+    except EmailNotValidError as e:
+        print(f"ERROR: '{email}' is not a valid email address: {e}")
         errors += 1
     instanceId = get_instanceId()
     if cp[STUDENT][INSTANCE_ID] != instanceId:

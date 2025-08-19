@@ -3,14 +3,17 @@ import json
 import logging
 import os
 import time
+import sys
 from typing import Any, Dict, Tuple
+from os.path import dirname
+
+TASK_DIR = os.path.dirname(__file__)        # typically /var/task
+NESTED = os.path.join(TASK_DIR, ".aws-sam", "build", "E11GraderFunction")
+if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):
+    # put the nested dir first so `import e11` resolves
+    sys.path.insert(0, NESTED)
 
 import boto3
-
-# Shared runner (imports from your e11 package)
-from e11.e11core.context import build_ctx
-from e11.e11core.loader import discover_and_run
-from e11.e11core import ssh as e11ssh
 
 # ---------- logging setup ----------
 
@@ -85,6 +88,10 @@ def _send_email(to_addr: str, subject: str, body: str, cc: str = None):
 
 def _grade(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Run grading by SSHing into the student's VM and executing tests via shared runner."""
+    from e11.e11core.context import build_ctx
+    from e11.e11core.loader import discover_and_run
+    from e11.e11core import ssh as e11ssh
+
     email = payload.get("email")
     lab = payload.get("lab")
     smashed = payload.get("smashedemail")
@@ -156,25 +163,36 @@ def lambda_handler(event, context):
             LOGGER.info("req %s %s action=%s", method, path, payload.get("action"))
             action = (payload.get("action") or "").lower()
 
-            if method == "GET" and path == "/":
-                # Minimal JSON index
-                return _resp(200, {"service": "e11-grader", "message": "send POST with JSON {'action':'grade'| 'ping' | 'ping-mail'}"})
+            match (method, path, action):
+                case ("GET", "/", _):
+                    return _resp(200, {"service": "e11-grader", "message": "send POST with JSON {'action':'grade'| 'ping' | 'ping-mail'}"})
 
-            if action == "ping":
-                return _resp(200, {"error": False, "message": "ok"})
+                case (_, _, "ping"):
+                    return _resp(200, {"error": False, "message": "ok", "path":sys.path})
 
-            if action == "ping-mail":
-                email = payload.get("email")
-                if not email:
+                case (_, _, "ping-import"):
+                    import e11
+                    import e11.e11core
+                    import e11.e11core.context
+                    from e11.e11core.context import build_ctx
+                    from e11.e11core.loader import discover_and_run
+                    from e11.e11core import ssh as e11ssh
+
+                    return _resp(200, {"error": False, "message": "ok", "path":sys.path})
+
+                case (_, _,"ping-mail") if (email := payload.get("email")):
+                    _send_email(email, "[e11] ping-mail", "Ping from e11 grader.")
+                    return _resp(200, {"error": False, "message": f"sent to {email}"})
+
+                case (_, _,"ping-mail"):
                     return _resp(400, {"error": True, "message": "email is required for ping-mail"})
-                _send_email(email, "[e11] ping-mail", "Ping from e11 grader.")
-                return _resp(200, {"error": False, "message": f"sent to {email}"})
 
-            if action == "grade":
-                result = _grade(payload)
-                return _resp(200, result)
+                case (_, _, "grade"):
+                    result = _grade(payload)
+                    return _resp(200, result)
 
-            return _resp(400, {"error": True, "message": "unknown or missing action; use 'ping', 'ping-mail', or 'grade'"})
+                case _:
+                    return _resp(400, {"error": True, "message": "unknown or missing action; use 'ping', 'ping-mail', or 'grade'"})
 
         except Exception as e:
             LOGGER.exception("Unhandled error")
