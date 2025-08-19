@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: etc/e11   # <-- correct path inside repo
+        working-directory: etc/e11-cli
     strategy:
       fail-fast: false
       matrix:
