@@ -5,7 +5,7 @@ POETRY ?= poetry
 install:
 	@set -e; \
 	if [ ! -x .venv/bin/python ]; then \
-	  python3 -m venv .venv; \
+	  python3.12 -m venv .venv; \
 	fi; \
 	$(POETRY) config virtualenvs.create true --local; \
 	$(POETRY) config virtualenvs.in-project true --local; \

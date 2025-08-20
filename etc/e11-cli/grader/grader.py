@@ -7,6 +7,8 @@ import sys
 from typing import Any, Dict, Tuple
 from os.path import dirname
 
+# curl -sS -X POST https://grader.csci-e-11.org/   -H 'Content-Type: application/json'   -d '{"action":"ping-import"}'
+
 TASK_DIR = os.path.dirname(__file__)        # typically /var/task
 NESTED = os.path.join(TASK_DIR, ".aws-sam", "build", "E11GraderFunction")
 if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):
@@ -37,6 +39,8 @@ DDB_TABLE_ARN = os.environ.get("DDB_TABLE_ARN")
 SES_FROM = os.environ.get("SES_FROM")
 SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID")
 
+INDEX_PAGE = os.path.join( dirname(__file__), 'static', 'index.html')
+
 def _ddb_table_name_from_arn(arn: str) -> str:
     return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
 
@@ -48,7 +52,7 @@ def _resp(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> 
     }
 
 def _parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
-    # HTTP API v2
+    """ parser HTTP API v2 event"""
     path = event.get("rawPath") or event.get("path") or "/"
     method = event.get("requestContext", {}).get("http", {}).get("method", event.get("httpMethod", "GET"))
     body = event.get("body")
@@ -160,7 +164,7 @@ def lambda_handler(event, context):
     method, path, payload = _parse_event(event)
     with _with_request_log_level(payload):
         try:
-            LOGGER.info("req %s %s action=%s", method, path, payload.get("action"))
+            LOGGER.info("req method='%s' path='%s' action='%s'", method, path, payload.get("action"))
             action = (payload.get("action") or "").lower()
 
             match (method, path, action):
@@ -168,7 +172,7 @@ def lambda_handler(event, context):
                     return _resp(200, {"service": "e11-grader", "message": "send POST with JSON {'action':'grade'| 'ping' | 'ping-mail'}"})
 
                 case (_, _, "ping"):
-                    return _resp(200, {"error": False, "message": "ok", "path":sys.path})
+                    return _resp(200, {"error": False, "message": "ok", "path":sys.path, "os.environ":dict(os.environ)})
 
                 case (_, _, "ping-import"):
                     import e11
@@ -192,7 +196,11 @@ def lambda_handler(event, context):
                     return _resp(200, result)
 
                 case _:
-                    return _resp(400, {"error": True, "message": "unknown or missing action; use 'ping', 'ping-mail', or 'grade'"})
+                    return _resp(400, {'error': True,
+                                       'message': "unknown or missing action; use 'ping', 'ping-mail', or 'grade'",
+                                       'method':method,
+                                       'path':path,
+                                       'action':action })
 
         except Exception as e:
             LOGGER.exception("Unhandled error")
