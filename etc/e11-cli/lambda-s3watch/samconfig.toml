@@ -19,7 +19,7 @@ capabilities = "CAPABILITY_IAM"
 resolve_s3 = true
 s3_prefix = "s3watch"
 region = "us-east-2"
-parameter_overrides = "ExistingBucketName=\"cscie-11\" LoggingBucketName=\"cscie-11-s3watcher-logs\""
+parameter_overrides = "DynamoTableArn=\"arn:aws:dynamodb:us-east-1:586794483136:table/e11-students\" ExistingBucketName=\"cscie-11\" LoggingBucketName=\"cscie-11-s3watcher-logs\""
 image_repositories = []
 profile = "fas"
 

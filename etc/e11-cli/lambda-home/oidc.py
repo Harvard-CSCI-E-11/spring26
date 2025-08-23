@@ -12,6 +12,14 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
+from constants import LOGGER
+
+class OidcException(Exception):
+    pass
+
+class OidcExpired(OidcException):
+    pass
+
 
 # Helper: stateless state serializer
 def _state_serializer(secret_key: str) -> URLSafeTimedSerializer:
@@ -101,7 +109,8 @@ def handle_oidc_redirect_stateless(
     try:
         st = s.loads(state, max_age=max_state_age_seconds)
     except SignatureExpired as e:
-        raise RuntimeError("State expired.") from e
+        LOGGER.info("State expired")
+        raise OidcExpired("State expired.") from e
     except BadSignature as e:
         raise RuntimeError("Invalid state signature.") from e
 
@@ -121,9 +130,10 @@ def handle_oidc_redirect_stateless(
         "code": code,
         "redirect_uri": redirect_uri,
         "client_id": client_id,          # some IdPs require it even with Basic auth
+        "client_secret": client_secret,
         "code_verifier": code_verifier,  # binds the code to our request
     }
-    resp = requests.post(token_endpoint, data=data, auth=(client_id, client_secret), timeout=15)
+    resp = requests.post(token_endpoint, data=data, timeout=15)
     if resp.status_code != 200:
         raise RuntimeError(f"Token endpoint error {resp.status_code}: {resp.text}")
     token_set = resp.json()

@@ -39,6 +39,7 @@ stats:
 
 ################################################################
 # Software engineering
+# This is still pip-based, alas.
 venv:
 	echo create the virtual environment and install the requirements
 	python3 -m venv venv

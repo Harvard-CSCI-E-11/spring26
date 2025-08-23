@@ -1,5 +1,10 @@
 """
-watch the S3 bucket and process uploaded records in the form:
+app.p3 - watch the S3 bucket
+
+1. EventRule PutObject calls EventConsumerFunction, which runs app.lambda_handler(event, context)
+2. app.lambda_handler() configures DNS (permissions granted through `AllowRoute53Changes` SID)
+3. app.lambda_handler() sends email to the student email with SES (permissions granted through AllowSES)
+4. app.lambda_handler() updates the DynamoDB  (permissions granted through DynWrite)
 
 account_id, my_ip, email, name
 """
@@ -9,22 +14,24 @@ import os
 import json
 import logging
 import re
+import uuid
 import boto3
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 route53_client = boto3.client('route53')
 ses_client = boto3.client('ses',region_name='us-east-1') # SES is only in region us-east-1
+dynamodb_client = boto3.client('dynamodb')
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'DEBUG').upper())
 logger = logging.getLogger(__name__)
 logger.info('message')
-
 
 # Constants
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
+DYNAMODB_TABLE = 'e11-students'
 
 # Function to extract data from S3 object
 def extract(content):
@@ -35,7 +42,7 @@ def extract(content):
     account_id = account_id.strip()
     my_ip = my_ip.strip()
     email   = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email)
-    hostname = "".join(email.replace("@",".").split(".")[0:2])
+    hostname = "".join(email.replace("@",".").split(".")[0:2]) # email smashing function
     hostname = re.sub(r'[^a-zA-Z0-9]', '', hostname)
     return hostname, my_ip, email, name
 
@@ -53,7 +60,7 @@ def lambda_handler(event, context):
     response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
     content = response['Body'].read().decode('utf-8')
 
-    logger.error("s3 object content=%s",content)
+    logger.debug("s3 object content=%s",content)
 
     # Extract data using the extract function
     hostname, ip_address, email, name = extract(content)
@@ -74,13 +81,27 @@ def lambda_handler(event, context):
         HostedZoneId=HOSTED_ZONE_ID,
         ChangeBatch={
             "Changes": changes
-        }
-    )
+        })
     logger.info("Route53 response: %s",route53_response)
 
+    # Create the course key and store in database
+    course_key = str(uuid.uuid4())[0:8]
+    student_dict = {'email':email,
+                    'sk':"",
+                    'course_key':course_key,
+                    'time':time.time(),
+                    'name':name,
+                    'ip_address':ip_address,
+                    'hostname':hostname}
+    dynamodb_client.Table(DYNAMODB_TABLE).put_item(Item=student_dict)
+
     # Send email notification using SES
-    email_subject = f"New DNS Record Created: {hostnames[0]}"
+    email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
     email_body = f"""
+    You have successfully registered your AWS instance.
+
+    Your course key is: {course_key}
+
     The following DNS record has been created:
 
     Hostname: {hostnames[0]}
