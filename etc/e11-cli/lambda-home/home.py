@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import binascii
+import uuid
 from typing import Any, Dict, Tuple
 from os.path import dirname
 
@@ -22,17 +23,7 @@ sys.path.append(TASK_DIR)
 
 import oidc                     # pylint: disable=wrong-import-position
 # ---------- logging setup ----------
-
-LOGGER = logging.getLogger("e11.grader")
-if not LOGGER.handlers:
-    h = logging.StreamHandler()
-    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    LOGGER.addHandler(h)
-try:
-    LOGGER.setLevel(os.getenv("LOG_LEVEL", "INFO"))
-except ValueError:
-    LOGGER.setLevel(logging.INFO)
-
+from constants import LOGGER
 
 # ---------- clients / env ----------
 _boto_ses = boto3.client("ses")
@@ -102,6 +93,27 @@ def get_odic_config():
                                      redirect_uri=harvard_secrets['redirect_uri'])
     return {**config,**harvard_secrets}
 
+def register_action(claims,client_ip):
+    tbl = _ddb_table_name_from_arn(DDB_TABLE_ARN)
+    item = {
+        "email": {"S": claims['email']},
+        "sk": {"S": f"run#{int(time.time())}"},
+        "name" : {"S" : claims['_name']},
+        "token" : {"S" : str(uuid.uuid4())},
+        "client_ip": {"S": ipaddr or ""},
+    }
+    dynamodb.put_item(TableName=tbl, Item=item)
+    return _textresp(200, f"<html><body><p>Here is what the SAML claims look like:</p><pre>\n{json.dumps(ret,indent=4)}\n</pre>\n</body></html>\n")
+
+
+def home_page(status=""):
+    with open(INDEX_PAGE,"r") as f:# pylint: disable=unspecified-encoding
+        (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
+        LOGGER.info("url=%s issued_at=%s",url,issued_at)
+        body = f.read()
+        body = body.replace("{{key}}", url).replace("{{status}}",status)
+        return _textresp(200, body)
+
 
 # pylint: disable=too-many-return-statements
 def lambda_handler(event, context): # pylint: disable=unused-argument
@@ -114,12 +126,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
             match (method, path, action):
                 case ("GET","/prod/", _):
-                    with open(INDEX_PAGE,"r") as f:# pylint: disable=unspecified-encoding
-                        (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
-                        LOGGER.info("url=%s issued_at=%s",url,issued_at)
-                        body = f.read()
-                        body = body.replace("{{key}}", url)
-                        return _textresp(200, body)
+                    return home_page()
 
                 case ("GET","/prod/auth/callback",_):
                     params = event.get("queryStringParameters") or {}
@@ -131,11 +138,15 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                             "statusCode": 400,
                             "body": "Missing 'code' in query parameters"
                         }
-                    ret = oidc.handle_oidc_redirect_stateless(openid_config = get_odic_config(),
-                                                              callback_params={'code':code,'state':state})
-                    LOGGER.info("ret=%s",ret)
-                    return _textresp(200, f"<html><body><pre>\n{json.dumps(ret,indent=4)}\n</pre>\n</body></html>\n")
+                    try:
+                        obj = oidc.handle_oidc_redirect_stateless(openid_config = get_odic_config(),
+                                                                  callback_params={'code':code,'state':state})
+                    except oidc.OidcExpired:
+                        return home_page("state expired")
 
+                    LOGGER.info("obj=%s",obj)
+                    client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
+                    return register_action(obj['claims'],client_ip=client_ip)
 
                 case ("GET", "/", _):
                     return _resp(200, {"service": "e11-grader", "message": "send POST with JSON {'action':'grade'| 'ping' | 'ping-mail'}"})

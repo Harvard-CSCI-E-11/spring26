@@ -1,0 +1,17 @@
+{
+    "id_token": "eyJraWQiOiJ4RUVQS0NrQ3d5clRzS05KMHVIOWpNTS1PblFJT2hNWG5kdDlic1lmN2l3IiwiYWxnIjoiUlMyNTYifQ.eyJzdWIiOiIwMHUxcm1uMXh6YnFLdjFBTjFkOCIsIm5hbWUiOiJTaW1zb24gR2FyZmlua2VsIiwiZW1haWwiOiJzZ2FyZmlua2VsQGZhcy5oYXJ2YXJkLmVkdSIsInZlciI6MSwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5oYXJ2YXJkLmVkdSIsImF1ZCI6IjBvYTF3eDVlYml2SHFmNGhWMWQ4IiwiaWF0IjoxNzU1ODI4NzgyLCJleHAiOjE3NTU4MzIzODIsImp0aSI6IklELmMzUzhFeW9TUUZDWllCOG5kSV9QSlh2bTM2NEtFYlA3T2hvS1VnQkZZZ0UiLCJhbXIiOlsiZmVkIiwic3drIiwibWZhIiwicHdkIiwib2t0YV92ZXJpZnkiXSwiaWRwIjoiMDBvMXFiZmhvbW44QjVKUWIxZDgiLCJub25jZSI6ImM2Q0tPT3BIS2t4aUxsd2VEQ3pOZHItWHB1SGltenBvIiwicHJlZmVycmVkX3VzZXJuYW1lIjoic2xnMDQ5IiwiYXV0aF90aW1lIjoxNzU1ODI4NzgxLCJhdF9oYXNoIjoiZ0dMbUNvSWM4b3pyb1pGRU9ranVBQSJ9.mDHGj-TTwFBNRem4vqOOmLU8qTDHl2Sc_9ZmtsZ-47nR0FOGOJnW-74B2ublDzZPzTrWB3N_0NzKVFXoJwAM3xGCcSXoVVU_fpGk48L4v272q50B0V-eIVrg7tFLCaw6svgbjR26u41E9ykYjiCHSKRapSm8x3iXAa7bjNNEY1KQk6Oaw6XZ259obx_XuRH99V_aayqgGD81AxfCufQuPrtvOpjk6-57QtcA-AW-jnlLxI2-4XqfhT3WYDhojnVgKcU1ohPHS623eLnksQ2XuHwGq8oLNXRW4XNxoWp0zlEUbxm-ljauR-D7voOVF5juXKp7AQId_n-cgv7oi19dfg",
+    "access_token": "eyJraWQiOiJ4RUVQS0NrQ3d5clRzS05KMHVIOWpNTS1PblFJT2hNWG5kdDlic1lmN2l3IiwidHlwIjoiYXBwbGljYXRpb24vb2t0YS1pbnRlcm5hbC1hdCtqd3QiLCJhbGciOiJSUzI1NiJ9.eyJ2ZXIiOjEsImp0aSI6IkFULjZfMElDbW5iVkUwOUw5WV9xbll1cGo2WWNFbEc2NmtyaDBUdjczcjV1SjAiLCJpc3MiOiJodHRwczovL2xvZ2luLmhhcnZhcmQuZWR1IiwiYXVkIjoiaHR0cHM6Ly9sb2dpbi5oYXJ2YXJkLmVkdSIsInN1YiI6InNsZzA0OSIsImlhdCI6MTc1NTgyODc4MiwiZXhwIjoxNzU1ODMyMzgyLCJjaWQiOiIwb2Exd3g1ZWJpdkhxZjRoVjFkOCIsInVpZCI6IjAwdTFybW4xeHpicUt2MUFOMWQ4Iiwic2NwIjpbIm9wZW5pZCIsInByb2ZpbGUiLCJlbWFpbCJdLCJhdXRoX3RpbWUiOjE3NTU4Mjg3ODF9.cpzF127wmEks1dpyMmqm0SVrbjlSrF6kdtyHpN-Ah9GgBr5mDC5FQFBYk2yMwR2qNdqnCKm8Hkk_P9rmoyybBAefqK_J9t9Hh_2QzDN9KPfQCUyKPOo05gwrRDT511UfTg47s1gjUC9X3lyGLlNkT28sB1DimRJru5vRgKWIzfGM6QD0EXqRdlx4EumZqKsvPcZndvWgMUvkNidqA2A53jPygmO_RGofUHimWFgkBKNkDFglIe66CKJ3mVT3tDBUiez1WhI8JwSgbm5Hc9moG1BmNTboeEzfmzWH0ZbPoNveq3rMcqJRb9U4-DlIuCysZuWQQgdDYaSN85vBvjhmUg",
+    "expires_in": 3600,
+    "scope": "openid profile email",
+    "token_type": "Bearer",
+    "claims": {
+        "sub": "00u1rmn1xzbqKv1AN1d8",
+        "email": "sgarfinkel@fas.harvard.edu",
+        "email_verified": null,
+        "name": "Simson Garfinkel",
+        "given_name": null,
+        "family_name": null,
+        "preferred_username": "slg049",
+        "updated_at": null
+    }
+}

@@ -3,13 +3,20 @@ Transform: AWS::Serverless-2016-10-31
 Description: S3-to-EventBridge Integration 2 - Existing Buckets
 
 Parameters:
+  DynamoTableArn:
+    Type: String
+    Description: ARN of existing DynamoDB table for class list
   ExistingBucketName:
     Type: String
     Default: cscie-11
-
   LoggingBucketName:
     Type: String
     Default: cscie-11-s3watcher-logs
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET]
+    Description: Default LOG_LEVEL environment value for the function
 
 Resources:
   # Bucket for CloudTrail Logs
@@ -66,10 +73,16 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: event_consumer/
+      Runtime: python3.12
       Handler: app.lambda_handler
-      Runtime: python3.11
+      Timeout: 60
+      Environment:
+        Variables:
+          DDB_TABLE_ARN: !Ref DynamoTableArn
+          LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
       Policies:
-        - Statement:
+        - Version: '2012-10-17'
+          Statement:
             - Sid: AllowS3Read
               Effect: Allow
               Action:
@@ -91,8 +104,12 @@ Resources:
                 - ses:SendRawEmail
               Resource: "*"
 
-
-
+            - Sid: DynWrite
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:DescribeTable
+              Resource: !Ref DynamoTableArn
 
   # EventBridge rule - invokes EventConsumerFunction
   EventRule:

@@ -59,6 +59,10 @@ build-E11HomeFunction:
 	cp -f home.py "$$ARTIFACTS_DIR/"
 	cp -fr static "$$ARTIFACTS_DIR/"
 	@[ -f "$${ARTIFACTS_DIR}/e11/__init__.py" ] || { echo "e11 missing in artifact root"; exit 3; }
+	echo "pwd: $$(pwd)"
+	pwd
+	echo "ARTIFACTS_DIR=$${ARTIFACTS_DIR}"
+	find $${ARTIFACTS_DIR} -ls
 
 
 clean-E11HomeFunction:
