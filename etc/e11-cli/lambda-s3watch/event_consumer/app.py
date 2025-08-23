@@ -15,13 +15,15 @@ import json
 import logging
 import re
 import uuid
+import time
+
 import boto3
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 route53_client = boto3.client('route53')
 ses_client = boto3.client('ses',region_name='us-east-1') # SES is only in region us-east-1
-dynamodb_client = boto3.client('dynamodb')
+dynamodb_resource = boto3.resource( 'dynamodb', region_name='us-east-1' ) # our dynamoDB is in region us-east-1
 logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'DEBUG').upper())
 logger = logging.getLogger(__name__)
 logger.info('message')
@@ -84,16 +86,23 @@ def lambda_handler(event, context):
         })
     logger.info("Route53 response: %s",route53_response)
 
-    # Create the course key and store in database
-    course_key = str(uuid.uuid4())[0:8]
-    student_dict = {'email':email,
-                    'sk':"",
-                    'course_key':course_key,
-                    'time':time.time(),
-                    'name':name,
-                    'ip_address':ip_address,
-                    'hostname':hostname}
-    dynamodb_client.Table(DYNAMODB_TABLE).put_item(Item=student_dict)
+    # See if there is an existing course key. If so, use it.
+    res =  dynamodb_resource.Table(DYNAMODB_TABLE).get_item(
+        Key={'email':email, 'sk':'#'},
+        ProjectionExpression='course_key'
+    )
+    logging.debug("res=%s",res)
+    course_key = res.get('Item',{}).get('course_key', str(uuid.uuid4())[0:8])
+
+    # store the new student_dict
+    new_student_dict = {'email':email, # primary key
+                        'sk':"#",      # secondary key - '#' is the student record
+                        'course_key':course_key,
+                        'time':int(time.time()),
+                        'name':name,
+                        'ip_address':ip_address,
+                        'hostname':hostname}
+    dynamodb_resource.Table(DYNAMODB_TABLE).put_item(Item=new_student_dict)
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"

@@ -107,6 +107,7 @@ Resources:
             - Sid: DynWrite
               Effect: Allow
               Action:
+                - dynamodb:GetItem
                 - dynamodb:PutItem
                 - dynamodb:DescribeTable
               Resource: !Ref DynamoTableArn

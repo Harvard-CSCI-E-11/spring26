@@ -4,11 +4,11 @@ AWS_REGION=us-east-2
 redeploy:
 	sam validate
 	sam build
-	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=us-east-2 sam deploy
+	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=$(AWS_REGION) sam deploy
 
 initial:
 	sam build
-	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=us-east-2 sam deploy --guided
+	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=$(AWS_REGION) sam deploy --guided
 
 local-testing:
 	sam local invoke LambdaFunctionName --event event.json
@@ -21,7 +21,7 @@ whoami:
 
 
 dump-bucket-policy:
-	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=us-east-2 \
+	AWS_PROFILE=$(AWS_PROFILE) AWS_DEFAULT_REGION=$(AWS_REGION) \
 		aws s3api get-bucket-policy --bucket cscie-11 --query Policy --output text | jq . > bucket-policy.json
 	cat bucket-policy.json
 
