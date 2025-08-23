@@ -24,13 +24,13 @@ fi
 echo Setting up Ubuntu 24.04 LTS on EC2 for CSCI E-11
 TOKEN=$(curl -sS -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 METADATA=$(curl -sS -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/dynamic/instance-identity/document)
-if [ ${METADATA}x = "x" ]; then
+if [ "${METADATA}x" = "x" ]; then
         echo Instance does not have access to dynamic metadata. You must fix this in the AWS console before continuing
         exit 1
 fi
 
 # Get AWS region and set up the Ubuntu mirror
-REGION=$(echo $METADATA | jq -r .region)
+REGION="$(echo $METADATA | jq -r .region)"
 MIRROR="http://${REGION}.ec2.archive.ubuntu.com/ubuntu/"
 echo AWS Region: $REGION
 echo Setting Ubuntu mirror to $MIRROR
@@ -39,7 +39,7 @@ sudo sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list.d/u
 # Install CSCI E-11 pipx, poetry, and the e11 command
 echo Install apt items
 sudo apt -y update
-sudo apt -y install pipx
+sudo apt -y install pipx python-is-python3
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
@@ -59,7 +59,11 @@ fi
 ################################################################
 
 # Lab 1 setup
-$SCRIPT_DIR/.install-backdoor
+if [ -z ${NO_HACK_ME+x} ]; then
+    $SCRIPT_DIR/.install-backdoor
+else
+    echo -e '\nWelcome Wizard\n'27
+fi
 
 # Lab3 setup
 (cd $HOME/spring26/lab3 && /bin/rm -f server.py && cp -p simple_flask_application.py server.py)
