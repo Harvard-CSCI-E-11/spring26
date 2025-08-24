@@ -14,14 +14,6 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from common import LOGGER
 
-class OidcException(Exception):
-    """OIDC Exception Class"""
-
-
-class OidcExpired(OidcException):
-    """OIDC Expired"""
-
-
 
 # Helper: stateless state serializer
 def _state_serializer(secret_key: str) -> URLSafeTimedSerializer:
@@ -111,10 +103,11 @@ def handle_oidc_redirect_stateless(
     try:
         st = s.loads(state, max_age=max_state_age_seconds)
     except SignatureExpired as e:
-        LOGGER.info("State expired")
-        raise OidcExpired("State expired.") from e
+        LOGGER.info("SignatureExpired: %s",e)
+        raise
     except BadSignature as e:
-        raise RuntimeError("Invalid state signature.") from e
+        LOGGER.info("BadSignature: %s",e)
+        raise
 
     code_verifier = st["cv"]
     expected_nonce = st["nonce"]
