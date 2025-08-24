@@ -47,7 +47,9 @@ STUDENT_NAME='name'
 STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
 INSTANCE_ID='instanceId'
+COURSE_KEY='course_key'
 STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR,INSTANCE_ID]
+COURSE_KEY_ATTRIBS = [COURSE_KEY]
 
 def do_version(args):
     print("version",__version__)
@@ -63,7 +65,6 @@ def get_config():
     if STUDENT not in cp:
         cp.add_section(STUDENT)
     return cp
-
 
 def get_ipaddr():
     r = requests.get('https://checkip.amazonaws.com')
@@ -123,6 +124,19 @@ def do_access_check(args):
 def do_config(args):
     cp = get_config()
     for attrib in STUDENT_ATTRIBS:
+        while True:
+            buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
+            if buf:
+                cp[STUDENT][attrib] = buf
+            if cp[STUDENT].get(attrib,'') != '':
+                break
+    with open(CONFIG_FILE,'w') as f:
+        cp.write(f)
+
+
+def do_set_course_key(args):
+    cp = get_config()
+    for attrib in COURSE_KEY_ATTRIBS:
         while True:
             buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
             if buf:
@@ -249,6 +263,7 @@ def main():
 
     # primary commands
     subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
+    subparsers.add_parser('set-course-key', help='Set the course key that you were provided with by email').set_defaults(func=do_set_course_key)
     subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
