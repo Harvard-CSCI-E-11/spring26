@@ -12,13 +12,15 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-from constants import LOGGER
+from common import LOGGER
 
 class OidcException(Exception):
-    pass
+    """OIDC Exception Class"""
+
 
 class OidcExpired(OidcException):
-    pass
+    """OIDC Expired"""
+
 
 
 # Helper: stateless state serializer

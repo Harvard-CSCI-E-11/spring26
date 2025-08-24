@@ -99,6 +99,10 @@ Resources:
               Effect: Allow
               Action:
                 - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
                 - dynamodb:DescribeTable
               Resource: !Ref DynamoTableArn
             - Sid: SecretsGet
@@ -112,12 +116,14 @@ Resources:
             ApiId: !Ref HomeHttpApi
             Path: /
             Method: ANY
+            PayloadFormatVersion: "2.0"
         AnyProxy:
           Type: HttpApi
           Properties:
             ApiId: !Ref HomeHttpApi
             Path: /{proxy+}
             Method: ANY
+            PayloadFormatVersion: "2.0"
     Metadata:
       BuildMethod: makefile
 
