@@ -81,9 +81,9 @@ Resources:
   E11HomeFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Runtime: python3.12
-      CodeUri: home_app
-      Handler: home.lambda_handler
+      Runtime: python3.13
+      CodeUri: src/
+      Handler: home_app.home.lambda_handler
       Timeout: 60
       MemorySize: 512
       Environment:
@@ -140,8 +140,8 @@ Resources:
             Path: /{proxy+}
             Method: ANY
             PayloadFormatVersion: "2.0"
-    Metadata:
-      BuildMethod: makefile
+#    Metadata:
+#      BuildMethod: makefile
 
   HeartbeatFunction:
     Type: AWS::Serverless::Function

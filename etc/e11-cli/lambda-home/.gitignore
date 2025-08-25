@@ -1,0 +1,15 @@
+# Virtualenv
+.venv/
+
+# AWS SAM
+.aws-sam/
+
+# Python packaging
+*.egg-info/
+dist/
+build/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+htmlcov/

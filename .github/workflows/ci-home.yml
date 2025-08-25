@@ -13,6 +13,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: |
           cd etc/e11-cli/lambda-home
-          pip install -r requirements.txt
-          pip install -r tests/requirements-dev.txt
+          make install
+          make pytest
           pytest -q

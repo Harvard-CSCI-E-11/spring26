@@ -27,6 +27,15 @@ import time
 import logging
 from typing import Any, Dict, Tuple, Optional
 
+from jinja2 import Environment,FileSystemLoader
+from itsdangerous import BadSignature, SignatureExpired
+import boto3
+
+from . import common
+
+from . import oidc                     # pylint: disable=wrong-import-position
+
+
 LOGGER = logging.getLogger("e11.grader")
 if not LOGGER.handlers:
     h = logging.StreamHandler()
@@ -52,24 +61,19 @@ if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.jo
     sys.path.insert(0, NESTED)
 
 
-from jinja2 import Environment,FileSystemLoader
-from itsdangerous import BadSignature, SignatureExpired
-import boto3
-import common
-import oidc                     # pylint: disable=wrong-import-position
 # ---------- logging setup ----------
 
 
 LOGGER    = common.LOGGER
 
 OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
-DDB_TABLE_ARN = os.environ.get("DDB_TABLE_ARN")
+DDB_USERS_TABLE_ARN = os.environ.get("DDB_USERS_TABLE_ARN","e11-users")
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",'csci-e-11.org')
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
-SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME")
+SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
 SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
@@ -99,7 +103,7 @@ def _ddb_table_name_from_arn(arn: str) -> str:
     return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
 
 dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
-table = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_TABLE_ARN))
+table = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_USERS_TABLE_ARN))
 sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 
 

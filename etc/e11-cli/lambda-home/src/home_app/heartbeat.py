@@ -26,6 +26,13 @@ import uuid
 import time
 import logging
 from typing import Any, Dict, Tuple, Optional
+from jinja2 import Environment,FileSystemLoader
+from itsdangerous import BadSignature, SignatureExpired
+import boto3
+
+from . import common
+from . import oidc                     # pylint: disable=wrong-import-position
+
 
 LOGGER = logging.getLogger("e11.grader")
 if not LOGGER.handlers:
@@ -47,16 +54,12 @@ NESTED = os.path.join(TASK_DIR, ".aws-sam", "build", "E11HomeFunction")
 LOGGER.info("TASK_DIR=%s",TASK_DIR)
 LOGGER.info("NESTED=%s",NESTED)
 
-if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):
-    # put the nested dir first so `import e11` resolves
-    sys.path.insert(0, NESTED)
+# if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):
+#     # put the nested dir first so `import e11` resolves
+3    sys.path.insert(0, NESTED)
 
 
-from jinja2 import Environment,FileSystemLoader
-from itsdangerous import BadSignature, SignatureExpired
-import boto3
-import common
-import oidc                     # pylint: disable=wrong-import-position
+
 # ---------- logging setup ----------
 
 
