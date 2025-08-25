@@ -29,7 +29,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: e11 home Lambda with custom domain (csci-e-11.org)
 
 Parameters:
-  DynamoTableArn:
+  UsersTableArn:
     Type: String
     Description: ARN of existing DynamoDB table for grades/logs
   OidcSecretId:
@@ -82,13 +82,13 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Runtime: python3.12
-      Handler: home.lambda_handler          # NOTE: file is home.py now
-      CodeUri: .
+      CodeUri: home_app
+      Handler: home.lambda_handler
       Timeout: 60
       MemorySize: 512
       Environment:
         Variables:
-          DDB_TABLE_ARN: !Ref DynamoTableArn
+          DDB_TABLE_ARN: !Ref UsersTableArn
           OIDC_SECRET_ID: !Ref OidcSecretId
           LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
           SESSIONS_TABLE_NAME: !Ref SessionsTable
@@ -104,7 +104,7 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:Query
                 - dynamodb:DescribeTable
-              Resource: !Ref DynamoTableArn
+              Resource: !Ref UsersTableArn
             - Sid: SessionsRW
               Effect: Allow
               Action:
@@ -147,8 +147,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Runtime: python3.12
-      Handler: home.heartbeat_handler
-      CodeUri: .
+      CodeUri: home_app
+      Handler: heartbeat.heartbeat_handler
       Timeout: 60
       MemorySize: 256
       Environment:
@@ -171,31 +171,8 @@ Resources:
             Name: HeartbeatHourly
             Description: Expire old sessions hourly
 
-  UsersTable:
-    Type: AWS::DynamoDB::Table
-    Condition: CreateUsersTable
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain                        # SAM creates but does not delete
-    Properties:
-      TableName: !Sub "${AWS::StackName}-users"        # or omit to let CFN pick a name
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: user_id
-          AttributeType: S
-        - AttributeName: email_lower
-          AttributeType: S
-      KeySchema:
-        - AttributeName: user_id
-          KeyType: HASH
-      GlobalSecondaryIndexes:
-        - IndexName: GSI_Email
-          KeySchema:
-            - AttributeName: email_lower
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
-
-  # --- Sessions table holds the cookie sessions
+  # Sessions table holds the cookie sessions
+  # It is createdd by the SAM (it's a resource)
   SessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -219,7 +196,6 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: ALL
-
 
 Outputs:
   HomeFunction:

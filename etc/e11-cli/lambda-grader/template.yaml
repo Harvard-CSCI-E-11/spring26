@@ -9,7 +9,8 @@
 #     #   - (Optional) CertificateArn; leave blank to auto-create one in ACM
 #   # On next runs:
 #   sam build && sam deploy
-#
+# Test:
+# curl -sS -X POST https://grader.csci-e-11.org/   -H 'Content-Type: application/json'   -d '{"action":"ping"}'
 # Live:
 #   sam sync --stack-name e11-grader --template template.yaml
 # Result:

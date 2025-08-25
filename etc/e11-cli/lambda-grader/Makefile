@@ -17,7 +17,6 @@ PIP             = $(PY) -m pip
 PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 312 --only-binary=:all:
 
 
-
 .SHELLFLAGS := -eu -o pipefail -c
 
 export PIP_DISABLE_PIP_VERSION_CHECK=1
@@ -55,11 +54,12 @@ requirements.txt: ../pyproject.toml
 build-E11GraderFunction:
 	: $${ARTIFACTS_DIR:?ARTIFACTS_DIR unset}   # guard against empty var
 	rm -rf "$(ARTIFACTS_DIR)"/*
-	$(PIP) install $(PIP_PLATFORM_OPTS) -r "$(MAKEFILE_DIR)/requirements.txt" -t "$$ARTIFACTS_DIR"
-	$(PIP) install $(PIP_PLATFORM_OPTS) "$(PROJECT_ROOT)" -t "$$ARTIFACTS_DIR"
+	echo ARTIFACTS_DIR="$(ARTIFACTS_DIR)"
+	$(PIP) install $(PIP_PLATFORM_OPTS) -r "$(MAKEFILE_DIR)/requirements.txt" -t "$$ARTIFACTS_DIR" --upgrade
+	$(PIP) install $(PIP_PLATFORM_OPTS) "$(PROJECT_ROOT)" -t "$$ARTIFACTS_DIR" --upgrade
 	cp -f grader.py "$$ARTIFACTS_DIR/"
-	cp -fr static "$$ARTIFACTS_DIR/"
 	@[ -f "$${ARTIFACTS_DIR}/e11/__init__.py" ] || { echo "e11 missing in artifact root"; exit 3; }
+	echo ARTIFACTS_DIR="$(ARTIFACTS_DIR)"
 
 
 clean-E11GraderFunction:

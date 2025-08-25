@@ -9,6 +9,8 @@ from os.path import dirname
 
 # curl -sS -X POST https://grader.csci-e-11.org/   -H 'Content-Type: application/json'   -d '{"action":"ping-import"}'
 
+print("hello1")
+
 TASK_DIR = os.path.dirname(__file__)        # typically /var/task
 NESTED = os.path.join(TASK_DIR, ".aws-sam", "build", "E11GraderFunction")
 if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):

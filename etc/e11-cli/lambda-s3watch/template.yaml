@@ -9,12 +9,14 @@ Parameters:
   DynamoTableArn:
     Type: String
     Description: ARN of existing DynamoDB table for class list
-  ExistingBucketName:
+  WatchedBucketName:
     Type: String
     Default: cscie-11
+    Description: S3 bucket to watch
   LoggingBucketName:
     Type: String
-    Default: cscie-11-logs
+    Default: cscie-11-logs-2026
+    Description: S3 bucket for logs
   LogLevel:
     Type: String
     Default: INFO
@@ -22,10 +24,6 @@ Parameters:
     Description: Default LOG_LEVEL environment value for the function
 
 Resources:
-  # Bucket for CloudTrail Logs
-  # (Removed AWS::S3::Bucket so we always use the existing bucket by name)
-
-  # Bucket policy enables CloudTrail to write to the logging bucket
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -49,13 +47,13 @@ Resources:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
 
-  # The CloudTrail trail - uses the LoggingBucketName as the trail name
   myTrail:
     Type: AWS::CloudTrail::Trail
     DependsOn: BucketPolicy
     Properties:
       TrailName: !Ref LoggingBucketName
       S3BucketName: !Ref LoggingBucketName
+      S3KeyPrefix: cloudtrail-logs/
       IsLogging: true
       IsMultiRegionTrail: false
       EventSelectors:
@@ -63,11 +61,10 @@ Resources:
           DataResources:
             - Type: AWS::S3::Object
               Values:
-                - !Sub arn:aws:s3:::${ExistingBucketName}/
+                - !Sub arn:aws:s3:::${WatchedBucketName}/
       IncludeGlobalServiceEvents: false
 
   ### This section configures the consuming Lambda function ###
-
   # Lambda function
   EventConsumerFunction:
     Type: AWS::Serverless::Function
@@ -135,7 +132,7 @@ Resources:
             - PutObject
           requestParameters:
             bucketName:
-              - !Ref ExistingBucketName
+              - !Ref WatchedBucketName
       Targets:
         - Arn: !GetAtt EventConsumerFunction.Arn
           Id: EventConsumerFunctionTarget

@@ -1,20 +1,13 @@
 # e11/Makefile
 .PHONY: install pytest clean
-POETRY ?= poetry
 
 install:
-	@set -e; \
-	if [ ! -x .venv/bin/python ]; then \
-	  python3.12 -m venv .venv; \
-	fi; \
-	$(POETRY) config virtualenvs.create true --local; \
-	$(POETRY) config virtualenvs.in-project true --local; \
-	$(POETRY) env use .venv/bin/python; \
-	$(POETRY) sync
+	python3.12 -m venv .venv
+	.venv/bin/pip install pip-tools
+	.venv/bin/pip install -e .
 
 pytest: install
-	$(POETRY) run pytest -q --maxfail=1 --disable-warnings \
-	  --cov=e11 --cov-report=term-missing --cov-report=xml
+	.venv/bin/pytest -q --maxfail=1 --disable-warnings --cov=e11 --cov-report=term-missing --cov-report=xml
 
 clean:
 	rm -f .coverage coverage.xml

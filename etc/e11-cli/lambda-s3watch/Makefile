@@ -1,3 +1,7 @@
+#
+# Note: The watcher function must be in the same region as the bucket.
+#
+
 AWS_PROFILE:=fas
 AWS_REGION=us-east-2
 

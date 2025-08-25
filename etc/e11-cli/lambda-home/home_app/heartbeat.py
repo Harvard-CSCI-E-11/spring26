@@ -24,8 +24,33 @@ import sys
 import binascii
 import uuid
 import time
+import logging
 from typing import Any, Dict, Tuple, Optional
-#from os.path import dirname
+
+LOGGER = logging.getLogger("e11.grader")
+if not LOGGER.handlers:
+    h = logging.StreamHandler()
+    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    LOGGER.addHandler(h)
+try:
+    LOGGER.setLevel(os.getenv("LOG_LEVEL", "INFO"))
+except ValueError:
+    LOGGER.setLevel(logging.INFO)
+
+LOGGER.info("sys.path=%s",sys.path)
+LOGGER.info("pwd=%s",os.getcwd())
+
+
+TASK_DIR = os.path.dirname(__file__)        # typically /var/task
+NESTED = os.path.join(TASK_DIR, ".aws-sam", "build", "E11HomeFunction")
+
+LOGGER.info("TASK_DIR=%s",TASK_DIR)
+LOGGER.info("NESTED=%s",NESTED)
+
+if not os.path.isdir(os.path.join(TASK_DIR, "e11")) and os.path.isdir(os.path.join(NESTED, "e11")):
+    # put the nested dir first so `import e11` resolves
+    sys.path.insert(0, NESTED)
+
 
 from jinja2 import Environment,FileSystemLoader
 from itsdangerous import BadSignature, SignatureExpired
@@ -46,9 +71,25 @@ COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",'csci-e-11.org')
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME")
 SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
+SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
+HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
+
+EMAIL_BODY="""
+    You have successfully registered your AWS instance.
+
+    Your course key is: {course_key}
+
+    The following DNS record has been created:
+
+    Hostname: {hostname}
+    IP Address: {ip_address}
+
+    Best regards,
+    CSCIE-11 Team
+"""
 
 
-#_boto_ses = boto3.client("ses")
+ses_client = boto3.client("ses")
 _boto_ddb = boto3.client("dynamodb")
 _boto_secrets = boto3.client("secretsmanager")
 
@@ -196,7 +237,7 @@ def get_session(event) -> Optional[dict]:
         return None
     if item.get("ttl", 0) <= now:
         # Session has expired. Delete it and return none
-        LOGGER.info("Deleting expired key %s ttl=%s now=%s",key,item.get("ttl",0),now)
+        LOGGER.info("Deleting expired sid=%s ttl=%s now=%s",sid,item.get("ttl",0),now)
         sessions_table.delete_item(Key={"sid":sid})
         return None
     return item
@@ -209,20 +250,19 @@ def delete_session(event):
     sessions_table.delete_item(Key={"sid":sid})
 
 def all_sessions_for_email(email):
+    """Return all of the sessions for an email address"""
     resp = sessions_table.query(
         IndexName="GSI_Email",
         KeyConditionExpression="email = :e",
-        ExpressionAttributeValues={":e": user_email},
+        ExpressionAttributeValues={":e":email},
     )
     sessions = resp["Items"]
     return sessions
 
-
-
 ################################################################
 ## http points
 
-def do_home_page(event, context, status="",extra=""):  # pylint: disable=unused_argument
+def do_home_page(event, status="",extra=""):
     """/"""
     # If there is an active session, redirect to the dashboard
     ses = get_session(event)
@@ -235,7 +275,7 @@ def do_home_page(event, context, status="",extra=""):  # pylint: disable=unused_
     template = env.get_template("index.html")
     return _resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
 
-def do_dashboard(event, context): # pylint: disable=unused_argument
+def do_dashboard(event):
     """/dashboard"""
     ses = get_session(event)
     if not ses:
@@ -248,8 +288,7 @@ def do_dashboard(event, context): # pylint: disable=unused_argument
     # TODO: Get all all activity
     return _resp_text(200, template.render())
 
-
-def do_callback(event,context): # pylint: disable=unused_argument
+def do_callback(event):
     """OIDC callback from Harvard Key website."""
     params = event.get("queryStringParameters") or {}
     LOGGER.info("callback params=%s",params)
@@ -270,7 +309,7 @@ def do_callback(event,context): # pylint: disable=unused_argument
     sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=COOKIE_DOMAIN)
     return _redirect("/dashboard", cookies=[sid_cookie])
 
-def do_logout(event, context):# pylint: disable=unused_argument
+def do_logout(event):
     """/logout"""
     delete_session(event)
     del_cookie = make_cookie(COOKIE_NAME, "", clear=True)
@@ -278,6 +317,16 @@ def do_logout(event, context):# pylint: disable=unused_argument
     LOGGER.info("url=%s issued_at=%s ",url,issued_at)
     return _resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
+
+def do_register(event):
+    """Register a VM"""
+    LOGGER.info("do_register event=%s",event)
+    return _resp_json(400, {'error':True})
+
+def do_grade(event):
+    """Do a grade"""
+    LOGGER.info("do_register event=%s",event)
+    return _resp_json(400, {'error':True})
 
 ################################################################
 ## main entry point from lambda system
@@ -292,27 +341,46 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
             action = (payload.get("action") or "").lower()
 
             match (method, path, action):
-                case ("GET", "/", "ping"):
-                    return _resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':os.environ})
+                # JSON Actions
+                case ("POST", "/", "ping"):
+                    return _resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
 
+                case ("POST", "/", "ping-mail"):
+                    hostnames = ['first']
+                    ip_address = 'address'
+                    email_subject = "E11 email ping"
+                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ip_address)
+                    ses_response = ses_client.send_email(
+                        Source=SES_VERIFIED_EMAIL,
+                        Destination={'ToAddresses': [payload['email']]},
+                        Message={ 'Subject': {'Data': email_subject},
+                                  'Body': {'Text': {'Data': email_body}} } )
+                    LOGGER.info("SES response: %s",ses_response)
+
+                    return _resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+
+                case ("GET", "/", "register"):
+                    return _resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+
+                # Human actions
                 case ("GET","/", _):
-                    return do_home_page(event,context)
+                    return do_home_page(event)
 
                 case ("GET","/auth/callback",_):
-                    return do_callback(event,context)
+                    return do_callback(event)
 
                 case ("GET","/dashboard",_):
-                    return do_dashboard(event, context)
+                    return do_dashboard(event)
 
                 case ("GET","/logout",_):
-                    return do_logout(event, context)
+                    return do_logout(event)
 
                 case (_,_,_):
                     return _resp_json(400, {'error': True,
-                                       'message': "unknown or missing action; use 'ping', 'ping-mail', or 'grade'",
-                                       'method':method,
-                                       'path':path,
-                                       'action':action })
+                                            'message': "unknown or missing action; use 'ping', 'ping-mail', or 'grade'",
+                                            'method':method,
+                                            'path':path,
+                                            'action':action })
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unhandled error")
@@ -327,6 +395,8 @@ def _expire_batch(now:int, page: dict) -> int:
     return n
 
 def heartbeat_handler(event, context):
+    """Called periodically"""
+    LOGGER.info("heartbeat event=%s context=%s",event,context)
     now = int(time.time())
     expired = 0
     scan_kwargs = {"ProjectionExpression": "sid, ttl"}
