@@ -3,6 +3,18 @@ Generate the https://csci-e-11.org/ home page.
 Runs OIDC authentication for Harvard Key.
 Supports logging in and logging out.
 Allows users to see all active sessions and results of running the grader.
+
+Data Model:
+Users table:
+PK: user#<user_id>
+SK: PROFILE (and other items as needed)
+
+Sessions table:
+PK: SID#<sid>
+Item: object including email, and user_id
+
+Cookies - just have sid (session ID)
+
 """
 
 import base64
@@ -32,7 +44,9 @@ COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",'csci-e-11.org')
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
+SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME")
 SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
+
 
 #_boto_ses = boto3.client("ses")
 _boto_ddb = boto3.client("dynamodb")
@@ -45,8 +59,11 @@ def _ddb_table_name_from_arn(arn: str) -> str:
 
 dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
 table = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_TABLE_ARN))
+sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
+
 
 def _resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> Dict[str, Any]:
+    LOGGER.debug("_resp_json(status=%s)",status)
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", **(headers or {})},
@@ -54,6 +71,7 @@ def _resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None
     }
 
 def _resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: Dict[str, str]=None) -> Dict[str, Any]:
+    LOGGER.debug("_resp_text(status=%s)",status)
     return {
         "statusCode": status,
         "headers": {"Content-Type": "text/html; charset=utf-8", "Access-Control-Allow-Origin": "*", **(headers or {})},
@@ -62,6 +80,7 @@ def _resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: 
     }
 
 def _redirect(location:str, extra_headers: Optional[dict] = None, cookies: Optional[list]=None):
+    LOGGER.debug("_redirect(%s,%s,%s)",location,extra_headers,cookies)
     headers = {"Location": location}
     if extra_headers:
         headers.update(extra_headers)
@@ -154,26 +173,23 @@ def new_session(claims, client_ip):
     The esid (email plus session identifier) is {email}:{uuid}
     """
     email = claims['email']
-    session_id = str(uuid.uuid4())
-    table.put_item(Item={ "email": email, # primary key
-                          "sk": f"session#{session_id}", # secondary key
-                          "time" : int(time.time()),
-                          "ttl"  : int(time.time()) + SESSION_TTL_SECS,
-                          "name" : claims['name'],
-                          "client_ip": client_ip or "",
-                          "claims" : claims })
-    return f"{email}:{session_id}"
+    sid = str(uuid.uuid4())
+    sessions_table.put_item(Item={
+        "sid": sid,
+        "email": email,
+        "time" : int(time.time()),
+        "ttl"  : int(time.time()) + SESSION_TTL_SECS,
+        "name" : claims.get('name',''),
+        "client_ip": client_ip or "",
+        "claims" : claims })
+    return sid
 
 def get_session(event) -> Optional[dict]:
     """Return the session dictionary if the session is valid and not expired."""
-    esid = parse_cookies(event).get(COOKIE_NAME)
-    try:
-        (email,session_id) = esid.split(":")
-    except (ValueError,AttributeError):
-        LOGGER.warning("esid=%s",esid)
-        return None             # did not unpack properly
-    key = {"email":email, "sk": f"session#{session_id}"}
-    resp = table.get_item(Key=key)
+    sid = parse_cookies(event).get(COOKIE_NAME)
+    if not sid:
+        return None
+    resp = sessions_table.get_item(Key={"sid":sid})
     item = resp.get("Item")
     now  = int(time.time())
     if not item:
@@ -181,26 +197,39 @@ def get_session(event) -> Optional[dict]:
     if item.get("ttl", 0) <= now:
         # Session has expired. Delete it and return none
         LOGGER.info("Deleting expired key %s ttl=%s now=%s",key,item.get("ttl",0),now)
-        table.delete_item(Key=key)
+        sessions_table.delete_item(Key={"sid":sid})
         return None
     return item
 
 def delete_session(event):
     """Delete the session, whether it exists or not"""
-    esid = parse_cookies(event).get(COOKIE_NAME)
-    try:
-        (email,session_id) = esid.split(":")
-    except (ValueError,AttributeError):
-        LOGGER.warning("esid=%s",esid)
+    sid = parse_cookies(event).get(COOKIE_NAME)
+    if not sid:
         return
-    key = {"email":email, "sk": f"session#{session_id}"}
-    table.delete_item(Key=key)
+    sessions_table.delete_item(Key={"sid":sid})
+
+def all_sessions_for_email(email):
+    resp = sessions_table.query(
+        IndexName="GSI_Email",
+        KeyConditionExpression="email = :e",
+        ExpressionAttributeValues={":e": user_email},
+    )
+    sessions = resp["Items"]
+    return sessions
+
+
 
 ################################################################
 ## http points
 
 def do_home_page(event, context, status="",extra=""):  # pylint: disable=unused_argument
     """/"""
+    # If there is an active session, redirect to the dashboard
+    ses = get_session(event)
+    if ses:
+        LOGGER.debug("ses=%s redirecting to /dashboard",ses)
+        return _redirect("/dashboard")
+    # Build an authentication login
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
     LOGGER.info("url=%s issued_at=%s",url,issued_at)
     template = env.get_template("index.html")
@@ -209,6 +238,11 @@ def do_home_page(event, context, status="",extra=""):  # pylint: disable=unused_
 def do_dashboard(event, context): # pylint: disable=unused_argument
     """/dashboard"""
     ses = get_session(event)
+    if not ses:
+        LOGGER.debug("No session; redirect to /")
+        return _redirect("/")
+
+    # Show the dashboard
     template = env.get_template("dashboard.html")
     # TODO: Get all activate sessions and allow them to be deleted
     # TODO: Get all all activity
@@ -283,3 +317,23 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
         except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unhandled error")
             return _resp_json(500, {"error": True, "message": str(e)})
+
+def _expire_batch(now:int, page: dict) -> int:
+    n = 0
+    for item in page.get("Items", []):
+        if item.get("ttl", 0) <= now:
+            sessions_table.delete_item(Key={"sid": item["sid"]})
+            n += 1
+    return n
+
+def heartbeat_handler(event, context):
+    now = int(time.time())
+    expired = 0
+    scan_kwargs = {"ProjectionExpression": "sid, ttl"}
+    while True:
+        page = sessions_table.scan(**scan_kwargs)
+        expired += _expire_batch(now, page)
+        if "LastEvaluatedKey" not in page:
+            break
+        scan_kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+    return {"statusCode": 200, "expired": expired}

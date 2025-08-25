@@ -1,5 +1,4 @@
 # HOW TO DEPLOY WITH SAM (creates samconfig.toml on first guided deploy):
-#   cd home
 #   sam build -t template.yaml
 #   sam deploy -t template.yaml --guided --profile fas
 #     # Answer the prompts; you'll be asked for:
@@ -92,10 +91,11 @@ Resources:
           DDB_TABLE_ARN: !Ref DynamoTableArn
           OIDC_SECRET_ID: !Ref OidcSecretId
           LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
       Policies:
         - Version: '2012-10-17'
           Statement:
-            - Sid: DynWrite
+            - Sid: DynamoTableReadWrite
               Effect: Allow
               Action:
                 - dynamodb:PutItem
@@ -105,6 +105,22 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:DescribeTable
               Resource: !Ref DynamoTableArn
+            - Sid: SessionsRW
+              Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+                - dynamodb:DescribeTable
+              Resource: !GetAtt SessionsTable.Arn
+            - Sid: SessionsRWIndexes
+              Effect: Allow
+              Action:
+                - dynamodb:Query
+              Resource: !Sub "${SessionsTable.Arn}/index/*"
             - Sid: SecretsGet
               Effect: Allow
               Action: secretsmanager:GetSecretValue
@@ -126,6 +142,84 @@ Resources:
             PayloadFormatVersion: "2.0"
     Metadata:
       BuildMethod: makefile
+
+  HeartbeatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.12
+      Handler: home.heartbeat_handler
+      CodeUri: .
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: SessionsRW
+              Effect: Allow
+              Action:
+                - dynamodb:Scan
+                - dynamodb:DeleteItem
+              Resource: !GetAtt SessionsTable.Arn
+      Events:
+        Hourly:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+            Name: HeartbeatHourly
+            Description: Expire old sessions hourly
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateUsersTable
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain                        # SAM creates but does not delete
+    Properties:
+      TableName: !Sub "${AWS::StackName}-users"        # or omit to let CFN pick a name
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: email_lower
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: GSI_Email
+          KeySchema:
+            - AttributeName: email_lower
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # --- Sessions table holds the cookie sessions
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-sessions"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: sid
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sid
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: GSI_Email
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
 
 Outputs:
   HomeFunction:

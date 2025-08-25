@@ -1,3 +1,6 @@
+#   sam build -t template.yaml
+#   sam deploy -t template.yaml --guided --profile fas
+
 AWSTemplateFormatVersion: 2010-09-09
 Transform: AWS::Serverless-2016-10-31
 Description: S3-to-EventBridge Integration 2 - Existing Buckets
@@ -11,7 +14,7 @@ Parameters:
     Default: cscie-11
   LoggingBucketName:
     Type: String
-    Default: cscie-11-s3watcher-logs
+    Default: cscie-11-logs
   LogLevel:
     Type: String
     Default: INFO
@@ -20,16 +23,13 @@ Parameters:
 
 Resources:
   # Bucket for CloudTrail Logs
-  LoggingBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref LoggingBucketName
+  # (Removed AWS::S3::Bucket so we always use the existing bucket by name)
 
   # Bucket policy enables CloudTrail to write to the logging bucket
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
-      Bucket: !Ref LoggingBucket
+      Bucket: !Ref LoggingBucketName
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -38,13 +38,13 @@ Resources:
             Principal:
               Service: cloudtrail.amazonaws.com
             Action: s3:GetBucketAcl
-            Resource: !GetAtt LoggingBucket.Arn
+            Resource: !Sub arn:aws:s3:::${LoggingBucketName}
           - Sid: AWSCloudTrailWrite
             Effect: Allow
             Principal:
               Service: cloudtrail.amazonaws.com
             Action: s3:PutObject
-            Resource: !Sub ${LoggingBucket.Arn}/AWSLogs/${AWS::AccountId}/*
+            Resource: !Sub arn:aws:s3:::${LoggingBucketName}/AWSLogs/${AWS::AccountId}/*
             Condition:
               StringEquals:
                 s3:x-amz-acl: bucket-owner-full-control
@@ -55,7 +55,7 @@ Resources:
     DependsOn: BucketPolicy
     Properties:
       TrailName: !Ref LoggingBucketName
-      S3BucketName: !Ref LoggingBucket
+      S3BucketName: !Ref LoggingBucketName
       IsLogging: true
       IsMultiRegionTrail: false
       EventSelectors:
@@ -72,9 +72,9 @@ Resources:
   EventConsumerFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: event_consumer/
+      CodeUri: .
       Runtime: python3.12
-      Handler: app.lambda_handler
+      Handler: server.lambda_handler
       Timeout: 60
       Environment:
         Variables:
@@ -112,6 +112,15 @@ Resources:
                 - dynamodb:DescribeTable
               Resource: !Ref DynamoTableArn
 
+            - Sid: CreteLogGroups
+              Effect: Allow
+              Action:
+                - logs:CreateLogGroup
+                - logs:CreateLogStream
+                - logs:PutLogEvents
+              Resource: "*"
+
+
   # EventBridge rule - invokes EventConsumerFunction
   EventRule:
     Type: AWS::Events::Rule
@@ -138,3 +147,9 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt EventRule.Arn
+
+  EventConsumerLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${EventConsumerFunction}
+      RetentionInDays: 14

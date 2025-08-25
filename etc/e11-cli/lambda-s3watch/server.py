@@ -33,9 +33,25 @@ HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 DOMAIN = "csci-e-11.org"                        # Domain managed in Route53
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
-DYNAMODB_TABLE = 'e11-students'
+USERS_TABLE_NAME = 'e11-students'
 
-# Function to extract data from S3 object
+users_table = dynamodb_resource.Table(USERS_TABLE_NAME)
+
+EMAIL_BODY="""
+    You have successfully registered your AWS instance.
+
+    Your course key is: {course_key}
+
+    The following DNS record has been created:
+
+    Hostname: {hostname}
+    IP Address: {ip_address}
+
+    Best regards,
+    CSCIE-11 Team
+"""
+
+# Function to extract data from S3 object that is uploaded by e11 register command
 def extract(content):
     """Given the content that the student uploaded to S3, extract the hostname, IP, and email"""
     (account_id, my_ip, email, name) = content.split(",")
@@ -43,18 +59,16 @@ def extract(content):
     logging.info("account_id=%s my_ip=%s email=%s name=%s",account_id, my_ip, email, name)
     account_id = account_id.strip()
     my_ip = my_ip.strip()
-    email   = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email)
+    email   = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
     hostname = "".join(email.replace("@",".").split(".")[0:2]) # email smashing function
     hostname = re.sub(r'[^a-zA-Z0-9]', '', hostname)
     return hostname, my_ip, email, name
 
 # Lambda handler
-# pylint: disable=unused-argument
 # pylint: disable=too-many-locals
 def lambda_handler(event, context):
     """Process the lambda event"""
-    logger.debug("Event received: %s",event)
-
+    logger.debug("event=%s context=%s",event,context)
     bucket_name = event['detail']['requestParameters']['bucketName']
     object_key = event['detail']['requestParameters']['key']
 
@@ -86,47 +100,40 @@ def lambda_handler(event, context):
         })
     logger.info("Route53 response: %s",route53_response)
 
-    # See if there is an existing course key. If so, use it.
-    res =  dynamodb_resource.Table(DYNAMODB_TABLE).get_item(
-        Key={'email':email, 'sk':'#'},
-        ProjectionExpression='course_key'
-    )
-    logging.debug("res=%s",res)
-    course_key = res.get('Item',{}).get('course_key', str(uuid.uuid4())[0:8])
+    # See if there is an existing user_id for this email address.
+    resp = users_table.query(IndexName="GSI_Email",
+                             KeyConditionExpression=Key("email").eq(email))
+    logging.debug("resp=%s",resp)
+    if resp['Count']>1:
+        raise RuntimeError("multiple entries with the same email: %s",resp)
+    if resp['Count']==1:
+        # User already exist.
+        user_id    = resp['Items'][0]['user_id']
+        course_key = resp['Items'][0]['course_key_id']
+    else:
+        # Create new user_id and course key
+        user_id = str(uuid.uuid4()) # user_id is a uuid
+        course_key = res.get('Item',{}).get('course_key', str(uuid.uuid4())[0:8])
 
     # store the new student_dict
-    new_student_dict = {'email':email, # primary key
-                        'sk':"#",      # secondary key - '#' is the student record
+    new_student_dict = {'user_id':user_id, # primary key
+                        'sk':"#",          # sort key - '#' is the student record
+                        'email':email,
                         'course_key':course_key,
                         'time':int(time.time()),
                         'name':name,
                         'ip_address':ip_address,
                         'hostname':hostname}
-    dynamodb_resource.Table(DYNAMODB_TABLE).put_item(Item=new_student_dict)
+    users_table.put_item(Item=new_student_dict)
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = f"""
-    You have successfully registered your AWS instance.
-
-    Your course key is: {course_key}
-
-    The following DNS record has been created:
-
-    Hostname: {hostnames[0]}
-    IP Address: {ip_address}
-
-    Best regards,
-    CSCIE-11 Team
-    """
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ip_address)
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
-        Message={
-            'Subject': {'Data': email_subject},
-            'Body': {'Text': {'Data': email_body}}
-        }
-    )
+        Message={ 'Subject': {'Data': email_subject},
+                  'Body': {'Text': {'Data': email_body}} } )
     logger.info("SES response: %s",ses_response)
 
     return {
