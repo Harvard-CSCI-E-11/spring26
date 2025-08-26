@@ -338,6 +338,10 @@ def do_register(payload,event):
     LOGGER.info("Route53 response: %s",route53_response)
 
     # See if there is an existing user_id for this email address.
+    LOGGER.info("point1. users_table=%s",users_table)
+    resp = users_table.get_item(Key={'user_id':'bogus','sk':'#'})
+    LOGGER.info("get_item resp=%s",resp)
+    LOGGER.info("point2")
     resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
     LOGGER.debug("resp=%s",resp)
     if resp['Count']>1:
@@ -345,7 +349,7 @@ def do_register(payload,event):
     if resp['Count']==1:
         # User already exist.
         user_id    = resp['Items'][0]['user_id']
-        course_key = resp['Items'][0]['course_key_id']
+        course_key = resp['Items'][0]['course_key']
     else:
         # Create new user_id and course key
         user_id = str(uuid.uuid4()) # user_id is a uuid
@@ -364,7 +368,7 @@ def do_register(payload,event):
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr)
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr, course_key=course_key)
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
