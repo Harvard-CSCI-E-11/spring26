@@ -1,6 +1,6 @@
 # ===== e11 home Makefile =====
 # lambda-home is the minimal home page. It requires no e11 packages
-STACK           ?= e11-home
+STACK           ?= home-app
 REGION          ?= us-east-1
 PROFILE         ?= fas
 PY              = python3.13

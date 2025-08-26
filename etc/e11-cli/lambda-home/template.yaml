@@ -92,6 +92,10 @@ Resources:
   # Lambda function — JSON-only API (no Flask)
   E11HomeFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        RequirementsFile: requirements.txt   # relative to CodeUri (src/)
     Properties:
       Runtime: python3.13
       CodeUri: src/
