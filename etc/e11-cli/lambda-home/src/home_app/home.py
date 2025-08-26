@@ -198,7 +198,7 @@ def new_session(claims, client_ip):
         "sid": sid,
         "email": email,
         "time" : int(time.time()),
-        "ttl"  : int(time.time()) + SESSION_TTL_SECS,
+        "session_expire"  : int(time.time()) + SESSION_TTL_SECS,
         "name" : claims.get('name',''),
         "client_ip": client_ip or "",
         "claims" : claims })
@@ -214,9 +214,9 @@ def get_session(event) -> Optional[dict]:
     now  = int(time.time())
     if not item:
         return None
-    if item.get("ttl", 0) <= now:
+    if item.get("session_expire", 0) <= now:
         # Session has expired. Delete it and return none
-        LOGGER.info("Deleting expired sid=%s ttl=%s now=%s",sid,item.get("ttl",0),now)
+        LOGGER.info("Deleting expired sid=%s session_expire=%s now=%s",sid,item.get("session_expire",0),now)
         sessions_table.delete_item(Key={"sid":sid})
         return None
     return item
@@ -377,7 +377,7 @@ def do_heartbeat(event, context):
     LOGGER.info("heartbeat event=%s context=%s",event,context)
     now = int(time.time())
     expired = 0
-    scan_kwargs = {"ProjectionExpression": "sid, ttl"}
+    scan_kwargs = {"ProjectionExpression": "sid, session_expire"}
     while True:
         page = sessions_table.scan(**scan_kwargs)
         expired += _expire_batch(now, page)
@@ -451,7 +451,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 def _expire_batch(now:int, page: dict) -> int:
     n = 0
     for item in page.get("Items", []):
-        if item.get("ttl", 0) <= now:
+        if item.get("session_expire", 0) <= now:
             sessions_table.delete_item(Key={"sid": item["sid"]})
             n += 1
     return n
