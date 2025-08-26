@@ -44,7 +44,10 @@ jobs:
         run: poetry run make pytest
 
       - name: lambda-home tests with coverage
-        run: (cd etc/e11-cli/lambda-home; make pytest)
+        run: |
+          ls -l
+          pwd
+          (cd etc/e11-cli/lambda-home; make pytest)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
