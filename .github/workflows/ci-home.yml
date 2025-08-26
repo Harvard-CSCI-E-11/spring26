@@ -5,7 +5,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.13"]
+    env:
+      AWS_DEFAULT_REGION: 'localhost'
+      AWS_ENDPOINT_URL: 'http://localhost:8000'
+      AWS_ACCESS_KEY_ID: 'minioadmin'
+      AWS_SECRET_ACCESS_KEY: 'minioadmin'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,6 +18,5 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - run: |
           cd etc/e11-cli/lambda-home
-          pip install -r requirements.txt
-          pip install -r tests/requirements-dev.txt
-          pytest -q
+          make install
+          make pytest

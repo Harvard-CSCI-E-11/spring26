@@ -5,15 +5,14 @@ resolve_s3 = true
 s3_prefix = "home-app"
 region = "us-east-1"
 profile = "fas"
-template_file = "template.yaml"
-confirm_changeset = false
+confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-disable_rollback = true
+disable_rollback = false
 parameter_overrides = "UsersTableArn=\"arn:aws:dynamodb:us-east-1:586794483136:table/e11-users\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"INFO\""
 image_repositories = []
-code = true
-watch = true
+template_file = ".aws-sam/build/template.yaml"
+
 
 [default.build.parameters]
 cached = false
-clean = true
+parallel=true

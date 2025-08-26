@@ -24,8 +24,8 @@ from e11.e11core.loader import discover_and_run
 from e11.e11core.render import print_summary
 from e11.e11core.doctor import run_doctor
 
-
 REPO_YEAR='spring26'
+REGISTRATION_ENDPOINT = 'https://csci-e-11.org/register'
 __version__ = '0.1.0'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
@@ -192,14 +192,19 @@ def do_register(args):
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
-    content = ",".join([huid,ipaddr,email,name])+"\n"
-    s3 = boto3.client("s3")
-    s3.put_object(Bucket="cscie-11",
-                  Key=f"students/{email}",
-                  Body=content,
-                  ACL="bucket-owner-full-control" )
-    print("Registered! Please check your email.")
-    print("If you do not receive a message in 60 seconds, check your email address and try again.")
+    data = {'action':'register',
+            'registration' : {
+                'huid': huid,
+                'ipaddr': ipaddr,
+                'email' : email,
+                'name': name }
+            }
+    r = requests.post(REGISTRATION_ENDPOINT, json=data)
+    if not r.ok():
+        print("Registration failed: ",r)
+    else:
+        print("Registered!")
+        print("If you do not receive a message in 60 seconds, check your email address and try again.")
 
 
 

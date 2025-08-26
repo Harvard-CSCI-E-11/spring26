@@ -12,7 +12,7 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-from common import LOGGER
+from .common import LOGGER
 
 
 # Helper: stateless state serializer

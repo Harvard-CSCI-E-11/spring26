@@ -1,11 +1,17 @@
 This directory contains the following:
 * e11/ - The source code for the e11 command
-* grader/ - The code for the auto-grader that runs on AWS Lambda
-* tests/ - tests for the e11 and grader system (because nothing should be written without a
+* lambda-home/ - The code for the the AWS Lambda function at https://csci-e-11.org/ that runs the student dashboard
+* lambda-grader/ - The code for the the AWS Lambda function at https://grader.csci-e-11.org/ that performs grading
+* tests/ - tests for the e11 and grader system (because nothing should be written without a test)
 
 You will also find in this directory:
-* e11/e11/lab_tests - the actual tests for your labs.
+* e11/__main__.py - The actual code for the e11 command
+* e11/e11core - The code that implements core functions for the grader
+* e11/lab_tests - the actual tests for your labs.
 
+Various directories are created:
+
+* dist/ - The whl file that installs the e11 command
 
 # The `e11` command
 CSCI E-11 uses the `e11` command to let students control access to their AWS Instance.
