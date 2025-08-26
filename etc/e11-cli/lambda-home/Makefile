@@ -28,29 +28,29 @@ pylint: .venv/pyvenv.cfg
 	.venv/bin/pylint *.py
 
 build: src/requirements.txt
-	sam build -t template.yaml --cached --parallel
+	sam build --no-cached --parallel
 
 deploy: src/requirements.txt
-	sam deploy -t template.yaml --stack-name $(STACK) --region $(REGION)
+	sam deploy --stack-name $(STACK) --region $(REGION)
 
 src/requirements.txt: pyproject.toml Makefile
-	/bin/rm -f src/requirements.txt
-	.venv/bin/pip-compile pyproject.toml --output-file src/requirements.txt
-	echo "-e ../" >> home_app/requirements.txt
+	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
+
 
 clean:
 	/bin/rm -rf .venv
 
 #
 # SAM build hooks for Lambda logical ID: E11HomeFunction
-build-E11HomeFunction:
-	: $${ARTIFACTS_DIR:?ARTIFACTS_DIR unset}   # guard against empty var
-	rm -rf "$(ARTIFACTS_DIR)"/*
-	$(PIP) install $(PIP_PLATFORM_OPTS) -r requirements.txt -t "$$ARTIFACTS_DIR"
-	cp -fr home_app "$$ARTIFACTS_DIR/"
-	cp -fr ../e11   "$$ARTIFACTS_DIR/"
-	@[ -f "$${ARTIFACTS_DIR}/e11/__init__.py" ] || { echo "e11 missing in artifact root"; exit 3; }
-
-
-clean-E11HomeFunction:
-	rm -rf $(ARTIFACTS_DIR)/*
+# build-E11HomeFunction:
+# 	: $${ARTIFACTS_DIR:?ARTIFACTS_DIR unset}   # guard against empty var
+# 	rm -rf "$(ARTIFACTS_DIR)"/*
+# 	$(PIP) install $(PIP_PLATFORM_OPTS) -r requirements.txt -t "$$ARTIFACTS_DIR"
+# 	cp -fr home_app "$$ARTIFACTS_DIR/"
+# 	cp -fr ../e11   "$$ARTIFACTS_DIR/"
+# 	@[ -f "$${ARTIFACTS_DIR}/e11/__init__.py" ] || { echo "e11 missing in artifact root"; exit 3; }
+#
+#
+# clean-E11HomeFunction:
+# 	rm -rf $(ARTIFACTS_DIR)/*
+#

@@ -27,9 +27,9 @@ import time
 import logging
 from typing import Any, Dict, Tuple, Optional
 
+import boto3
 from jinja2 import Environment,FileSystemLoader
 from itsdangerous import BadSignature, SignatureExpired
-import boto3
 
 from . import common
 
