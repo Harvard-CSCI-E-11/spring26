@@ -6,8 +6,6 @@ PROFILE         ?= fas
 PY              = python3.13
 PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 313 --only-binary=:all:
 
-.SHELLFLAGS := -eu -o pipefail -c
-
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1
 export PYTHONDONTWRITEBYTECODE=1

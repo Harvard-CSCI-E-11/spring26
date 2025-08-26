@@ -15,4 +15,3 @@ jobs:
           cd etc/e11-cli/lambda-home
           make install
           make pytest
-          pytest -q
