@@ -40,8 +40,11 @@ jobs:
       - name: Sync deps
         run: poetry sync
 
-      - name: Run tests with coverage
+      - name: e11 command tests with coverage
         run: poetry run make pytest
+
+      - name: lambda-home tests with coverage
+        run: (cd etc/e11-cli/lambda-home; make pytest)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

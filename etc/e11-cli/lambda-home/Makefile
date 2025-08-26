@@ -23,7 +23,7 @@ install:
 	.venv/bin/pip install -e ".[dev]"
 
 pytest: .venv/pyvenv.cfg
-	.venv/bin/pytest -v --log-cli-level=DEBUG tests
+	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
 
 pylint: .venv/pyvenv.cfg
 	.venv/bin/pylint *.py
