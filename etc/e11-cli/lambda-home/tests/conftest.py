@@ -2,6 +2,7 @@ import json
 import pytest
 import threading
 import base64
+import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
@@ -33,14 +34,16 @@ def fake_idp_server():
     priv_pem, jwk = _rsa_keypair()
     issuer = "http://127.0.0.1:50100"  # placeholder; exact port filled after bind
     app = create_app(issuer, priv_pem, jwk)
-    server = ServerThread(app, port=0)
+    server = ServerThread(app)
     server.start()
-    base = f"http://127.0.0.1:{server.port}"
+    issuer = f"http://127.0.0.1:{server.port}"
+    logging.getLogger().debug("issuer=%s server=%s",issuer,server)
     # Patch issuer inside app (so discovery returns correct URLs)
+    app.issuer = issuer
     app.config["SERVER_NAME"] = None  # not strictly needed
     yield {
-        "issuer": base,
-        "discovery": f"{base}/.well-known/openid-configuration",
+        "issuer": issuer,
+        "discovery": f"{issuer}/.well-known/openid-configuration",
         "private_key_pem": priv_pem,
         "jwk": jwk,
     }
@@ -49,7 +52,7 @@ def fake_idp_server():
 @pytest.fixture
 def fake_aws(monkeypatch):
     """Monkeypatch Secrets Manager + DynamoDB used by home.py."""
-    import home
+    from home_app import home
 
     class FakeSecrets:
         def get_secret_value(self, SecretId):
@@ -94,6 +97,6 @@ def fake_aws(monkeypatch):
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
 
     monkeypatch.setattr(home, "_boto_secrets", FakeSecrets())
-    monkeypatch.setattr(home, "table", FakeTable())
+    monkeypatch.setattr(home, "users_table", FakeTable())
     monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
     yield

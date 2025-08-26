@@ -15,7 +15,11 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.13"]
-
+    env:
+      AWS_DEFAULT_REGION: 'localhost'
+      AWS_ENDPOINT_URL: 'http://localhost:8000'
+      AWS_ACCESS_KEY_ID: 'minioadmin'
+      AWS_SECRET_ACCESS_KEY: 'minioadmin'
     steps:
       - uses: actions/checkout@v4
 
@@ -40,13 +44,17 @@ jobs:
       - name: Sync deps
         run: poetry sync
 
-      - name: Run tests with coverage
+      - name: e11 command tests with coverage
         run: poetry run make pytest
+
+      - name: lambda-home tests with coverage
+        run: |
+          (cd lambda-home; make pytest)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.xml          # <-- correct path relative to working dir
+          files: coverage.xml,lambda-home/coverage.xml
           flags: unittests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}  # required if repo is private
+          token: ${{ secrets.CODECOV_TOKEN }}

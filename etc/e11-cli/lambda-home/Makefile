@@ -23,7 +23,7 @@ install:
 	.venv/bin/pip install -e ".[dev]"
 
 pytest: .venv/pyvenv.cfg
-	.venv/bin/pytest
+	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
 
 pylint: .venv/pyvenv.cfg
 	.venv/bin/pylint *.py
@@ -33,6 +33,10 @@ build: src/requirements.txt
 
 deploy: src/requirements.txt
 	sam deploy --stack-name $(STACK) --region $(REGION)
+
+tail:
+	@echo "how can we automatically get the function name?"
+	aws logs tail "/aws/lambda/home-app-E11HomeFunction-cD6IcyqbM226"   --since 15m --follow --region us-east-1 --profile fas
 
 src/requirements.txt: pyproject.toml Makefile
 	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
