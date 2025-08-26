@@ -6,6 +6,11 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.13"]
+    env:
+      AWS_DEFAULT_REGION: 'localhost'
+      AWS_ENDPOINT_URL: 'http://localhost:8000'
+      AWS_ACCESS_KEY_ID: 'minioadmin'
+      AWS_SECRET_ACCESS_KEY: 'minioadmin'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
