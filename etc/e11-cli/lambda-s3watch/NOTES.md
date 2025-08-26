@@ -1,3 +1,7 @@
+# Deprecated s3 watcher
+
+Previously we just watched S3 for uploaded files.
+
 Nov 26, 2026
 First try:
 https://chatgpt.com/share/674607e9-3670-8010-956f-e4ee7e16fe17
