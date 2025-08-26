@@ -13,14 +13,37 @@ e11-cli/                        # Contains pyproject.toml
 │   └── (other modules)
 └── lambda-home/
     ├── pyproject.toml          # pyproject.toml for the lambda-home app
+    ├── template.yaml           # AWS SAM template file. Note that it uses python3.13 as a BuildMethod, which automatically uses the requirements.txt file
     └── Makefile                # Makefile that builds and publishes lambda-home
+    └── build/                  # build directory; not archived
     └── src/                    # python source code for lambda-home
     │   └── home_app/           # source code for the app
-    │   └── requirements.txt    # requirements.txt for the build_app - used when installed on lambda.
+    │   │   └── static/         # static files for website
+    │   │   └── templates/      # jinja2 files for websites
+    │   └── requirements.txt    # requirements.txt for the build_app - used when building for Lambda
     │                           # Auto-generated from ../../pyproject.toml
     └── tests/                  # tests for lambda-home
+```
 
 
+The `sam build` would not include the requirements unless the `samconfig.toml` file contained this line:
+```
+    template_file = ".aws-sam/build/template.yaml"
+```
+
+Verifying the ZIP file
+----------------------
+To verify the ZIP file, download it from AWS:
+
+```
+PHYS=$(aws cloudformation list-stack-resources --stack-name e11-home --region us-east-1 \
+      --query "StackResourceSummaries[?LogicalResourceId=='E11HomeFunction'].PhysicalResourceId" --output text)
+URL=$(aws lambda get-function --function-name "$PHYS" --region us-east-1 --query 'Code.Location' --output text)
+curl -sSL "$URL" -o /tmp/lambda.zip
+unzip -l /tmp/lambda.zip | grep -i 'jinja2/' | head
+```
+
+We were thrown off becuase the default AWS environment contained `boto3` but it did not contain `jinja2`.
 
 Lambdas
 -------
