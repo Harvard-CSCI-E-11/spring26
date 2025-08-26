@@ -122,6 +122,7 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource: !Ref UsersTableArn
+
             - Sid: SessionsTableRW
               Effect: Allow
               Action:
@@ -140,6 +141,24 @@ Resources:
               Effect: Allow
               Action: secretsmanager:GetSecretValue
               Resource: !Ref OidcSecretId
+
+            - Sid: AllowRoute53Changes
+              Effect: Allow
+              Action:
+                - route53:ChangeResourceRecordSets
+                - route53:ListResourceRecordSets
+                - route53:GetChange
+              Resource: "arn:aws:route53:::hostedzone/*"
+
+            - Sid: AllowSES
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
+
+
       Events:
         AnyRoot:
           Type: HttpApi
@@ -200,3 +219,6 @@ Outputs:
   CustomDomainUrl:
     Description: Public base URL
     Value: "https://csci-e-11.org/"
+  HostedZoneId:
+    Description: Route53 Hosted Zone
+    Value: !Ref HostedZoneId

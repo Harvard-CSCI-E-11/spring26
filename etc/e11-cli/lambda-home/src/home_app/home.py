@@ -24,10 +24,12 @@ import sys
 import binascii
 import uuid
 import time
-import logging
+import re
 from typing import Any, Dict, Tuple, Optional
 
 import boto3
+from boto3.dynamodb.conditions import Key
+
 from itsdangerous import BadSignature, SignatureExpired
 from jinja2 import Environment,FileSystemLoader
 
@@ -51,6 +53,8 @@ SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
 SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
+DOMAIN='csci-e-11.org'
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
 
 EMAIL_BODY="""
     You have successfully registered your AWS instance.
@@ -83,6 +87,7 @@ sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 
 
 def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> Dict[str, Any]:
+    """End HTTP event processing with a JSON object"""
     LOGGER.debug("resp_json(status=%s)",status)
     return {
         "statusCode": status,
@@ -91,6 +96,7 @@ def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None)
     }
 
 def resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: Dict[str, str]=None) -> Dict[str, Any]:
+    """End HTTP event processing with text/html"""
     LOGGER.debug("resp_text(status=%s)",status)
     return {
         "statusCode": status,
@@ -298,15 +304,18 @@ def do_logout(event):
 
 
 def smash_email(email):
+    """Convert an email into the CSCI E-11 smashed email"""
     email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
     smashed_email = "".join(email.replace("@",".").split(".")[0:2])
     return smashed_email
 
-def do_register(payload):
+# pylint: disable=too-many-locals
+def do_register(payload,event):
     """Register a VM"""
     LOGGER.info("do_register event=%s",event)
     registration = payload['registration']
     email = registration['email']
+    ipaddr = registration['ipaddr']
     hostname = smash_email(email)
 
     # Create DNS records in Route53
@@ -317,7 +326,7 @@ def do_register(payload):
                              "Name": hostname,
                              "Type": "A",
                              "TTL": 300,
-                             "ResourceRecords": [{"Value": ip_address}]
+                             "ResourceRecords": [{"Value": ipaddr}]
                              }}
                  for hostname in hostnames]
 
@@ -349,13 +358,13 @@ def do_register(payload):
                         'course_key':course_key,
                         'time':int(time.time()),
                         'name':registration['name'],
-                        'ip_address':registration['ipaddress'],
+                        'ip_address':ipaddr,
                         'hostname':hostname}
     users_table.put_item(Item=new_student_dict)
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ip_address)
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr)
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
@@ -418,7 +427,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
 
                 case ("POST", "/register", "register"):
-                    return do_register(payload)
+                    return do_register(payload, event)
 
                 case ("GET", "/heartbeat", _):
                     return do_heartbeat(event, context)

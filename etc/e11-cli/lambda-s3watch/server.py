@@ -18,6 +18,7 @@ import uuid
 import time
 
 import boto3
+from boto3.dynamodb.conditions import Key
 
 # Initialize AWS clients
 s3_client = boto3.client('s3')
