@@ -8,3 +8,4 @@ venv
 *.bak
 .aws-sam
 *secrets*
+build
