@@ -1,23 +1,24 @@
 import urllib.parse
 import requests
 import pytest
+import logging
 
 import home_app.home as home
 import home_app.oidc as oidc
 
-def _api_event(path, qs=None):
+def _api_event(path, qs=None, cookies=None):
     return {
         "rawPath": path,
         "queryStringParameters": qs or {},
         "requestContext": {"http": {"method": "GET", "sourceIp": "203.0.113.9"}, "stage": ""},
         "isBase64Encoded": False,
         "body": None,
+        "cookies" : cookies or {}
     }
 
-@pytest.mark.skip(reason='not working')
 def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     # Make home.get_odic_config() discovery point to our fake IdP
-    import tests.conftest as cf
+    import conftest as cf
     # Patch the secret fixture to point at the fake IdP
     import json
     class PatchedSecrets:
@@ -54,10 +55,19 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     # cookie should be set
     assert cb_resp["cookies"]
 
-    # 4) Dashboard route
+    # 4) Dashboard route without cookies
     dash_resp = home.lambda_handler(_api_event("/dashboard"), None)
-    assert dash_resp["statusCode"] == 200
+    logging.getLogger().debug("dash_resp without cookies=%s",dash_resp)
+    assert dash_resp["statusCode"] == 302 and dash_resp['headers']['Location']=='/'
+
+    # 4) Dashboard route without cookies
+    dash_resp = home.lambda_handler(_api_event("/dashboard",cookies=cb_resp['cookies']), None)
+    logging.getLogger().debug("dash_resp with cookies (%s) = %s",cb_resp['cookies'],dash_resp)
+    logging.getLogger().warning("Not validating dashboard loging. Requires mocking DynamodB")
 
     # 5) Logout route
     logout_resp = home.lambda_handler(_api_event("/logout"), None)
+    logging.getLogger().debug("logout_resp=%s",logout_resp)
     assert logout_resp["statusCode"] == 200
+    assert "Max-Age=0;" in logout_resp['cookies'][0] # validate that it logs the user out
+    assert "You have been logged out" in logout_resp['body']

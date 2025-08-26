@@ -1,9 +1,12 @@
 # Minimal Fake OIDC Provider (discovery, authorize, token, jwks)
+import logging
 import base64, hashlib, json, threading, time, urllib.parse
 from flask import Flask, request, jsonify, redirect, make_response
 
+
 def create_app(issuer, private_key_pem, jwk):
     app = Flask(__name__)
+    app.issuer = issuer
 
     # auth_code -> {client_id, redirect_uri, state, nonce, code_challenge, method}
     CODES = {}
@@ -11,10 +14,10 @@ def create_app(issuer, private_key_pem, jwk):
     @app.get("/.well-known/openid-configuration")
     def discovery():
         return jsonify({
-            "issuer": issuer,
-            "authorization_endpoint": f"{issuer}/oauth2/v1/authorize",
-            "token_endpoint": f"{issuer}/oauth2/v1/token",
-            "jwks_uri": f"{issuer}/oauth2/v1/keys",
+            "issuer": app.issuer,
+            "authorization_endpoint": f"{app.issuer}/oauth2/v1/authorize",
+            "token_endpoint": f"{app.issuer}/oauth2/v1/token",
+            "jwks_uri": f"{app.issuer}/oauth2/v1/keys",
             "id_token_signing_alg_values_supported": ["RS256"],
         })
 
@@ -43,15 +46,17 @@ def create_app(issuer, private_key_pem, jwk):
         data = request.form
         code = data.get("code")
         cv = data.get("code_verifier")
-        client_id = data.get("client_id") or request.authorization.username if request.authorization else None
+        client_id = data.get("client_id", request.authorization.username if request.authorization else None)
+        logging.getLogger().debug("data=%s client_id=%s",data,client_id)
 
         if code not in CODES:
             return jsonify(error="invalid_grant", error_description="unknown code"), 400
         record = CODES.pop(code)
+        logging.getLogger().debug("record=%s",record)
 
         # Verify client_id matches the one that initiated auth (basic check)
         if client_id != record["client_id"]:
-            return jsonify(error="invalid_client", error_description="client_id mismatch"), 401
+            return jsonify(error="invalid_client", error_description=f"client_id mismatch received={client_id} expected={record['client_id']} record={record}"), 401
 
         # Verify PKCE
         if record["method"] == "S256":
@@ -63,7 +68,7 @@ def create_app(issuer, private_key_pem, jwk):
 
         now = int(time.time())
         claims = {
-            "iss": issuer,
+            "iss": app.issuer,
             "aud": client_id,
             "sub": "test-sub-123",
             "iat": now,

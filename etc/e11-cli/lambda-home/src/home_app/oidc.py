@@ -6,6 +6,7 @@ import base64
 import hashlib
 import secrets
 import time
+import logging
 from urllib.parse import urlencode, urlparse, urlunparse, parse_qsl
 
 import requests
@@ -46,6 +47,8 @@ def build_oidc_authorization_url_stateless( *, openid_config: dict, scope=("open
     auth_endpoint = openid_config["authorization_endpoint"]
     client_id     = openid_config["client_id"]
     redirect_uri  = openid_config["redirect_uri"]
+
+    logging.getLogger().debug("client_id=%s",client_id)
 
     # PKCE
     code_verifier = base64.urlsafe_b64encode(secrets.token_bytes(64)).decode().rstrip("=")
