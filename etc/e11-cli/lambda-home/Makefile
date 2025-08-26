@@ -28,7 +28,7 @@ pylint: .venv/pyvenv.cfg
 	.venv/bin/pylint *.py
 
 build: src/requirements.txt
-	sam build --no-cached --parallel
+	sam build --parallel
 
 deploy: src/requirements.txt
 	sam deploy --stack-name $(STACK) --region $(REGION)
@@ -39,6 +39,7 @@ src/requirements.txt: pyproject.toml Makefile
 
 clean:
 	/bin/rm -rf .venv
+	/bin/rm -rf .aws-sam/build
 
 #
 # SAM build hooks for Lambda logical ID: E11HomeFunction
