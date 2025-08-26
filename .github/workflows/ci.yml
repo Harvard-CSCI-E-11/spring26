@@ -45,14 +45,12 @@ jobs:
 
       - name: lambda-home tests with coverage
         run: |
-          ls -l
-          pwd
-          (cd etc/e11-cli/lambda-home; make pytest)
+          (cd lambda-home; make pytest)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.xml          # <-- correct path relative to working dir
+          files: coverage.xml,lambda-home/coverage.xml
           flags: unittests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}  # required if repo is private
+          token: ${{ secrets.CODECOV_TOKEN }}
