@@ -225,24 +225,17 @@ def get_session(event) -> Optional[dict]:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
     LOGGER.debug("get_session sid=%s resp=%s",sid,resp)
-    item = resp.get("Item")
+    ses = resp.get("Item")
     now  = int(time.time())
-    if not item:
+    if not ses:
         return None
-    if item.get("session_expire", 0) <= now:
+    if ses.get("session_expire", 0) <= now:
         # Session has expired. Delete it and return none
-        LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,item.get("session_expire",0),now)
+        LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.get("session_expire",0),now)
         sessions_table.delete_item(Key={"sid":sid})
         return None
-    LOGGER.debug("session=%s",item)
-    return item
-
-def delete_session(event):
-    """Delete the session, whether it exists or not"""
-    sid = parse_cookies(event).get(COOKIE_NAME)
-    if not sid:
-        return
-    sessions_table.delete_item(Key={"sid":sid})
+    LOGGER.debug("session=%s",ses)
+    return ses
 
 def all_sessions_for_email(email):
     """Return all of the sessions for an email address"""
@@ -253,6 +246,13 @@ def all_sessions_for_email(email):
     )
     sessions = resp["Items"]
     return sessions
+
+def delete_session_from_event(event):
+    """Delete the session, whether it exists or not"""
+    sid = parse_cookies(event).get(COOKIE_NAME)
+    if not sid:
+        return
+    sessions_table.delete_item(Key={"sid":sid})
 
 ################################################################
 ## http points
@@ -276,7 +276,19 @@ def do_dashboard(event):
     if not ses:
         LOGGER.debug("No session; redirect to /")
         return redirect("/")
-    user_id = ses['user_id']
+    email = ses['email']
+    user = get_user_from_email(email)
+    if not user:
+        user = {'user_id':str(uuid.uuid4()),
+                'course_key':str(uuid.uuid4())[0:8]}
+
+    # update other fields
+    user_id = user['user_id']
+    user['sk'] = '#'
+    user['claims'] = ses['claims']
+    user['time'] = int(time.time())
+    user['email'] = ses['claims']['email'] # overrides user email if previously set
+    users_table.put_item(Item=user)        # USER CREATION POINT 1
 
     # Get the dashboard items
     items = []
@@ -286,18 +298,6 @@ def do_dashboard(event):
         resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id),
         ExclusiveStartKey=resp['LastEvaluatedKey'] )
     items.extend(resp['Items'])
-
-    # See if we can find the user item
-    users = [item for item in items if item['sk']=='#']
-    if users:
-        user = users[0]
-    else:
-        user = {'course_key':'error',
-                'email':'error - no email',
-                'hostname':'error - no hostname',
-                'ip_address':'0.0.0.0',
-                'name':'error - no # sk',
-                'time':0 }
 
     sessions = all_sessions_for_email(user['email'])
 
@@ -327,7 +327,7 @@ def do_callback(event):
 
 def do_logout(event):
     """/logout"""
-    delete_session(event)
+    delete_session_from_event(event)
     del_cookie = make_cookie(COOKIE_NAME, "", clear=True)
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
@@ -338,6 +338,16 @@ def smash_email(email):
     email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
     smashed_email = "".join(email.replace("@",".").split(".")[0:2])
     return smashed_email
+
+def get_user_from_email(email):
+    """Given an email address, get the user record from the users_table"""
+    resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
+    if resp['Count']>1:
+        return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
+    if resp['Count']==1:
+        return resp['Items'][0]
+    return None
+
 
 # pylint: disable=too-many-locals
 def do_register(payload,event):
@@ -368,33 +378,23 @@ def do_register(payload,event):
     LOGGER.info("Route53 response: %s",route53_response)
 
     # See if there is an existing user_id for this email address.
-    resp = users_table.get_item(Key={'user_id':'bogus','sk':'#'})
-    resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
-    if resp['Count']>1:
-        return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
-    if resp['Count']==1:
-        # User already exist.
-        user_id    = resp['Items'][0]['user_id']
-        course_key = resp['Items'][0]['course_key']
-    else:
-        # Create new user_id and course key
-        user_id = str(uuid.uuid4()) # user_id is a uuid
-        course_key = resp.get('Item',{}).get('course_key', str(uuid.uuid4())[0:8])
+    user = get_user_from_email(email)
+    if not user:
+        user = {'user_id':str(uuid.uuid4()),
+                'course_key':str(uuid.uuid4())[0:8]}
 
-    # store the new student_dict
-    new_student_dict = {'user_id':user_id, # primary key
-                        'sk':"#",          # sort key - '#' is the student record
-                        'email':email,
-                        'course_key':course_key,
-                        'time':int(time.time()),
-                        'name':registration['name'],
-                        'ip_address':ipaddr,
-                        'hostname':hostname}
-    users_table.put_item(Item=new_student_dict)
+    # update other fields:
+    user['sk'] = '#'
+    user['email'] = email       # the user-provided email
+    user['time'] = int(time.time())
+    user['name'] = registration['name']
+    user['ip_address'] = ipaddr
+    user['hostname'] = hostname
+    users_table.put_item(Item=user) # USER CREATION POINT 2
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr, course_key=course_key)
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr, course_key=user['course_key'])
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
