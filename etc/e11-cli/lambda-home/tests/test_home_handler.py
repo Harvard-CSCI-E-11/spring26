@@ -30,7 +30,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
                 "hmac_secret": "super-secret-hmac",
                 "secret_key": "client-secret-xyz",
             })}
-    monkeypatch.setattr(home, "_boto_secrets", PatchedSecrets())
+    monkeypatch.setattr(home, "secretsmanager_client", PatchedSecrets())
 
     # 1) GET "/" should embed login URL
     resp = home.lambda_handler(_api_event("/"), None)

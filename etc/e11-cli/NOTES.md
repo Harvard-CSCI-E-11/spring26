@@ -76,3 +76,9 @@ template.yaml
 - /var/task includes your code + vendored deps
 - Runtime already has boto3, etc.
 ```
+
+
+
+Open Quetions
+=============
+- What happens if the user registers under a different email then is in HarvardKey?

@@ -16,7 +16,6 @@ Item: object including email, and user_id
 Cookies - just have sid (session ID)
 
 """
-
 import base64
 import json
 import os
@@ -24,10 +23,12 @@ import sys
 import binascii
 import uuid
 import time
-import logging
+import re
 from typing import Any, Dict, Tuple, Optional
 
 import boto3
+from boto3.dynamodb.conditions import Key
+
 from itsdangerous import BadSignature, SignatureExpired
 from jinja2 import Environment,FileSystemLoader
 
@@ -35,22 +36,45 @@ from . import common
 from . import oidc
 from .common import LOGGER
 
-# ---------- logging setup ----------
+def _ddb_table_name_from_arn(arn: str) -> str:
+    return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
 
+# ---------- Setup AWS Services  ----------
 
-LOGGER    = common.LOGGER
+# jinja2
+env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.path.join(common.NESTED,"templates")]))
 
+# OIDC
 OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
-DDB_USERS_TABLE_ARN = os.environ.get("DDB_USERS_TABLE_ARN","e11-users")
+
+# DynamoDB
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
+DDB_USERS_TABLE_ARN = os.environ.get("DDB_USERS_TABLE_ARN","e11-users")
+SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
+SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
+dynamodb_client = boto3.client("dynamodb")
+dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
+users_table    = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_USERS_TABLE_ARN))
+sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
+
+# Auth Cookie
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",'csci-e-11.org')
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
-SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
-SESSION_TTL_SECS = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
+
+# Secrets Manager
+secretsmanager_client = boto3.client("secretsmanager")
+
+# Simple Email Service
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
+ses_client = boto3.client("ses")
+
+# Route53 config for this course
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
+DOMAIN='csci-e-11.org'
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
+route53_client = boto3.client('route53')
 
 EMAIL_BODY="""
     You have successfully registered your AWS instance.
@@ -67,22 +91,9 @@ EMAIL_BODY="""
 """
 
 
-ses_client = boto3.client("ses")
-route53_client = boto3.client('route53')
-_boto_ddb = boto3.client("dynamodb")
-_boto_secrets = boto3.client("secretsmanager")
-
-env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.path.join(common.NESTED,"templates")]))
-
-def _ddb_table_name_from_arn(arn: str) -> str:
-    return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
-
-dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
-users_table = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_USERS_TABLE_ARN))
-sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
-
 
 def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> Dict[str, Any]:
+    """End HTTP event processing with a JSON object"""
     LOGGER.debug("resp_json(status=%s)",status)
     return {
         "statusCode": status,
@@ -91,6 +102,7 @@ def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None)
     }
 
 def resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: Dict[str, str]=None) -> Dict[str, Any]:
+    """End HTTP event processing with text/html"""
     LOGGER.debug("resp_text(status=%s)",status)
     return {
         "statusCode": status,
@@ -99,8 +111,9 @@ def resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: D
         "cookies": cookies or [],
     }
 
-def _redirect(location:str, extra_headers: Optional[dict] = None, cookies: Optional[list]=None):
-    LOGGER.debug("_redirect(%s,%s,%s)",location,extra_headers,cookies)
+def redirect(location:str, extra_headers: Optional[dict] = None, cookies: Optional[list]=None):
+    """End HTTP event processing with redirect to another website"""
+    LOGGER.debug("redirect(%s,%s,%s)",location,extra_headers,cookies)
     headers = {"Location": location}
     if extra_headers:
         headers.update(extra_headers)
@@ -178,8 +191,8 @@ def make_cookie(name:str, value: str, max_age: int = SESSION_TTL_SECS, clear: bo
 ################################################################
 def get_odic_config():
     """Return the config from AWS Secrets"""
-    harvard_secrets = json.loads(_boto_secrets.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
-    LOGGER.info("fetched secret %s keys: %s",OIDC_SECRET_ID,list(harvard_secrets.keys()))
+    harvard_secrets = json.loads(secretsmanager_client.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
+    LOGGER.debug("fetched secret %s keys: %s",OIDC_SECRET_ID,list(harvard_secrets.keys()))
     config = oidc.load_openid_config(harvard_secrets['oidc_discovery_endpoint'],
                                      client_id=harvard_secrets['client_id'],
                                      redirect_uri=harvard_secrets['redirect_uri'])
@@ -192,16 +205,18 @@ def new_session(claims, client_ip):
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
     """
+    LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
     email = claims['email']
     sid = str(uuid.uuid4())
-    sessions_table.put_item(Item={
-        "sid": sid,
-        "email": email,
-        "time" : int(time.time()),
-        "session_expire"  : int(time.time()) + SESSION_TTL_SECS,
-        "name" : claims.get('name',''),
-        "client_ip": client_ip or "",
-        "claims" : claims })
+    item = { "sid": sid,
+             "email": email,
+             "time" : int(time.time()),
+             "session_expire"  : int(time.time()) + SESSION_TTL_SECS,
+             "name" : claims.get('name',''),
+             "client_ip": client_ip or "",
+             "claims" : claims }
+    ret = sessions_table.put_item(Item=item)
+    LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s ret=%s item=%s",SESSIONS_TABLE_NAME,ret,item)
     return sid
 
 def get_session(event) -> Optional[dict]:
@@ -210,23 +225,18 @@ def get_session(event) -> Optional[dict]:
     if not sid:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
-    item = resp.get("Item")
+    LOGGER.debug("get_session sid=%s resp=%s",sid,resp)
+    ses = resp.get("Item")
     now  = int(time.time())
-    if not item:
+    if not ses:
         return None
-    if item.get("session_expire", 0) <= now:
+    if ses.get("session_expire", 0) <= now:
         # Session has expired. Delete it and return none
-        LOGGER.info("Deleting expired sid=%s session_expire=%s now=%s",sid,item.get("session_expire",0),now)
+        LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.get("session_expire",0),now)
         sessions_table.delete_item(Key={"sid":sid})
         return None
-    return item
-
-def delete_session(event):
-    """Delete the session, whether it exists or not"""
-    sid = parse_cookies(event).get(COOKIE_NAME)
-    if not sid:
-        return
-    sessions_table.delete_item(Key={"sid":sid})
+    LOGGER.debug("session=%s",ses)
+    return ses
 
 def all_sessions_for_email(email):
     """Return all of the sessions for an email address"""
@@ -238,6 +248,13 @@ def all_sessions_for_email(email):
     sessions = resp["Items"]
     return sessions
 
+def delete_session_from_event(event):
+    """Delete the session, whether it exists or not"""
+    sid = parse_cookies(event).get(COOKIE_NAME)
+    if not sid:
+        return
+    sessions_table.delete_item(Key={"sid":sid})
+
 ################################################################
 ## http points
 
@@ -247,10 +264,10 @@ def do_home_page(event, status="",extra=""):
     ses = get_session(event)
     if ses:
         LOGGER.debug("ses=%s redirecting to /dashboard",ses)
-        return _redirect("/dashboard")
+        return redirect("/dashboard")
     # Build an authentication login
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
-    LOGGER.info("url=%s issued_at=%s",url,issued_at)
+    LOGGER.debug("url=%s issued_at=%s",url,issued_at)
     template = env.get_template("index.html")
     return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
 
@@ -259,18 +276,40 @@ def do_dashboard(event):
     ses = get_session(event)
     if not ses:
         LOGGER.debug("No session; redirect to /")
-        return _redirect("/")
+        return redirect("/")
+    email = ses['email']
+    user = get_user_from_email(email)
+    if not user:
+        user = {'user_id':str(uuid.uuid4()),
+                'course_key':str(uuid.uuid4())[0:8]}
 
-    # Show the dashboard
+    # update other fields
+    user_id = user['user_id']
+    user['sk'] = '#'
+    user['claims'] = ses['claims']
+    user['time'] = int(time.time())
+    user['email'] = ses['claims']['email'] # overrides user email if previously set
+    ret = users_table.put_item(Item=user)        # USER CREATION POINT 1
+    LOGGER.debug("user creation point 1 - ret=%s user=%s",ret,user)
+
+    # Get the dashboard items
+    items = []
+    resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id) )
+    items.extend(resp['Items'])
+    while 'LastEvaluatedKey' in resp:
+        resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id),
+        ExclusiveStartKey=resp['LastEvaluatedKey'] )
+    items.extend(resp['Items'])
+
+    sessions = all_sessions_for_email(user['email'])
+
     template = env.get_template("dashboard.html")
-    # TODO: Get all activate sessions and allow them to be deleted
-    # TODO: Get all all activity
-    return resp_text(200, template.render())
+    return resp_text(200, template.render(user=user, sessions=sessions, items=items))
 
 def do_callback(event):
     """OIDC callback from Harvard Key website."""
     params = event.get("queryStringParameters") or {}
-    LOGGER.info("callback params=%s",params)
+    LOGGER.debug("callback params=%s",params)
     code = params.get("code")
     state = params.get("state")
     if not code:
@@ -280,33 +319,47 @@ def do_callback(event):
         obj = oidc.handle_oidc_redirect_stateless(openid_config = get_odic_config(),
                                                   callback_params={'code':code,'state':state})
     except (SignatureExpired,BadSignature):
-        return _redirect("/expired")
+        return redirect("/expired")
 
-    LOGGER.info("obj=%s",obj)
+    LOGGER.debug("obj=%s",obj)
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
+    LOGGER.debug("calling new_session")
     sid = new_session(obj['claims'],client_ip=client_ip)
+    LOGGER.debug("new_session sid=%s",sid)
     sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=COOKIE_DOMAIN)
-    return _redirect("/dashboard", cookies=[sid_cookie])
+    return redirect("/dashboard", cookies=[sid_cookie])
 
 def do_logout(event):
     """/logout"""
-    delete_session(event)
+    delete_session_from_event(event)
     del_cookie = make_cookie(COOKIE_NAME, "", clear=True)
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
-    LOGGER.info("url=%s issued_at=%s ",url,issued_at)
+    LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
-
 def smash_email(email):
+    """Convert an email into the CSCI E-11 smashed email"""
     email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
     smashed_email = "".join(email.replace("@",".").split(".")[0:2])
     return smashed_email
 
-def do_register(payload):
+def get_user_from_email(email):
+    """Given an email address, get the user record from the users_table"""
+    resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
+    if resp['Count']>1:
+        return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
+    if resp['Count']==1:
+        return resp['Items'][0]
+    return None
+
+
+# pylint: disable=too-many-locals
+def do_register(payload,event):
     """Register a VM"""
-    LOGGER.info("do_register event=%s",event)
+    LOGGER.info("do_register payload=%s event=%s",payload,event)
     registration = payload['registration']
     email = registration['email']
+    ipaddr = registration['ipaddr']
     hostname = smash_email(email)
 
     # Create DNS records in Route53
@@ -317,7 +370,7 @@ def do_register(payload):
                              "Name": hostname,
                              "Type": "A",
                              "TTL": 300,
-                             "ResourceRecords": [{"Value": ip_address}]
+                             "ResourceRecords": [{"Value": ipaddr}]
                              }}
                  for hostname in hostnames]
 
@@ -329,33 +382,23 @@ def do_register(payload):
     LOGGER.info("Route53 response: %s",route53_response)
 
     # See if there is an existing user_id for this email address.
-    resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
-    LOGGER.debug("resp=%s",resp)
-    if resp['Count']>1:
-        return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
-    if resp['Count']==1:
-        # User already exist.
-        user_id    = resp['Items'][0]['user_id']
-        course_key = resp['Items'][0]['course_key_id']
-    else:
-        # Create new user_id and course key
-        user_id = str(uuid.uuid4()) # user_id is a uuid
-        course_key = resp.get('Item',{}).get('course_key', str(uuid.uuid4())[0:8])
+    user = get_user_from_email(email)
+    if not user:
+        user = {'user_id':str(uuid.uuid4()),
+                'course_key':str(uuid.uuid4())[0:8]}
 
-    # store the new student_dict
-    new_student_dict = {'user_id':user_id, # primary key
-                        'sk':"#",          # sort key - '#' is the student record
-                        'email':email,
-                        'course_key':course_key,
-                        'time':int(time.time()),
-                        'name':registration['name'],
-                        'ip_address':registration['ipaddress'],
-                        'hostname':hostname}
-    users_table.put_item(Item=new_student_dict)
+    # update other fields:
+    user['sk'] = '#'
+    user['email'] = email       # the user-provided email
+    user['time'] = int(time.time())
+    user['name'] = registration['name']
+    user['ip_address'] = ipaddr
+    user['hostname'] = hostname
+    users_table.put_item(Item=user) # USER CREATION POINT 2
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ip_address)
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr, course_key=user['course_key'])
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
@@ -372,19 +415,29 @@ def do_grade(event):
     return resp_json(400, {'error':True})
 
 ################################################################
+def expire_batch(now:int, items: dict) -> int:
+    """Actually delete the items"""
+    n = 0
+    for item in items:
+        if item.get("session_expire", 0) <= now:
+            sessions_table.delete_item(Key={"sid": item["sid"]})
+            n += 1
+    return n
+
 def do_heartbeat(event, context):
     """Called periodically"""
     LOGGER.info("heartbeat event=%s context=%s",event,context)
+    t0 = time.time()
     now = int(time.time())
     expired = 0
     scan_kwargs = {"ProjectionExpression": "sid, session_expire"}
     while True:
         page = sessions_table.scan(**scan_kwargs)
-        expired += _expire_batch(now, page)
+        expired += expire_batch(now, page.get("Items", []))
         if "LastEvaluatedKey" not in page:
             break
         scan_kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
-    return resp_json(200, {"now":now, "expired": expired})
+    return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
 ################################################################
 ## main entry point from lambda system
@@ -399,6 +452,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
             action = (payload.get("action") or "").lower()
 
             match (method, path, action):
+                ################################################################
                 # JSON Actions
                 case ("POST", "/", "ping"):
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
@@ -418,12 +472,12 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
 
                 case ("POST", "/register", "register"):
-                    return do_register(payload)
+                    return do_register(payload, event)
 
                 case ("GET", "/heartbeat", _):
                     return do_heartbeat(event, context)
 
-
+                ################################################################
                 # Human actions
                 case ("GET","/", _):
                     return do_home_page(event)
@@ -437,6 +491,8 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 case ("GET","/logout",_):
                     return do_logout(event)
 
+                ################################################################
+                # error
                 case (_,_,_):
                     return resp_json(400, {'error': True,
                                             'message': "unknown or missing action; use 'ping', 'ping-mail', or 'grade'",
@@ -447,11 +503,3 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
         except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unhandled error")
             return resp_json(500, {"error": True, "message": str(e)})
-
-def _expire_batch(now:int, page: dict) -> int:
-    n = 0
-    for item in page.get("Items", []):
-        if item.get("session_expire", 0) <= now:
-            sessions_table.delete_item(Key={"sid": item["sid"]})
-            n += 1
-    return n

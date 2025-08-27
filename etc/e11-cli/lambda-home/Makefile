@@ -26,7 +26,7 @@ pytest: .venv/pyvenv.cfg
 	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
 
 pylint: .venv/pyvenv.cfg
-	.venv/bin/pylint *.py
+	.venv/bin/pylint src
 
 build: src/requirements.txt
 	sam build --parallel

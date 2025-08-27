@@ -101,7 +101,7 @@ Resources:
       CodeUri: src/
       Handler: home_app.home.lambda_handler
       Timeout: 60
-      MemorySize: 512
+      MemorySize: 256
       Environment:
         Variables:
           DDB_TABLE_ARN: !Ref UsersTableArn
@@ -121,7 +121,10 @@ Resources:
                 - dynamodb:UpdateItem
                 - dynamodb:Query
                 - dynamodb:Scan
-              Resource: !Ref UsersTableArn
+              Resource:
+                - !Ref UsersTableArn
+                - !Sub "${UsersTableArn}/index/*"
+
             - Sid: SessionsTableRW
               Effect: Allow
               Action:
@@ -140,6 +143,22 @@ Resources:
               Effect: Allow
               Action: secretsmanager:GetSecretValue
               Resource: !Ref OidcSecretId
+
+            - Sid: AllowRoute53Changes
+              Effect: Allow
+              Action:
+                - route53:ChangeResourceRecordSets
+                - route53:ListResourceRecordSets
+                - route53:GetChange
+              Resource: "arn:aws:route53:::hostedzone/*"
+
+            - Sid: AllowSES
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
       Events:
         AnyRoot:
           Type: HttpApi
@@ -155,11 +174,11 @@ Resources:
             Path: /{proxy+}
             Method: ANY
             PayloadFormatVersion: "2.0"
-#        Heartbeat:
-#          Type: Schedule
-#          Properties:
-#            Schedule: rate(5 minutes)
-#            Input: '{"action":"heartbeat"}'
+        Heartbeat:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Input: '{"action":"heartbeat"}'
 
 
   # Sessions table holds the cookie sessions
@@ -200,3 +219,9 @@ Outputs:
   CustomDomainUrl:
     Description: Public base URL
     Value: "https://csci-e-11.org/"
+  HostedZoneId:
+    Description: Route53 Hosted Zone
+    Value: !Ref HostedZoneId
+  UsersTableIndexArn:
+    Description: ARN for Users Table Index
+    Value: !Sub "${SessionsTable.Arn}/index/*"
