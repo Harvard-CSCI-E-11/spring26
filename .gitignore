@@ -8,5 +8,10 @@ venv
 *.bak
 .aws-sam
 *secrets*
+<<<<<<< Updated upstream
 coverage.xml
 build/
+=======
+build/
+coverage.xml
+>>>>>>> Stashed changes

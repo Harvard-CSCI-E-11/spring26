@@ -101,7 +101,7 @@ Resources:
       CodeUri: src/
       Handler: home_app.home.lambda_handler
       Timeout: 60
-      MemorySize: 512
+      MemorySize: 256
       Environment:
         Variables:
           DDB_TABLE_ARN: !Ref UsersTableArn

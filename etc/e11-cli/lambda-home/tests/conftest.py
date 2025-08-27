@@ -96,7 +96,7 @@ def fake_aws(monkeypatch):
     monkeypatch.setenv("SESSIONS_TABLE_NAME", "sessions-table")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
 
-    monkeypatch.setattr(home, "_boto_secrets", FakeSecrets())
+    monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
     monkeypatch.setattr(home, "users_table", FakeTable())
     monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
     yield
