@@ -9,3 +9,4 @@ venv
 .aws-sam
 *secrets*
 coverage.xml
+build/

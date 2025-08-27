@@ -54,7 +54,7 @@ if [ ! -r $SCRIPT_DIR/e11-cli ]; then
     echo Error: $SCRIPT_DIR/e11-cli not found.
     exit 1
 fi
-(cd $SCRIPT_DIR/e11-cli; pipx install .)
+(cd $SCRIPT_DIR/e11-cli; pipx install . --force)
 
 ################################################################
 
