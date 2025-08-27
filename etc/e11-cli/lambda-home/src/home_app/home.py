@@ -224,6 +224,7 @@ def get_session(event) -> Optional[dict]:
     if not sid:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
+    LOGGER.debug("get_session sid=%s resp=%s",sid,resp)
     item = resp.get("Item")
     now  = int(time.time())
     if not item:
