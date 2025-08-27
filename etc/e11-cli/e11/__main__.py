@@ -1,6 +1,7 @@
-#!/usr/bin/env python3.11
+#!/usr/bin/env python3.12
 """
 The CSCI E-11 e11 program.
+Note that we use python3.12 because that's what's installed on ubuntu 24.04
 """
 import argparse
 import sys
@@ -165,7 +166,7 @@ def do_register(args):
     email = cp[STUDENT][STUDENT_EMAIL]
     try:
         emailinfo = validate_email(email, check_deliverability=False)
-        email = email.normalized
+        email = emailinfo.email
     except EmailNotValidError as e:
         print(f"ERROR: '{email}' is not a valid email address: {e}")
         errors += 1
@@ -200,8 +201,8 @@ def do_register(args):
                 'name': name }
             }
     r = requests.post(REGISTRATION_ENDPOINT, json=data)
-    if not r.ok():
-        print("Registration failed: ",r)
+    if not r.ok:
+        print("Registration failed: ",r.text)
     else:
         print("Registered!")
         print("If you do not receive a message in 60 seconds, check your email address and try again.")

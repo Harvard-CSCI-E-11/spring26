@@ -2,7 +2,7 @@
 .PHONY: install pytest clean
 
 install:
-	python3.13 -m venv .venv
+	python3.12 -m venv .venv
 	.venv/bin/pip install pip-tools
 	.venv/bin/pip install -e .
 	.venv/bin/pip install ".[dev]"
