@@ -19,10 +19,6 @@ if isdir(join(NESTED, "e11")):
 TEMPLATE_DIR = join(MY_DIR,"templates")
 
 LOGGER = logging.getLogger("e11.grader")
-if not LOGGER.handlers:
-    h = logging.StreamHandler()
-    h.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
-    LOGGER.addHandler(h)
 try:
     LOGGER.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 except ValueError:

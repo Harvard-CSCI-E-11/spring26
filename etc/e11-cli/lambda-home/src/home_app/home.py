@@ -205,6 +205,7 @@ def new_session(claims, client_ip):
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
     """
+    LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
     email = claims['email']
     sid = str(uuid.uuid4())
     item = { "sid": sid,
@@ -288,7 +289,8 @@ def do_dashboard(event):
     user['claims'] = ses['claims']
     user['time'] = int(time.time())
     user['email'] = ses['claims']['email'] # overrides user email if previously set
-    users_table.put_item(Item=user)        # USER CREATION POINT 1
+    ret = users_table.put_item(Item=user)        # USER CREATION POINT 1
+    LOGGER.debug("user creation point 1 - ret=%s user=%s",ret,user)
 
     # Get the dashboard items
     items = []
@@ -321,7 +323,9 @@ def do_callback(event):
 
     LOGGER.debug("obj=%s",obj)
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
+    LOGGER.debug("calling new_session")
     sid = new_session(obj['claims'],client_ip=client_ip)
+    LOGGER.debug("new_session sid=%s",sid)
     sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=COOKIE_DOMAIN)
     return redirect("/dashboard", cookies=[sid_cookie])
 
