@@ -284,6 +284,7 @@ def do_dashboard(event):
     items.extend(resp['Items'])
     while 'LastEvaluatedKey' in resp:
         resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id),
+<<<<<<< Updated upstream
         ExclusiveStartKey=resp['LastEvaluatedKey'] )
     items.extend(resp['Items'])
     # See if we can find the user item
@@ -299,6 +300,12 @@ def do_dashboard(event):
                 'time':0 }
 
     sessions = all_sessions_for_email(user['email'])
+=======
+        ExclusiveStartKey=resp['LastEvaluatedKey']
+    )
+    items.extend(response['Items'])
+
+>>>>>>> Stashed changes
 
     template = env.get_template("dashboard.html")
     return resp_text(200, template.render(user=user, sessions=sessions, items=items))
