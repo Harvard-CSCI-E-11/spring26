@@ -215,7 +215,7 @@ def new_session(claims, client_ip):
              "client_ip": client_ip or "",
              "claims" : claims }
     ret = sessions_table.put_item(Item=item)
-    LOGGER.debug("new_session ret=%s item=%s",ret,item)
+    LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s ret=%s item=%s",SESSIONS_TABLE_NAME,ret,item)
     return sid
 
 def get_session(event) -> Optional[dict]:
