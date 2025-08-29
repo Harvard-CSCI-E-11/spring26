@@ -1,12 +1,35 @@
-<html>
-  <head>
-  <title>CSCI E-11</title>
-  </head>
-  <body>
-    <p> name: {{user.name}} </p>
-    <p> hostname: {{user.hostname}}.csci-e-11.org </p>
-    <p>
-    <p>This is the dashboard.</p>
-    <p>You can <a href='/logout'>logout</a></p>
-  </body>
-</html>
+{% extends 'base.html' %}
+{% block body}
+<h2> Dashboard </h2>
+<h3>User Info</h3>
+<table class='pure-table'>
+  <thead>
+  </thead>
+  <tbody>
+    <tr><th>Name</th><td>{{user.name}}</td></tr>
+    <tr><th>Email</th><td>{{user.email}}</td></tr>
+    <tr><th>course_key</th><td>{{user.course_key}}</td></tr>
+  </tbody>
+</table>
+<h3>User Log</h3>
+<h3>Active Sessions</h3>
+
+<table class='pure-table'>
+  <thead>
+    <tr><th>Session #</th><th>IP Address</th><th>Created</th><th>Expires</th></tr>
+  </thead>
+  <tbody>
+    {% for session in sessions %}
+    <tr>
+      <th>{{ loop.index }}</th><td>{{session.client_ip}}</td>
+      <td>{{session.session_created | eastern}}</td>
+      <td>{{session.session_expire |eastern}}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><i>(All times in eastern time.)</i></p>
+
+
+{% endblock %}
