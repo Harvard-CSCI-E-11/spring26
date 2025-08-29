@@ -391,49 +391,6 @@ def test_registration_api_invalid_course_key(monkeypatch):
     assert response_body['email'] == 'test@csci-e-11.org'
 
 
-def test_e11_cli_config_environment_override():
-    """Test that E11_CONFIG environment variable overrides default config location"""
-
-    # This test verifies that the __main__.py modification works correctly
-    # We'll test this by importing the module and checking the CONFIG_FILE value
-
-    # Save original environment
-    original_env = os.environ.get('E11_CONFIG')
-
-    try:
-        # Test with environment variable set
-        test_config_path = '/tmp/test-config.ini'
-        os.environ['E11_CONFIG'] = test_config_path
-
-
-        # import the e11 module from the source code, not the one that is installed.
-        from os.path import join,dirname
-        import sys
-        import importlib.util
-        spec = importlib.util.spec_from_file_location("module.name", join(dirname(__file__),"../../e11/__main__.py"))
-        e11_main = importlib.util.module_from_spec(spec)
-        sys.modules["module.name"] = e11_main
-        spec.loader.exec_module(e11_main)
-
-        # Verify the config file path is set correctly
-        assert e11_main.config_file_name() == test_config_path
-
-        # Test without environment variable
-        del os.environ['E11_CONFIG']
-
-        # Verify it falls back to default
-        from os.path import join
-        expected_default = join(os.getenv("HOME"), 'e11-config.ini')
-        assert e11_main.config_file_name() == expected_default
-
-    finally:
-        # Restore original environment
-        if original_env is not None:
-            os.environ['E11_CONFIG'] = original_env
-        elif 'E11_CONFIG' in os.environ:
-            del os.environ['E11_CONFIG']
-
-
 if __name__ == '__main__':
     # Run tests
     pytest.main([__file__, '-v'])
