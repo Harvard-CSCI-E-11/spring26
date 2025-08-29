@@ -34,12 +34,14 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 HOME_DIR = os.getenv("HOME")
-AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
+
+# Figure out where ETC_DIR is likely installed
 ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
 if not os.path.exists(ETC_DIR):
     ETC_DIR = join( HOME_DIR, "gits", "csci-e-11", "etc")
 
-CONFIG_FILE = os.getenv('E11_CONFIG', join( HOME_DIR, 'e11-config.ini'))
+CONFIG_FILE_NAME =  'e11-config.ini'
+AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
 CSCIE_BOT_KEYFILE = join(ETC_DIR, 'csci-e-11-bot.pub')
 # Student properties
 STUDENT='student'
@@ -58,6 +60,9 @@ git pull
 git stash apply
 """
 
+def config_file_name():
+    return os.getenv('E11_CONFIG', join( HOME_DIR, CONFIG_FILE_NAME))
+
 def do_version(args):
     print("version",__version__)
 
@@ -65,7 +70,7 @@ def get_config():
     """Return the config file"""
     cp = configparser.ConfigParser()
     try:
-        with open(CONFIG_FILE,'r') as f:
+        with open( config_file_name(), 'r') as f:
             cp.read_file(f)
     except FileNotFoundError:
         pass
