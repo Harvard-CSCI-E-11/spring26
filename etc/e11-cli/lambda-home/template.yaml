@@ -182,7 +182,8 @@ Resources:
 
 
   # Sessions table holds the cookie sessions
-  # It is createdd by the SAM (it's a resource)
+  # It is created by the SAM (it's a resource)
+  # Sessions have to link to email, and not to user_id, because OIDC returns an email address
   SessionsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain

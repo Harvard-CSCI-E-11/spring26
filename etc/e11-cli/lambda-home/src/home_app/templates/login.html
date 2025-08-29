@@ -1,5 +1,11 @@
 {% extends 'base.html' %}
 {% block body %}
+<h1>Welcome to CSCI E-11</h1>
+<p>{{status}}</p>
+<p>You can log in with your <a href='{{harvard_key}}'>[HARVARD KEY]</a>.</p>
+    {{extra}}
+  </body>
+</html>
 <h2> Logged Out</h2>
 <p>You have been logged out.</p>
 <p>You can close this window, or log in with your <a href='{{harvard_key}}'>[HARVARD KEY]</a>.</p>

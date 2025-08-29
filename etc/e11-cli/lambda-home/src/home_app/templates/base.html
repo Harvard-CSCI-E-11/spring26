@@ -1,0 +1,56 @@
+<!DOCTYPE html><!-- -*- mode: html -*- -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <link rel="icon" href="https://planttracer.com/favicon.png" type="image/png"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="google"   content="notranslate"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title> {% block title %} {{title}} {% endblock %} </title>
+    <!-- use Pure.css - https://purecss.io/ -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css"
+          integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/grids-responsive-min.css" />
+    <style>
+      html {
+      margin-left: 20px;
+      margin-right: 20px;
+      }
+    </style>
+    {% block head %}{% endblock %}
+    {% block script %}{% endblock %}
+  </head>
+  <body lang='en-US' style='background:white'>
+    <header>
+      <!-- menu changes if we are authenticated or not -->
+      <div class="pure-menu pure-menu-horizontal">
+        <a href="." class="pure-menu-heading pure-menu-link">Harvard CSCI E-11</a>
+        <ul class="pure-menu-list">
+          {% block menu %}{% endblock %}
+          <li class="pure-menu-item">
+            <a href="page?q=about" class="pure-menu-link">About</a>
+          </li>
+          <li class="pure-menu-item">
+            <a href="logout" class="pure-menu-link">Logout</a>
+          </li>
+          <li class="pure-menu-item">
+            <a href="page?q=help" class="pure-menu-link">Help</a>
+          </li>
+        </ul>
+      </div>
+    </header>
+
+    <div class='content'>
+    {% block body %}
+    {% endblock %}
+    </div>
+
+    <div class='footer'>
+      <div class='pure-u-1 u-sm-1-2'>
+        <p id="copyright" class="legal-license">Copyright &#169; 2024-2025 Simson L. Garfinkel<a href='page?q=tos'> [terms of service.]</a></p>
+        <hr/>
+      </div>
+    </div>
+  </body>
+</html>

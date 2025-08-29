@@ -8,7 +8,7 @@ install:
 	.venv/bin/pip install ".[dev]"
 
 pytest: install
-	.venv/bin/pytest -q --maxfail=1 --disable-warnings --cov=e11 --cov-report=term-missing --cov-report=xml
+	.venv/bin/pytest -q --maxfail=1 --disable-warnings --cov=e11 --cov-report=term-missing --cov-report=xml tests/
 
 clean:
 	rm -f .coverage coverage.xml

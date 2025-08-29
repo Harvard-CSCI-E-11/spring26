@@ -26,7 +26,7 @@ from e11.e11core.render import print_summary
 from e11.e11core.doctor import run_doctor
 
 REPO_YEAR='spring26'
-REGISTRATION_ENDPOINT = 'https://csci-e-11.org/register'
+REGISTRATION_ENDPOINT = 'https://csci-e-11.org/api/v1/register'
 __version__ = '0.1.0'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
@@ -34,23 +34,34 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 HOME_DIR = os.getenv("HOME")
-AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
+
+# Figure out where ETC_DIR is likely installed
 ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
 if not os.path.exists(ETC_DIR):
     ETC_DIR = join( HOME_DIR, "gits", "csci-e-11", "etc")
 
-CONFIG_FILE = join( HOME_DIR, 'e11-config.ini')
+CONFIG_FILE_NAME =  'e11-config.ini'
+AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
 CSCIE_BOT_KEYFILE = join(ETC_DIR, 'csci-e-11-bot.pub')
 # Student properties
 STUDENT='student'
 STUDENT_EMAIL='email'
 STUDENT_NAME='name'
-STUDENT_HUID='huid'
 INSTANCE_IPADDR='ipaddr'
 INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,STUDENT_HUID,INSTANCE_IPADDR,INSTANCE_ID]
-COURSE_KEY_ATTRIBS = [COURSE_KEY]
+COURSE_KEY_LEN=6
+STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
+
+UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
+git stash
+git pull
+(cd etc/e11; pipx install . --force)
+git stash apply
+"""
+
+def config_file_name():
+    return os.getenv('E11_CONFIG', join( HOME_DIR, CONFIG_FILE_NAME))
 
 def do_version(args):
     print("version",__version__)
@@ -59,7 +70,7 @@ def get_config():
     """Return the config file"""
     cp = configparser.ConfigParser()
     try:
-        with open(CONFIG_FILE,'r') as f:
+        with open( config_file_name(), 'r') as f:
             cp.read_file(f)
     except FileNotFoundError:
         pass
@@ -134,20 +145,6 @@ def do_config(args):
     with open(CONFIG_FILE,'w') as f:
         cp.write(f)
 
-
-def do_set_course_key(args):
-    cp = get_config()
-    for attrib in COURSE_KEY_ATTRIBS:
-        while True:
-            buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
-            if buf:
-                cp[STUDENT][attrib] = buf
-            if cp[STUDENT].get(attrib,'') != '':
-                break
-    with open(CONFIG_FILE,'w') as f:
-        cp.write(f)
-
-
 def do_register(args):
     errors = 0
     cp = get_config()
@@ -159,7 +156,7 @@ def do_register(args):
             print(f"ERROR: {at} is empty in configuration file.")
             errors += 1
     # Check the IP address
-    ipaddr = cp[STUDENT][INSTANCE_IPADDR]
+    ipaddr = cp[STUDENT].get(INSTANCE_IPADDR)
     if ipaddr != get_ipaddr():
         print(f"ERROR: This instance does not have the public IP address {ipaddr}.")
         errors += 1
@@ -171,19 +168,18 @@ def do_register(args):
         print(f"ERROR: '{email}' is not a valid email address: {e}")
         errors += 1
     instanceId = get_instanceId()
-    if cp[STUDENT][INSTANCE_ID] != instanceId:
+    if cp[STUDENT].get(INSTANCE_ID) != instanceId:
         print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
-    huid = cp[STUDENT][STUDENT_HUID]
-    if not huid.isdigit():
-        print(f"ERROR: '{huid}' contains non-digit characters and is not a valid HUDI.")
-        errors += 1
-
-    name = cp[STUDENT][STUDENT_NAME].strip()
+    name = cp[STUDENT].get(STUDENT_NAME).strip()
     if len(name)<3 or name.count(" ")<1:
         print(f"ERROR: '{name}' is not a valid student name.")
         errors += 1
+
+    course_key = cp[STUDENT].get(COURSE_KEY).strip()
+    if len(course_key)!=COURSE_KEY_LEN:
+        print(f"ERROR: course_key '{course_key}' is not valid")
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
@@ -193,20 +189,14 @@ def do_register(args):
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
-    data = {'action':'register',
-            'registration' : {
-                'huid': huid,
-                'ipaddr': ipaddr,
-                'email' : email,
-                'name': name }
-            }
+    data = {'action':'register', 'registration' : dict(cp[STUDENT])}
+
     r = requests.post(REGISTRATION_ENDPOINT, json=data)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
         print("Registered!")
         print("If you do not receive a message in 60 seconds, check your email address and try again.")
-
 
 
 def do_status(args):
@@ -222,13 +212,6 @@ def do_status(args):
     for at in cp[STUDENT]:
         print(f"{at} = {cp[STUDENT][at]}")
 
-
-UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
-git stash
-git pull
-(cd etc/e11; pipx install . --force)
-git stash apply
-"""
 
 def do_update(args):
     repo_dir = f"/home/ubuntu/{REPO_YEAR}"
@@ -269,7 +252,6 @@ def main():
 
     # primary commands
     subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
-    subparsers.add_parser('set-course-key', help='Set the course key that you were provided with by email').set_defaults(func=do_set_course_key)
     subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)

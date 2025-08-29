@@ -24,17 +24,26 @@ import binascii
 import uuid
 import time
 import re
+import datetime
 from typing import Any, Dict, Tuple, Optional
+from zoneinfo import ZoneInfo
 
 import boto3
 from boto3.dynamodb.conditions import Key
 
 from itsdangerous import BadSignature, SignatureExpired
-from jinja2 import Environment,FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 from . import common
 from . import oidc
 from .common import LOGGER
+
+eastern = ZoneInfo("America/New_York")
+
+def eastern_filter(value):
+    """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
+    dt = datetime.datetime.fromtimestamp(value, tz=eastern)
+    return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 def _ddb_table_name_from_arn(arn: str) -> str:
     return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
@@ -43,6 +52,7 @@ def _ddb_table_name_from_arn(arn: str) -> str:
 
 # jinja2
 env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.path.join(common.NESTED,"templates")]))
+env.filters["eastern"] = eastern_filter
 
 # OIDC
 OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
@@ -56,6 +66,8 @@ dynamodb_client = boto3.client("dynamodb")
 dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
 users_table    = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_USERS_TABLE_ARN))
 sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
+
+USER_ID = 'user_id'
 
 # Auth Cookie
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
@@ -72,8 +84,6 @@ ses_client = boto3.client("ses")
 
 # Route53 config for this course
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
-DOMAIN='csci-e-11.org'
-DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
 route53_client = boto3.client('route53')
 
 EMAIL_BODY="""
@@ -90,6 +100,12 @@ EMAIL_BODY="""
     CSCIE-11 Team
 """
 
+################################################################
+# Class constants
+COURSE_KEY_LEN=6
+DOMAIN='csci-e-11.org'
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
+DASHBOARD='https://csci-e-11.org'
 
 
 def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> Dict[str, Any]:
@@ -138,6 +154,22 @@ def _with_request_log_level(payload: Dict[str, Any]):
         def __exit__(self, exc_type, exc, tb):
             LOGGER.setLevel(self.old)
     return _Ctx()
+
+################################################################
+## Add to user log
+def add_user_log(user_id, message, extra=None):
+    """
+    :param user_id: user_id
+    :param message: Message to add to log
+    """
+    if extra is None:
+        extra = {}
+    now = datetime.datetime.now().isoformat()
+    users_table.put_item(Item={USER_ID:user_id,
+                               'sk':f'log#{now}',
+                               'message':message,
+                               **extra})
+
 
 ################################################################
 ## Parse Lambda Events and cookies
@@ -210,7 +242,7 @@ def new_session(claims, client_ip):
     sid = str(uuid.uuid4())
     item = { "sid": sid,
              "email": email,
-             "time" : int(time.time()),
+             "session_created" : int(time.time()),
              "session_expire"  : int(time.time()) + SESSION_TTL_SECS,
              "name" : claims.get('name',''),
              "client_ip": client_ip or "",
@@ -238,6 +270,14 @@ def get_session(event) -> Optional[dict]:
     LOGGER.debug("session=%s",ses)
     return ses
 
+def all_logs_for_userid(user_id):
+    """:param userid: The user to fetch logs for"""
+    response = users_table.query(
+        KeyConditionExpression=Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
+    )
+    return response['Items']
+
+
 def all_sessions_for_email(email):
     """Return all of the sessions for an email address"""
     resp = sessions_table.query(
@@ -258,21 +298,42 @@ def delete_session_from_event(event):
 ################################################################
 ## http points
 
-def do_home_page(event, status="",extra=""):
-    """/"""
+def do_page(event, status="",extra=""):
+    """/ - generic page handler. page=? is optional page name.
+    if no page is specified, give the login.html page, which invites the user to log in.
+    """
+
+    # get the query string
+    qs = event.get("queryStringParameters") or {}
+    page = qs.get("page")   # will be "foo" if URL is /?page=foo
+
     # If there is an active session, redirect to the dashboard
     ses = get_session(event)
+
+    if page:
+        try:
+            template = env.get_template(page)
+            return resp_text(200, template.render(ses=ses, status=status, extra=extra))
+        except TemplateNotFound:
+            return resp_text(404, template.render("404.html",page=page))
+
+    # page not specified.
+    # If there is a session, redirect to the /dashboard, otherwise give the login page.
+
     if ses:
         LOGGER.debug("ses=%s redirecting to /dashboard",ses)
         return redirect("/dashboard")
+
     # Build an authentication login
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
     LOGGER.debug("url=%s issued_at=%s",url,issued_at)
-    template = env.get_template("index.html")
+    template = env.get_template("login.html")
     return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
 
 def do_dashboard(event):
-    """/dashboard"""
+    """/dashboard
+    Create the user if does not exist
+    """
     ses = get_session(event)
     if not ses:
         LOGGER.debug("No session; redirect to /")
@@ -280,34 +341,36 @@ def do_dashboard(event):
     email = ses['email']
     user = get_user_from_email(email)
     if not user:
-        user = {'user_id':str(uuid.uuid4()),
-                'course_key':str(uuid.uuid4())[0:8]}
+        # Create new user
+        user = {USER_ID:str(uuid.uuid4()),
+                'course_key':str(uuid.uuid4())[0:COURSE_KEY_LEN],
+                'created':int(time.time())}
 
     # update other fields
-    user_id = user['user_id']
-    user['sk'] = '#'
+    user_id = user[USER_ID]
+    user['sk'] = '#'            # root record
     user['claims'] = ses['claims']
-    user['time'] = int(time.time())
-    user['email'] = ses['claims']['email'] # overrides user email if previously set
-    ret = users_table.put_item(Item=user)        # USER CREATION POINT 1
+    user['time']   = int(time.time())
+    user['email']  = ses['claims']['email']      # overrides user email if previously set
+    ret = users_table.put_item(Item=user)        # USER CREATION POINT
     LOGGER.debug("user creation point 1 - ret=%s user=%s",ret,user)
 
     # Get the dashboard items
     items = []
-    resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id) )
+    resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id) )
     items.extend(resp['Items'])
     while 'LastEvaluatedKey' in resp:
-        resp = users_table.query( KeyConditionExpression=Key('user_id').eq(user_id),
+        resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id),
         ExclusiveStartKey=resp['LastEvaluatedKey'] )
     items.extend(resp['Items'])
 
     sessions = all_sessions_for_email(user['email'])
-
     template = env.get_template("dashboard.html")
     return resp_text(200, template.render(user=user, sessions=sessions, items=items))
 
 def do_callback(event):
-    """OIDC callback from Harvard Key website."""
+    """OIDC callback from Harvard Key website.
+    """
     params = event.get("queryStringParameters") or {}
     LOGGER.debug("callback params=%s",params)
     code = params.get("code")
@@ -323,10 +386,9 @@ def do_callback(event):
 
     LOGGER.debug("obj=%s",obj)
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
-    LOGGER.debug("calling new_session")
     sid = new_session(obj['claims'],client_ip=client_ip)
-    LOGGER.debug("new_session sid=%s",sid)
     sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=COOKIE_DOMAIN)
+    LOGGER.debug("new_session sid=%s",sid)
     return redirect("/dashboard", cookies=[sid_cookie])
 
 def do_logout(event):
@@ -352,15 +414,41 @@ def get_user_from_email(email):
         return resp['Items'][0]
     return None
 
-
 # pylint: disable=too-many-locals
 def do_register(payload,event):
     """Register a VM"""
     LOGGER.info("do_register payload=%s event=%s",payload,event)
     registration = payload['registration']
-    email = registration['email']
-    ipaddr = registration['ipaddr']
+    email = registration.get('email')
+    ipaddr = registration.get('ipaddr')
     hostname = smash_email(email)
+
+    # See if there is an existing user_id for this email address.
+    user = get_user_from_email(email)
+    if not user:
+        return resp_json(403, {'message':'User email not registered. Please visit {DASHBOARD} to register.',
+                               'email':email})
+
+    # See if the user's course_key matches
+    if user['course_key'] != registration.get('course_key'):
+        return resp_json(403, {'message':'User course_key does not match registration course_key. Please visit {DASHBOARD} to find correct course_key.',
+                               'email':email})
+
+    # update the user record
+    users_table.update_item(
+        Key={
+            "user_id": user["user_id"],
+            "sk": user["sk"],
+        },
+        UpdateExpression="SET ip_address = :ip, hostname = :hn, reg_time = :t, name = :name",
+        ExpressionAttributeValues={
+            ":ip": ipaddr,
+            ":hn": hostname,
+            ":t": int(time.time()),
+            ":name": registration.get('name')
+        }
+    )
+    add_user_log(user[USER_ID], f'User registered from {ipaddr}')
 
     # Create DNS records in Route53
     changes = []
@@ -380,21 +468,8 @@ def do_register(payload,event):
             "Changes": changes
         })
     LOGGER.info("Route53 response: %s",route53_response)
-
-    # See if there is an existing user_id for this email address.
-    user = get_user_from_email(email)
-    if not user:
-        user = {'user_id':str(uuid.uuid4()),
-                'course_key':str(uuid.uuid4())[0:8]}
-
-    # update other fields:
-    user['sk'] = '#'
-    user['email'] = email       # the user-provided email
-    user['time'] = int(time.time())
-    user['name'] = registration['name']
-    user['ip_address'] = ipaddr
-    user['hostname'] = hostname
-    users_table.put_item(Item=user) # USER CREATION POINT 2
+    for h in hostnames:
+        add_user_log(user[USER_ID], f'DNS updated for {h}.{DOMAIN}')
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
@@ -405,13 +480,13 @@ def do_register(payload,event):
         Message={ 'Subject': {'Data': email_subject},
                   'Body': {'Text': {'Data': email_body}} } )
     LOGGER.info("SES response: %s",ses_response)
-
+    add_user_log(user[USER_ID], f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
 def do_grade(event):
     """Do a grade"""
-    LOGGER.info("do_register event=%s",event)
+    LOGGER.info("do_grade event=%s",event)
     return resp_json(400, {'error':True})
 
 ################################################################
@@ -471,7 +546,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
 
-                case ("POST", "/register", "register"):
+                case ("POST", "/api/v1/register", "register"):
                     return do_register(payload, event)
 
                 case ("GET", "/heartbeat", _):
@@ -480,7 +555,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 ################################################################
                 # Human actions
                 case ("GET","/", _):
-                    return do_home_page(event)
+                    return do_page(event)
 
                 case ("GET","/auth/callback",_):
                     return do_callback(event)
