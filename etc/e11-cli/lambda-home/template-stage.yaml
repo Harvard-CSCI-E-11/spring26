@@ -26,7 +26,7 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         OIDC_SECRET_ID: !Ref OidcSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
-        SESSIONS_TABLE_ARN: !Ref SessionsTableName
+        SESSIONS_TABLE_NAME: !Ref SessionsTableName
 
 Parameters:
   UsersTableName:

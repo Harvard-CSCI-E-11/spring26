@@ -73,7 +73,7 @@ OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
 # DynamoDB
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
 USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
-SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
+SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 dynamodb_client = boto3.client("dynamodb")
 dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
