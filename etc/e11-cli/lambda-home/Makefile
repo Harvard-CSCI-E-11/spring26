@@ -38,9 +38,10 @@ deploy-prod: build-prod
 	sam deploy --config-file samconfig.toml
 
 vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+	make pylint
 	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
-	sam deploy --config-file samconfig-stage.toml
+	sam deploy --config-file samconfig-stage.toml --no-confirm-changeset
 
 sync-stage: build-stage
 	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)

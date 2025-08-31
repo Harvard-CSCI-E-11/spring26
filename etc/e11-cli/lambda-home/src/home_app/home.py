@@ -400,9 +400,7 @@ def do_dashboard(event):
 
     sessions = all_sessions_for_email(user['email'])
     template = env.get_template("dashboard.html")
-    for s in sessions:
-        LOGGER.debug("s=%s",s)
-    return resp_text(200, template.render(user=user, sessions=sessions, items=items))
+    return resp_text(200, template.render(user=user, sessions=sessions, items=items, ses_dump=json.dumps(ses,default=str,indent=4), now=round(time.time())))
 
 def do_callback(event):
     """OIDC callback from Harvard Key website.
