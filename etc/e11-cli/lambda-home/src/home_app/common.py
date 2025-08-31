@@ -21,7 +21,7 @@ STATIC_DIR = join(MY_DIR,"static")
 _CONFIGURED = False
 
 def _configure_root_once():
-    global _CONFIGURED
+    global _CONFIGURED          # pylint: disable=global-statement
     if _CONFIGURED:
         return
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()

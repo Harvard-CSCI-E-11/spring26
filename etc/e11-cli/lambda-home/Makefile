@@ -37,10 +37,9 @@ build-prod: template.yaml samconfig.toml src/requirements.txt
 deploy-prod: build-prod
 	sam deploy --config-file samconfig.toml
 
-build-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
-
-deploy-stage: build-stage
 	sam deploy --config-file samconfig-stage.toml
 
 sync-stage: build-stage

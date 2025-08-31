@@ -46,19 +46,23 @@ LOGGER = get_logger("grader")
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
+SESSION_CREATED='session_created'
+SESSION_EXPIRE='session_expire'
+
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
     if value in (None, jinja2.Undefined):  # catch both
         return ""
     try:
-        dt = datetime.datetime.fromtimestamp(value, tz=eastern)
+        dt = datetime.datetime.fromtimestamp( round(value), tz=eastern)
     except TypeError as e:
         LOGGER.debug("value=%s type(value)=%s e=%s",value,type(value),e)
         return "n/a"
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 def static_file(fname):
-    with open(join(common.STATIC_DIR,fname), "r") as f:
+    """ f """
+    with open(join(common.STATIC_DIR,fname), "r", encoding='utf-8') as f:
         return f.read()
 
 # ---------- Setup AWS Services  ----------
@@ -269,8 +273,8 @@ def new_session(claims, client_ip):
     sid = str(uuid.uuid4())
     item = { "sid": sid,
              "email": email,
-             "session_created" : int(time.time()),
-             "session_expire"  : int(time.time()) + SESSION_TTL_SECS,
+             SESSION_CREATED : int(time.time()),
+             SESSION_EXPIRE  : int(time.time() + SESSION_TTL_SECS),
              "name" : claims.get('name',''),
              "client_ip": client_ip or "",
              "claims" : claims }
@@ -396,6 +400,8 @@ def do_dashboard(event):
 
     sessions = all_sessions_for_email(user['email'])
     template = env.get_template("dashboard.html")
+    for s in sessions:
+        LOGGER.debug("s=%s",s)
     return resp_text(200, template.render(user=user, sessions=sessions, items=items))
 
 def do_callback(event):
