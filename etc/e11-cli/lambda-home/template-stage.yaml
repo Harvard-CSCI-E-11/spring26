@@ -24,14 +24,14 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: !Ref LogLevel
-        DDB_TABLE_ARN: !Ref UsersTableArn          # existing users table
         OIDC_SECRET_ID: !Ref OidcSecretId
-        SESSIONS_TABLE_NAME: !Ref SessionsTableName     # new (optional helper)
+        USERS_TABLE_NAME: !Ref UsersTableName
+        SESSIONS_TABLE_ARN: !Ref SessionsTableName
 
 Parameters:
-  UsersTableArn:
+  UsersTableName:
     Type: String
-    Description: ARN of existing DynamoDB table for grades/logs
+    Description: Name of existing DynamoDB table for grades/logs
   SessionsTableName:
     Type: String
     Description: Name of existing DynamoDB table for sessions
@@ -92,12 +92,6 @@ Resources:
       Handler: home_app.home.lambda_handler
       Timeout: 60
       MemorySize: 256
-      Environment:
-        Variables:
-          DDB_TABLE_ARN: !Ref UsersTableArn
-          OIDC_SECRET_ID: !Ref OidcSecretId
-          LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
-          SESSIONS_TABLE_NAME: !Ref SessionsTable
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -112,8 +106,8 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource:
-                - !Ref UsersTableArn
-                - !Sub "${UsersTableArn}/index/*"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
 
             - Sid: SecretsGet
               Effect: Allow
@@ -145,8 +139,8 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource:
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::REGION}:${AWS::AccountId}:table/${SessionsTableName}"
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::REGION}:${AWS::AccountId}:table/${SessionsTableName}/index/*"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SessionsTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SessionsTableName}/index/*"
 
       Events:
         StageAnyRoot:

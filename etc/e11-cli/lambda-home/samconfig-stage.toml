@@ -6,12 +6,19 @@ s3_prefix = "home-app-stage"
 region = "us-east-1"
 profile = "fas"
 confirm_changeset = true
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 disable_rollback = false
-parameter_overrides = "UsersTableArn=\"arn:aws:dynamodb:us-east-1:586794483136:table/e11-users\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""
+parameter_overrides = "UsersTableName=\"e11-users\" SessionsTableName=\"home-app-sessions\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""
 image_repositories = []
 template_file = ".aws-sam/build/template.yaml"
 
 [default.build.parameters]
 cached = false
 parallel=true
+
+[default.sync.parameters]
+stack_name = "home-app-stage"
+region = "us-east-1"
+profile = "fas"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+parameter_overrides = "UsersTableName=\"e11-users\" SessionsTableName=\"home-app-sessions\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""

@@ -30,7 +30,10 @@
         <ul class="pure-menu-list">
           {% block menu %}{% endblock %}
           <li class="pure-menu-item">
-            <a href="page?q=about" class="pure-menu-link">About</a>
+            <a href="?page=about.html" class="pure-menu-link">About</a>
+          </li>
+          <li class="pure-menu-item">
+            <a href="?page=terms.html" class="pure-menu-link">Terms</a>
           </li>
           <li class="pure-menu-item">
             <a href="logout" class="pure-menu-link">Logout</a>
@@ -49,7 +52,7 @@
 
     <div class='footer'>
       <div class='pure-u-1 u-sm-1-2'>
-        <p id="copyright" class="legal-license">Copyright &#169; 2024-2025 Simson L. Garfinkel<a href='page?q=tos'> [terms of service.]</a></p>
+        <p id="copyright" class="legal-license">Copyright &#169; 2024-2025 Simson L. Garfinkel <a href='?page=terms.html'>[terms]</a></p>
         <hr/>
       </div>
     </div>

@@ -2,6 +2,7 @@
 # lambda-home is the minimal home page. It requires no e11 packages
 STACK           ?= home-app
 STACK_STAGE     ?= home-app-stage
+CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 REGION          ?= us-east-1
 PROFILE         ?= fas
 PY              = python3.13
@@ -29,28 +30,24 @@ pytest: .venv/pyvenv.cfg
 pylint: .venv/pyvenv.cfg
 	.venv/bin/pylint src
 
-# Generate YAML templates from parts
-template.yaml: template-top.yaml template-common.yaml template-bottom.yaml
-	cat template-top.yaml template-common.yaml template-bottom.yaml > template.yaml
+build-prod: template.yaml samconfig.toml src/requirements.txt
+	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
 
-# Generate stage template only
-template-stage.yaml: template-stage-top.yaml template-common.yaml template-stage-bottom.yaml
-	cat template-stage-top.yaml template-common.yaml template-stage-bottom.yaml > template-stage.yaml
+# don't specify template in deploy-prod or deploy-stage
+deploy-prod: build-prod
+	sam deploy --config-file samconfig.toml
 
-# Build the Lambda function (default: staging)
-build: template.yaml samconfig.toml src/requirements.txt
-	sam build --parallel --config-file samconfig.toml -t template.yaml
-
-# Deploy to stage environment (default)
-deploy: template.yaml samconfig.toml src/requirements.txt
-	sam deploy --config-file samconfig-stage.toml
-
-# Stage deployment (explicit)
 build-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
-	sam build --parallel --config-file samconfig-stage.toml -t template-stage.yaml
+	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
 
-deploy-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+deploy-stage: build-stage
 	sam deploy --config-file samconfig-stage.toml
+
+sync-stage: build-stage
+	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)
+
+sync-watch-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name home-app-stage --watch --code
 
 # Tail production logs
 tail:
@@ -69,8 +66,25 @@ functions:
 	@echo "Stage function:"
 	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) --query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
-src/requirements.txt: pyproject.toml Makefile
+src/requirements.txt: pyproject.toml Makefile .venv/pyvenv.cfg
 	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
+
+# Download deployed Lambda package for inspection
+fetch-zip-prod:
+	@FUNC=$$(aws cloudformation describe-stacks \
+		--stack-name $(STACK) \
+		--region $(REGION) \
+		--profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' \
+		--output text); \
+	echo "Fetching deployment package for $$FUNC..."; \
+	URL=$$(aws lambda get-function --function-name $$FUNC \
+		--region $(REGION) \
+		--profile $(PROFILE) \
+		--query 'Code.Location' --output text); \
+	/bin/rm -f lambda.zip && curl -sSL $$URL -o lambda.zip && ls -l lambda.zip && \
+	echo "Deployed package extracted to lambda-package-prod/"
+
 
 clean:
 	/bin/rm -rf .venv

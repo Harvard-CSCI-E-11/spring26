@@ -1,5 +1,4 @@
 # HOW TO DEPLOY WITH SAM (creates samconfig.toml on first guided deploy):
-#   make generate-templates
 #   sam build -t template.yaml
 #   sam deploy -t template.yaml --guided --profile fas
 #     # Answer the prompts; you'll be asked for:
@@ -26,15 +25,14 @@ Globals:
     Environment:
       Variables:
         LOG_LEVEL: !Ref LogLevel
-        DDB_TABLE_ARN: !Ref UsersTableArn          # existing users table
         OIDC_SECRET_ID: !Ref OidcSecretId
+        USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable     # new (optional helper)
-        SESSIONS_TABLE_ARN: !GetAtt SessionsTable.Arn
 
 Parameters:
-  UsersTableArn:
+  UsersTableName:
     Type: String
-    Description: ARN of existing DynamoDB table for grades/logs
+    Description: Name of existing DynamoDB table for grades/logs
   OidcSecretId:
     Type: String
     Description: Secrets Manager SecretId/ARN containing the OIDC data
@@ -92,12 +90,6 @@ Resources:
       Handler: home_app.home.lambda_handler
       Timeout: 60
       MemorySize: 256
-      Environment:
-        Variables:
-          DDB_TABLE_ARN: !Ref UsersTableArn
-          OIDC_SECRET_ID: !Ref OidcSecretId
-          LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
-          SESSIONS_TABLE_NAME: !Ref SessionsTable
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -112,8 +104,8 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource:
-                - !Ref UsersTableArn
-                - !Sub "${UsersTableArn}/index/*"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
 
             - Sid: SessionsTableRW
               Effect: Allow
@@ -148,9 +140,6 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
-
-
-
 
       Events:
         AnyRoot:

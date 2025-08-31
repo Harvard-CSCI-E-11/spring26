@@ -16,9 +16,11 @@ Item: object including email, and user_id
 Cookies - just have sid (session ID)
 
 """
+# at top of home_app/home.py (module import time)
 import base64
 import json
 import os
+from os.path import join
 import sys
 import binascii
 import uuid
@@ -32,21 +34,28 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 from itsdangerous import BadSignature, SignatureExpired
+import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 from . import common
 from . import oidc
-from .common import LOGGER
 
+from .common import get_logger
+LOGGER = get_logger("grader")
+
+__version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
-    dt = datetime.datetime.fromtimestamp(value, tz=eastern)
+    if value in (None, jinja2.Undefined):  # catch both
+        return ""
+    try:
+        dt = datetime.datetime.fromtimestamp(value, tz=eastern)
+    except TypeError as e:
+        LOGGER.debug("value=%s type(value)=%s e=%s",value,type(value),e)
+        return "n/a"
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-
-def _ddb_table_name_from_arn(arn: str) -> str:
-    return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
 
 def static_file(fname):
     with open(join(common.STATIC_DIR,fname), "r") as f:
@@ -63,12 +72,12 @@ OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
 
 # DynamoDB
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
-DDB_USERS_TABLE_ARN = os.environ.get("DDB_USERS_TABLE_ARN","e11-users")
+USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","e11-sessions")
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 dynamodb_client = boto3.client("dynamodb")
 dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
-users_table    = dynamodb_resource.Table(_ddb_table_name_from_arn(DDB_USERS_TABLE_ARN))
+users_table    = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 
 USER_ID = 'user_id'
@@ -272,6 +281,7 @@ def new_session(claims, client_ip):
 def get_session(event) -> Optional[dict]:
     """Return the session dictionary if the session is valid and not expired."""
     sid = parse_cookies(event).get(COOKIE_NAME)
+    LOGGER.debug("get_session sid=%s get_cookie_domain(%s)=%s",sid,event,get_cookie_domain(event))
     if not sid:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
@@ -279,13 +289,14 @@ def get_session(event) -> Optional[dict]:
     ses = resp.get("Item")
     now  = int(time.time())
     if not ses:
+        LOGGER.debug("get_session no ses")
         return None
     if ses.get("session_expire", 0) <= now:
         # Session has expired. Delete it and return none
         LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.get("session_expire",0),now)
         sessions_table.delete_item(Key={"sid":sid})
         return None
-    LOGGER.debug("session=%s",ses)
+    LOGGER.debug("get_session session=%s",ses)
     return ses
 
 def all_logs_for_userid(user_id):
@@ -333,7 +344,8 @@ def do_page(event, status="",extra=""):
             template = env.get_template(page)
             return resp_text(200, template.render(ses=ses, status=status, extra=extra))
         except TemplateNotFound:
-            return resp_text(404, template.render("404.html",page=page))
+            template = env.get_template('404.html')
+            return resp_text(404, template.render(page=page))
 
     # page not specified.
     # If there is a session, redirect to the /dashboard, otherwise give the login page.

@@ -13,7 +13,8 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-from .common import LOGGER
+from .common import get_logger
+LOGGER = get_logger("grader")
 
 
 # Helper: stateless state serializer
