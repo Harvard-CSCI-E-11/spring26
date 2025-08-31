@@ -1,0 +1,59 @@
+.infobox {
+  position: relative;
+  border: 2px solid #f5a3a3;   /* light red border */
+  border-radius: 8px;
+  padding: 1em;
+  margin-top: 2em;             /* optional spacing */
+}
+
+/* Use this inside the info box with <span class="infobox-title"></span> */
+.infobox-title {
+  position: absolute;
+  top: -0.8em;                 /* lift above border */
+  left: 50px;                  /* 50px from left edge */
+  background: inherit;            /* hides border under text (was #fff) */
+  padding: 0 0.5em;
+  font-weight: bold;
+  color: #b00000;              /* dark red text */
+}
+
+/* alternatively, use this inside the infobox span with the attribute data-title="foo" */
+ .infobox::before {
+  content: attr(data-title);
+  position: absolute;
+  top: -0.8em;
+  left: 50px;                  /* 50px in from the left */
+  background: inherit;            /* covers border line (was #fff) */
+  padding: 0 0.5em;
+  font-weight: bold;
+  color: #b00000;              /* dark red text */
+}
+
+ /* Use this mix-in to make it float with a close box specified like this:
+  *   <button class="infobox-close" onclick="this.parentElement.style.display='none'">&times;</button>
+  */
+
+.infobox-floating {
+  position: fixed;     /* stays put while scrolling */
+  top: 1em;            /* distance from top of window */
+  right: 1em;          /* distance from right edge */
+  width: 3in;          /* 3-inch width */
+  z-index: 1000;       /* keep above other content */
+}
+
+/* close button */
+.infobox-close {
+  position: absolute;
+  top: 0.2em;
+  right: 0.4em;
+  cursor: pointer;
+  font-weight: bold;
+  color: #666;
+  background: transparent;
+  border: none;
+  font-size: 1em;
+}
+
+.infobox-close:hover {
+  color: #b00000;
+}

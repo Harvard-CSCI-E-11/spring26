@@ -48,6 +48,10 @@ def eastern_filter(value):
 def _ddb_table_name_from_arn(arn: str) -> str:
     return arn.split(":table/")[-1] if arn and ":table/" in arn else arn
 
+def static_file(fname):
+    with open(join(common.STATIC_DIR,fname), "r") as f:
+        return f.read()
+
 # ---------- Setup AWS Services  ----------
 
 # jinja2
@@ -74,6 +78,20 @@ COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",'csci-e-11.org')
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
+
+# Staging environment configuration
+def is_staging_environment(event) -> bool:
+    """Detect if we're running in the staging environment"""
+    stage = event.get("requestContext", {}).get("stage", "")
+    return stage == "stage"
+
+def get_cookie_domain(event) -> str:
+    """Get the appropriate cookie domain based on the environment"""
+    if is_staging_environment(event):
+        # In staging, always use the production domain for cookies
+        # so sessions work across both environments
+        return 'csci-e-11.org'
+    return COOKIE_DOMAIN
 
 # Secrets Manager
 secretsmanager_client = boto3.client("secretsmanager")
@@ -387,14 +405,14 @@ def do_callback(event):
     LOGGER.debug("obj=%s",obj)
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     sid = new_session(obj['claims'],client_ip=client_ip)
-    sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=COOKIE_DOMAIN)
+    sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
     LOGGER.debug("new_session sid=%s",sid)
     return redirect("/dashboard", cookies=[sid_cookie])
 
 def do_logout(event):
     """/logout"""
     delete_session_from_event(event)
-    del_cookie = make_cookie(COOKIE_NAME, "", clear=True)
+    del_cookie = make_cookie(COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event))
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
@@ -565,6 +583,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
                 case ("GET","/logout",_):
                     return do_logout(event)
+
+                case ("GET","/static/infobox.css",_):
+                    return resp_text(200, static_file("infobox.css"))
 
                 ################################################################
                 # error

@@ -1,0 +1,73 @@
+  # Lambda function — JSON-only API (no Flask)
+  E11HomeFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        RequirementsFile: requirements.txt   # relative to CodeUri (src/)
+    Properties:
+      Runtime: python3.13
+      CodeUri: src/
+      Handler: home_app.home.lambda_handler
+      Timeout: 60
+      MemorySize: 256
+      Environment:
+        Variables:
+          DDB_TABLE_ARN: !Ref UsersTableArn
+          OIDC_SECRET_ID: !Ref OidcSecretId
+          LOG_LEVEL: !Ref LogLevel            # default; can be overridden per request JSON
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: UsersTableRW
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !Ref UsersTableArn
+                - !Sub "${UsersTableArn}/index/*"
+
+            - Sid: SessionsTableRW
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !GetAtt SessionsTable.Arn
+                - !Sub "${SessionsTable.Arn}/index/*"
+
+            - Sid: SecretsGet
+              Effect: Allow
+              Action: secretsmanager:GetSecretValue
+              Resource: !Ref OidcSecretId
+
+            - Sid: AllowRoute53Changes
+              Effect: Allow
+              Action:
+                - route53:ChangeResourceRecordSets
+                - route53:ListResourceRecordSets
+                - route53:GetChange
+              Resource: "arn:aws:route53:::hostedzone/*"
+
+            - Sid: AllowSES
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
+
+
+

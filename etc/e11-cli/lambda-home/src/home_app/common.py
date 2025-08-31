@@ -17,6 +17,7 @@ if isdir(join(NESTED, "e11")):
     sys.path.insert(0, NESTED)
 
 TEMPLATE_DIR = join(MY_DIR,"templates")
+STATIC_DIR = join(MY_DIR,"templates")
 
 LOGGER = logging.getLogger("e11.grader")
 try:

@@ -1,0 +1,87 @@
+      Events:
+        AnyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        AnyProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /{proxy+}
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        Heartbeat:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Input: '{"action":"heartbeat"}'
+
+      Events:
+        AnyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        AnyProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /{proxy+}
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        Heartbeat:
+          Type: Schedule
+          Properties:
+            Schedule: rate(5 minutes)
+            Input: '{"action":"heartbeat"}'
+
+  # Sessions table holds the cookie sessions
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      TableName: !Sub "${AWS::StackName}-sessions"
+      AttributeDefinitions:
+        - AttributeName: sid
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sid
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      GlobalSecondaryIndexes:
+        - IndexName: GSI_Email
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+Outputs:
+  # Production-specific outputs
+  ApiId:
+    Description: HTTP API ID
+    Value: !Ref HomeHttpApi
+  CustomDomainUrl:
+    Description: Public base URL
+    Value: "https://csci-e-11.org/"
+  # Common outputs
+  HomeFunction:
+    Description: Home Lambda function name
+    Value: !Ref E11HomeFunction
+  HostedZoneId:
+    Description: Route53 Hosted Zone
+    Value: !Ref HostedZoneId
+  UsersTableIndexArn:
+    Description: ARN for Users Table Index
+    Value: !Sub "${SessionsTable.Arn}/index/*"
