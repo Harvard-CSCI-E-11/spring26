@@ -215,7 +215,7 @@ def test_registration_api_flow(monkeypatch):
         }
 
         # Call the registration handler
-        response = home.do_register(registration_payload, event)
+        response = home.do_register(event, registration_payload)
 
         # Verify the response
         assert response['statusCode'] == 200
@@ -326,7 +326,7 @@ def test_registration_api_invalid_user(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.do_register(registration_payload, event)
+    response = home.do_register(event, registration_payload)
 
     # Verify the response indicates user not found
     assert response['statusCode'] == 403
@@ -382,7 +382,7 @@ def test_registration_api_invalid_course_key(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.do_register(registration_payload, event)
+    response = home.do_register(event, registration_payload)
 
     # Verify the response indicates invalid course key
     assert response['statusCode'] == 403

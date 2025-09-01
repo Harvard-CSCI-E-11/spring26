@@ -48,6 +48,8 @@ eastern = ZoneInfo("America/New_York")
 
 SESSION_CREATED='session_created'
 SESSION_EXPIRE='session_expire'
+LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
+IPADDR = 'ipaddr'
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -125,7 +127,7 @@ EMAIL_BODY="""
     The following DNS record has been created:
 
     Hostname: {hostname}
-    IP Address: {ip_address}
+    IP Address: {ipaddr}
 
     Best regards,
     CSCIE-11 Team
@@ -188,16 +190,17 @@ def _with_request_log_level(payload: Dict[str, Any]):
 
 ################################################################
 ## Add to user log
-def add_user_log(user_id, message, extra=None):
+def add_user_log(event, user_id, message, **extra):
     """
     :param user_id: user_id
     :param message: Message to add to log
     """
-    if extra is None:
-        extra = {}
+    client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     now = datetime.datetime.now().isoformat()
+    LOGGER.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
     users_table.put_item(Item={USER_ID:user_id,
                                'sk':f'log#{now}',
+                               'client_ip':client_ip,
                                'message':message,
                                **extra})
 
@@ -264,22 +267,39 @@ def get_odic_config():
 ################################################################
 ## session management - sessions are signed cookies that are stored in the DynamoDB
 ##
-def new_session(claims, client_ip):
+def new_session(event, claims):
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
+    Get the USER_ID from the users table. If it is not there, create it.
     """
+    client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
     email = claims['email']
+
+    user = get_user_from_email(email)
+    if user is None:
+        now = int(time.time())
+        user_id = str(uuid.uuid4())
+        user = {USER_ID:user_id,
+                'sk':'#',
+                'email':email,
+                'course_key':str(uuid.uuid4())[0:COURSE_KEY_LEN],
+                'created':now,
+                'claims':claims,
+                'updated':now}
+        ret = users_table.put_item(Item=user)        # USER CREATION POINT
+        add_user_log(event, user_id, f"User {email} created", claims=claims)
+
     sid = str(uuid.uuid4())
-    item = { "sid": sid,
+    session = { "sid": sid,
              "email": email,
              SESSION_CREATED : int(time.time()),
              SESSION_EXPIRE  : int(time.time() + SESSION_TTL_SECS),
              "name" : claims.get('name',''),
-             "client_ip": client_ip or "",
+             "client_ip": client_ip,
              "claims" : claims }
-    ret = sessions_table.put_item(Item=item)
-    LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s ret=%s item=%s",SESSIONS_TABLE_NAME,ret,item)
+    ret = sessions_table.put_item(Item=session)
+    LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s user=%s session=%s ret=%s",SESSIONS_TABLE_NAME,user, session, ret)
     return sid
 
 def get_session(event) -> Optional[dict]:
@@ -305,10 +325,15 @@ def get_session(event) -> Optional[dict]:
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
-    response = users_table.query(
-        KeyConditionExpression=Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
-    )
-    return response['Items']
+    key_query = Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
+    logs = []
+    resp = users_table.query( KeyConditionExpression=key_query    )
+    logs.extend(resp['Items'])
+    while LastEvaluatedKey in resp:
+        resp = users_table.query( KeyConditionExpression=key_query,
+                                  ExclusiveStartKey=resp[LastEvaluatedKey])
+        logs.extend(resp['Items'])
+    return logs
 
 
 def all_sessions_for_email(email):
@@ -366,41 +391,34 @@ def do_page(event, status="",extra=""):
 
 def do_dashboard(event):
     """/dashboard
-    Create the user if does not exist
+    If the session exists, then the user was created in new_session().
     """
+    client_ip = event["requestContext"]["http"]["sourceIp"]
     ses = get_session(event)
     if not ses:
-        LOGGER.debug("No session; redirect to /")
+        LOGGER.debug("No session; redirecting to /")
         return redirect("/")
     email = ses['email']
     user = get_user_from_email(email)
     if not user:
-        # Create new user
-        user = {USER_ID:str(uuid.uuid4()),
-                'course_key':str(uuid.uuid4())[0:COURSE_KEY_LEN],
-                'created':int(time.time())}
+        return resp_text(500, f"Internal error: no user for email address {email}")
 
-    # update other fields
     user_id = user[USER_ID]
-    user['sk'] = '#'            # root record
-    user['claims'] = ses['claims']
-    user['time']   = int(time.time())
-    user['email']  = ses['claims']['email']      # overrides user email if previously set
-    ret = users_table.put_item(Item=user)        # USER CREATION POINT
-    LOGGER.debug("user creation point 1 - ret=%s user=%s",ret,user)
 
     # Get the dashboard items
     items = []
     resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id) )
     items.extend(resp['Items'])
-    while 'LastEvaluatedKey' in resp:
+    while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id),
-        ExclusiveStartKey=resp['LastEvaluatedKey'] )
-    items.extend(resp['Items'])
+                                  ExclusiveStartKey=resp[LastEvaluatedKey] )
+        items.extend(resp['Items'])
 
+    logs = all_logs_for_userid(user_id)
     sessions = all_sessions_for_email(user['email'])
     template = env.get_template("dashboard.html")
-    return resp_text(200, template.render(user=user, sessions=sessions, items=items, ses_dump=json.dumps(ses,default=str,indent=4), now=round(time.time())))
+    return resp_text(200, template.render(user=user, client_ip=client_ip, sessions=sessions, logs=logs, items=items,
+                                          ses_dump=json.dumps(ses,default=str,indent=4), now=round(time.time())))
 
 def do_callback(event):
     """OIDC callback from Harvard Key website.
@@ -419,8 +437,7 @@ def do_callback(event):
         return redirect("/expired")
 
     LOGGER.debug("obj=%s",obj)
-    client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
-    sid = new_session(obj['claims'],client_ip=client_ip)
+    sid = new_session(event,obj['claims'])
     sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
     LOGGER.debug("new_session sid=%s",sid)
     return redirect("/dashboard", cookies=[sid_cookie])
@@ -440,7 +457,9 @@ def smash_email(email):
     return smashed_email
 
 def get_user_from_email(email):
-    """Given an email address, get the user record from the users_table"""
+    """Given an email address, get the user record from the users_table.
+    Note - when the first session is created, we don't know the user-id.
+    """
     resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
     if resp['Count']>1:
         return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
@@ -449,12 +468,13 @@ def get_user_from_email(email):
     return None
 
 # pylint: disable=too-many-locals
-def do_register(payload,event):
+def do_register(event,payload):
     """Register a VM"""
     LOGGER.info("do_register payload=%s event=%s",payload,event)
     registration = payload['registration']
     email = registration.get('email')
     ipaddr = registration.get('ipaddr')
+    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
 
     # See if there is an existing user_id for this email address.
@@ -474,7 +494,7 @@ def do_register(payload,event):
             "user_id": user["user_id"],
             "sk": user["sk"],
         },
-        UpdateExpression="SET ip_address = :ip, hostname = :hn, reg_time = :t, name = :name",
+        UpdateExpression="SET ipaddr = :ip, hostname = :hn, reg_time = :t, name = :name",
         ExpressionAttributeValues={
             ":ip": ipaddr,
             ":hn": hostname,
@@ -482,7 +502,7 @@ def do_register(payload,event):
             ":name": registration.get('name')
         }
     )
-    add_user_log(user[USER_ID], f'User registered from {ipaddr}')
+    add_user_log(event, user[USER_ID], f'User registered instanceId={instanceId} ipaddr={ipaddr}')
 
     # Create DNS records in Route53
     changes = []
@@ -503,18 +523,18 @@ def do_register(payload,event):
         })
     LOGGER.info("Route53 response: %s",route53_response)
     for h in hostnames:
-        add_user_log(user[USER_ID], f'DNS updated for {h}.{DOMAIN}')
+        add_user_log(event, user[USER_ID], f'DNS updated for {h}.{DOMAIN}')
 
     # Send email notification using SES
     email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ipaddr, course_key=user['course_key'])
+    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user['course_key'])
     ses_response = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [email]},
         Message={ 'Subject': {'Data': email_subject},
                   'Body': {'Text': {'Data': email_body}} } )
     LOGGER.info("SES response: %s",ses_response)
-    add_user_log(user[USER_ID], f'Registration email sent to {email}')
+    add_user_log(event, user[USER_ID], f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
@@ -543,9 +563,9 @@ def do_heartbeat(event, context):
     while True:
         page = sessions_table.scan(**scan_kwargs)
         expired += expire_batch(now, page.get("Items", []))
-        if "LastEvaluatedKey" not in page:
+        if LastEvaluatedKey not in page:
             break
-        scan_kwargs["ExclusiveStartKey"] = page["LastEvaluatedKey"]
+        scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
 ################################################################
@@ -568,9 +588,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
                 case ("POST", "/", "ping-mail"):
                     hostnames = ['first']
-                    ip_address = 'address'
+                    ipaddr = '<address>'
                     email_subject = "E11 email ping"
-                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ip_address=ip_address)
+                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr)
                     ses_response = ses_client.send_email(
                         Source=SES_VERIFIED_EMAIL,
                         Destination={'ToAddresses': [payload['email']]},
@@ -581,7 +601,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
 
                 case ("POST", "/api/v1/register", "register"):
-                    return do_register(payload, event)
+                    return do_register(event, payload)
 
                 case ("GET", "/heartbeat", _):
                     return do_heartbeat(event, context)

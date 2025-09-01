@@ -194,7 +194,7 @@ def test_e11_registration_with_test_config(monkeypatch):
                 'isBase64Encoded': False
             }
 
-            response = home.do_register(json_data, event)
+            response = home.do_register(event, json_data)
             return Mock(
                 ok=response['statusCode'] == 200,
                 text=response['body'],
