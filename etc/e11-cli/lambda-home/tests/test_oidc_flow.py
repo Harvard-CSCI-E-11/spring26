@@ -4,7 +4,6 @@ import pytest
 
 import home_app.oidc as oidc
 
-@pytest.mark.skip(reason='not working')
 def test_end_to_end_oidc_stateless(fake_idp_server, monkeypatch):
     # Wire discovery URL for fake_aws fixture
     import pytest as _pytest
