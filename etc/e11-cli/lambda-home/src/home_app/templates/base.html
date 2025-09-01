@@ -2,33 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8"/>
-    <link rel="icon" href="/favicon.png" type="image/png"/>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="keywords" content="ai,IoT,cybersecurity"/>
+    <meta name="description" content="Website for CSCI E-11"/>
     <meta name="google"   content="notranslate"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title> {% block title %} {{title}} {% endblock %} </title>
+    <title>{% block title %}{{ title }}{% endblock title %}</title>
+    <link rel="icon" href="/favicon.png" type="image/png"/>
     <!-- use Pure.css - https://purecss.io/ -->
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css"
           integrity="sha384-X38yfunGUhNzHpBaEBsWLO+A0HDYOQi8ufWDkZ0k9e0eXz/tH3II7uKZ9msv++Ls" crossorigin="anonymous"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/grids-responsive-min.css" />
+    <link rel="stylesheet" href="static/site.css" />
     <link rel="stylesheet" href="static/infobox.css" />
-    <style>
-      html {
-      margin-left: 20px;
-      margin-right: 20px;
-      }
-    </style>
-    {% block head %}{% endblock %}
-    {% block script %}{% endblock %}
+    {% block head %}{% endblock head %}
+    {% block script %}{% endblock script %}
   </head>
-  <body lang='en-US' style='background:white'>
+  <body lang="en-US">
     <header>
       <!-- menu changes if we are authenticated or not -->
       <div class="pure-menu pure-menu-horizontal">
         <a href="." class="pure-menu-heading pure-menu-link">Harvard CSCI E-11</a>
         <ul class="pure-menu-list">
-          {% block menu %}{% endblock %}
+          {% block menu %}{% endblock menu %}
           <li class="pure-menu-item">
             <a href="?page=about.html" class="pure-menu-link">About</a>
           </li>
@@ -45,14 +41,21 @@
       </div>
     </header>
 
-    <div class='content'>
+    <div class="content">
     {% block body %}
-    {% endblock %}
+    {% endblock body %}
     </div>
 
-    <div class='footer'>
-      <div class='pure-u-1 u-sm-1-2'>
-        <p id="copyright" class="legal-license">Copyright &#169; 2024-2025 Simson L. Garfinkel <a href='?page=terms.html'>[terms]</a></p>
+    <div class="footer">
+      <div class="pure-u-1 u-sm-1-2">
+        <p id="copyright" class="legal-license">Copyright ©; 2024-2025 Simson L. Garfinkel <a href="?page=terms.html">[terms]</a>
+          | <a href="https://harvard.service-now.com/ithelp?id=kb_article&sys_id=9d718485db0d57cc83a2f3f7bf961902">
+            Harvard’s Acceptable Use Policy </a>
+          | <a href="https://accessibility.harvard.edu/"> Harvard Accessibility </a>
+          | <a href="https://accessibility.huit.harvard.edu/digital-accessibility-policy"> Harvard Digital Accessibility </a>
+          | <a href="https://harvard.service-now.com/ithelp?id=kb_article&sys_id=3373044ddb4d57cc83a2f3f7bf961909">
+            Harvard Canvas Privacy Policy </a>
+        </p>
         <hr/>
       </div>
     </div>

@@ -7,9 +7,11 @@ REGION          ?= us-east-1
 PROFILE         ?= fas
 PY              = python3.13
 PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 313 --only-binary=:all:
-
+DJLINT_FLAGS ?= --profile=jinja --lint --quiet
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
+
+TEMPLATE_DIR := src/home_app/templates/
 
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1
@@ -27,8 +29,10 @@ install:
 pytest: .venv/pyvenv.cfg
 	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
 
-pylint: .venv/pyvenv.cfg
+lint: .venv/pyvenv.cfg
 	.venv/bin/pylint src
+	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
+
 
 build-prod: template.yaml samconfig.toml src/requirements.txt
 	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml

@@ -1,3 +1,7 @@
+# Install optional dependencies with:
+# pip install -e .[dev]
+
+
 [project]
 name = "lambda-home"
 version = "0.1.1"
@@ -21,6 +25,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "djlint",
     "pylint",
     "pytest",
     "pip-tools",
@@ -43,3 +48,9 @@ include = ["home_app"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-ra -q"
+
+[tool.djlint]
+profile = "jinja"
+ignore = ["jinja-block","jinja-variable"]
+extend_exclude = "node_modules/**,.venv/**"
+indent = 4

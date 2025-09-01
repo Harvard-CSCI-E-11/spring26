@@ -1,52 +1,51 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block body %}
 <h2> Dashboard </h2>
 <h3>User Info</h3>
-<table class='pure-table'>
+<table class="pure-table">
   <thead>
   </thead>
   <tbody>
-    <tr><th>Name</th><td>{{user.name}}</td></tr>
-    <tr><th>Email</th><td>{{user.email}}</td></tr>
-    <tr><th>course_key</th><td>{{user.course_key}}</td></tr>
-    <th><th>Web browser IP address:</th><td>{{client_ip}}</td></tr>
+    <tr><th>Name</th><td>{{ user.name }}</td></tr>
+    <tr><th>Email</th><td>{{ user.email }}</td></tr>
+    <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
+    <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>
   </tbody>
 </table>
 <h3>User Log</h3>
-<table class='pure-table'>
+<table class="pure-table">
   <thead>
     <tr><th>sk</th><th>client_ip</th><th>message</th><th>claims</th></tr>
   </thead>
   <tbody>
     {% for log in logs %}
     <tr>
-      <th>{{log.sk}}</th>
-      <td>{{log.client_ip}</td>
-      <td>{{log.message}}</td>
-      <td>{{log.claims}}</td>
+      <th>{{ log.sk }}</th>
+      <td>{{ log.client_ip }}</td>
+      <td>{{ log.message }}</td>
+      <td>{{ log.claims }}</td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-
 <h3>Authenticated Sessions</h3>
 <h4>This session</h4>
 <pre>
-{{ses_dump}}
+{{ ses_dump }}
 </pre>
 <h4>Active Sessions Table</h4>
 
-<table class='pure-table'>
+<table class="pure-table">
   <thead>
     <tr><th>Session #</th><th>IP Address</th><th>Created</th><th>Expires</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
     <tr>
-      <th>{{ loop.index }}</th><td>{{session.client_ip}}</td>
-      <td>{{session.session_created | eastern}}</td>
-      <td>{{session.session_expire |eastern}}</td>
+      <th>{{ loop.index }}</th><td>{{ session.client_ip }}</td>
+      <td>{{ session.session_created | eastern }}</td>
+      <td>{{ session.session_expire |eastern }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -54,5 +53,4 @@
 
 <p><i>(All times in eastern time.)</i></p>
 
-
-{% endblock %}
+{% endblock body %}
