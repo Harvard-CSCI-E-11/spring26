@@ -62,10 +62,7 @@ def eastern_filter(value):
         return "n/a"
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-def static_file(fname):
-    """ f """
-    with open(join(common.STATIC_DIR,fname), "r", encoding='utf-8') as f:
-        return f.read()
+
 
 # ---------- Setup AWS Services  ----------
 
@@ -172,6 +169,23 @@ def redirect(location:str, extra_headers: Optional[dict] = None, cookies: Option
         "cookies": cookies or [],
         "body" : ""
     }
+
+def error_404(page):
+    """ Generate an error """
+    template = env.get_template('404.html')
+    return resp_text(404, template.render(page=page))
+
+def static_file(fname):
+    """ Serve a static file """
+    headers = {}
+    try:
+        with open(join(common.STATIC_DIR,fname), "r", encoding='utf-8') as f:
+            if fname.endswith('.css'):
+                headers['Content-Type'] = 'text/css; charset=utf-8'
+            return resp_text(200, f.read(), headers=headers)
+    except FileNotFoundError:
+        return error_404(fname)
+
 
 def _with_request_log_level(payload: Dict[str, Any]):
     """Context manager to temporarily adjust log level from JSON (log_level or LOG_LEVEL)."""
@@ -373,8 +387,7 @@ def do_page(event, status="",extra=""):
             template = env.get_template(page)
             return resp_text(200, template.render(ses=ses, status=status, extra=extra))
         except TemplateNotFound:
-            template = env.get_template('404.html')
-            return resp_text(404, template.render(page=page))
+            return error_404(page)
 
     # page not specified.
     # If there is a session, redirect to the /dashboard, otherwise give the login page.
@@ -620,8 +633,10 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 case ("GET","/logout",_):
                     return do_logout(event)
 
-                case ("GET","/static/infobox.css",_):
-                    return resp_text(200, static_file("infobox.css"))
+                case ("GET", p, _):
+                    if p.startswith("/static"):
+                        return static_file(p.removeprefix("/static/"))
+                    return error_404(p)
 
                 ################################################################
                 # error
@@ -633,5 +648,5 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                                             'action':action })
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            LOGGER.exception("Unhandled error")
+            LOGGER.exception("Unhandled exception!")
             return resp_json(500, {"error": True, "message": str(e)})

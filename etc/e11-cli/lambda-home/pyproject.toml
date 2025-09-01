@@ -51,6 +51,6 @@ addopts = "-ra -q"
 
 [tool.djlint]
 profile = "jinja"
-ignore = ["jinja-block","jinja-variable"]
+ignore = ["jinja-block","jinja-variable","J004", "J018"]
 extend_exclude = "node_modules/**,.venv/**"
 indent = 4

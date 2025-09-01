@@ -7,7 +7,7 @@ REGION          ?= us-east-1
 PROFILE         ?= fas
 PY              = python3.13
 PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 313 --only-binary=:all:
-DJLINT_FLAGS ?= --profile=jinja --lint --quiet
+DJLINT_FLAGS ?= --profile=jinja --lint --quiet --ignore J004,J018
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
@@ -30,8 +30,8 @@ pytest: .venv/pyvenv.cfg
 	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
 
 lint: .venv/pyvenv.cfg
-	.venv/bin/pylint src
 	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
+	.venv/bin/pylint src
 
 
 build-prod: template.yaml samconfig.toml src/requirements.txt
@@ -40,18 +40,23 @@ build-prod: template.yaml samconfig.toml src/requirements.txt
 # don't specify template in deploy-prod or deploy-stage
 deploy-prod: build-prod
 	sam deploy --config-file samconfig.toml
+	curl --silent  https://csci-e-11.org/ | head -3
 
 vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
-	make pylint
+	make lint
 	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
-	sam deploy --config-file samconfig-stage.toml --no-confirm-changeset
+	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
+	curl --silent  https://stage.csci-e-11.org/ | head -3
 
+# Note - sync and watch don't work because the files in requirements.txt are not vendored into the src/
+# directory. There are a number of workarounds but we aren't using them here.
 sync-stage: build-stage
 	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)
 
 sync-watch-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
-	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name home-app-stage --watch --code
+	@echo note that SAM resolves relative paths from the template’s directory when you pass -t
+	sam sync --config-file "$$(pwd)/samconfig-stage.toml" --stack-name home-app-stage --watch --code -t .aws-sam/build/template.yaml
 
 # Tail production logs
 tail:

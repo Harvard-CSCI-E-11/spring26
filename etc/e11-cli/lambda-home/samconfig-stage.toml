@@ -15,6 +15,9 @@ template_file = ".aws-sam/build/template.yaml"
 [default.build.parameters]
 cached = false
 parallel=true
+use_container = true
+dependency_layer = false
+
 
 [default.sync.parameters]
 stack_name = "home-app-stage"
