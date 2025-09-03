@@ -10,6 +10,8 @@
     <tr><th>Email</th><td>{{ user.email }}</td></tr>
     <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
     <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>
+    <tr><th>Instance IP address:</th><td>{{ user.ipaddr }}</td></tr>
+    <tr><th>InstanceId:</th><td>{{ user.instanceId }}</td></tr>
   </tbody>
 </table>
 <h3>User Log</h3>
@@ -30,9 +32,8 @@
 </table>
 
 <h3>Authenticated Sessions</h3>
-  <div class="infobox infobox-floating">
-    <div class="infobox-title">This session</div>
-    This is the DynamDB record associated with this browser session:
+  <div class="infobox infobox-floating" data-title="DynamDB record for this browser session">
+    <button class="infobox-close" onclick="this.parentElement.style.display='none'">×</button>
     <pre>
 {{ ses_dump }}
     </pre>
@@ -41,14 +42,17 @@
 
   <table class="pure-table">
   <thead>
-    <tr><th>Session #</th><th>IP Address</th><th>Created</th><th>Expires</th></tr>
+    <tr><th>Session #</th><th>sid</th><th>IP Address</th><th>Created</th><th>Expires</th><th>Delete</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
-    <tr>
-      <th>{{ loop.index }}</th><td>{{ session.client_ip }}</td>
+    <tr class="{% if session.sid==ses.sid %}current-session{% endif %}" >
+      <th>{{ loop.index }}</th>
+      <th>{{ session.sid }}</th>
+      <td>{{ session.client_ip }}</td>
       <td>{{ session.session_created | eastern }}</td>
       <td>{{ session.session_expire |eastern }}</td>
+      <td><a href='/api/v1/del-session?sid={{ session.sid }}'>×</a></td>
     </tr>
     {% endfor %}
   </tbody>

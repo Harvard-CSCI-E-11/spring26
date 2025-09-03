@@ -11,7 +11,7 @@ DJLINT_FLAGS ?= --profile=jinja --lint --quiet --ignore J004,J018
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-TEMPLATE_DIR := src/home_app/templates/
+TEMPLATE_DIR := src/home_app/templates
 
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1

@@ -26,7 +26,7 @@ from e11.e11core.render import print_summary
 from e11.e11core.doctor import run_doctor
 
 REPO_YEAR='spring26'
-REGISTRATION_ENDPOINT = 'https://csci-e-11.org/api/v1/register'
+REGISTRATION_ENDPOINT = 'https://csci-e-11.org/api/v1'
 __version__ = '0.1.0'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)

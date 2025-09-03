@@ -212,11 +212,12 @@ def add_user_log(event, user_id, message, **extra):
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     now = datetime.datetime.now().isoformat()
     LOGGER.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
-    users_table.put_item(Item={USER_ID:user_id,
+    ret = users_table.put_item(Item={USER_ID:user_id,
                                'sk':f'log#{now}',
                                'client_ip':client_ip,
                                'message':message,
                                **extra})
+    LOGGER.debug("put_table=%s",ret)
 
 
 ################################################################
@@ -314,6 +315,7 @@ def new_session(event, claims):
              "claims" : claims }
     ret = sessions_table.put_item(Item=session)
     LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s user=%s session=%s ret=%s",SESSIONS_TABLE_NAME,user, session, ret)
+    add_user_log(event, user_id, f"Session {sid} created")
     return sid
 
 def get_session(event) -> Optional[dict]:
@@ -333,6 +335,7 @@ def get_session(event) -> Optional[dict]:
         # Session has expired. Delete it and return none
         LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.get("session_expire",0),now)
         sessions_table.delete_item(Key={"sid":sid})
+        add_user_log(event, user_id, f"Session {sid} expired")
         return None
     LOGGER.debug("get_session session=%s",ses)
     return ses
@@ -430,8 +433,14 @@ def do_dashboard(event):
     logs = all_logs_for_userid(user_id)
     sessions = all_sessions_for_email(user['email'])
     template = env.get_template("dashboard.html")
-    return resp_text(200, template.render(user=user, client_ip=client_ip, sessions=sessions, logs=logs, items=items,
-                                          ses_dump=json.dumps(ses,default=str,indent=4), now=round(time.time())))
+    return resp_text(200, template.render(user=user,
+                                          ses=ses,
+                                          client_ip=client_ip,
+                                          sessions=sessions,
+                                          logs=logs,
+                                          items=items,
+                                          ses_dump=json.dumps(ses,default=str,indent=4),
+                                          now=round(time.time())))
 
 def do_callback(event):
     """OIDC callback from Harvard Key website.
@@ -595,37 +604,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
             match (method, path, action):
                 ################################################################
-                # JSON Actions
-                case ("POST", "/", "ping"):
-                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
-
-                case ("POST", "/", "ping-mail"):
-                    hostnames = ['first']
-                    ipaddr = '<address>'
-                    email_subject = "E11 email ping"
-                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr)
-                    ses_response = ses_client.send_email(
-                        Source=SES_VERIFIED_EMAIL,
-                        Destination={'ToAddresses': [payload['email']]},
-                        Message={ 'Subject': {'Data': email_subject},
-                                  'Body': {'Text': {'Data': email_body}} } )
-                    LOGGER.info("SES response: %s",ses_response)
-
-                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
-
-                case ("POST", "/api/v1/register", "register"):
-                    return do_register(event, payload)
-
-                case ("GET", "/heartbeat", _):
-                    return do_heartbeat(event, context)
-
-                ################################################################
                 # Human actions
                 case ("GET","/", _):
                     return do_page(event)
-
-                case ("GET","/auth/callback",_):
-                    return do_callback(event)
 
                 case ("GET","/dashboard",_):
                     return do_dashboard(event)
@@ -639,13 +620,49 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return error_404(p)
 
                 ################################################################
-                # error
-                case (_,_,_):
+                # Authentication callback
+                #
+                case ("GET","/auth/callback",_):
+                    return do_callback(event)
+
+                ################################################################
+                # JSON Actions
+                #
+                case ("POST", "/api/v1", "ping"):
+                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+
+                case ("POST", "/api/v1", "ping-mail"):
+                    hostnames = ['first']
+                    ipaddr = '<address>'
+                    email_subject = "E11 email ping"
+                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr)
+                    ses_response = ses_client.send_email(
+                        Source=SES_VERIFIED_EMAIL,
+                        Destination={'ToAddresses': [payload['email']]},
+                        Message={ 'Subject': {'Data': email_subject},
+                                  'Body': {'Text': {'Data': email_body}} } )
+                    LOGGER.info("SES response: %s",ses_response)
+
+                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+
+                case ("POST", "/api/v1", "register"):
+                    return do_register(event, payload)
+
+                case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,
-                                            'message': "unknown or missing action; use 'ping', 'ping-mail', or 'grade'",
+                                            'message': "unknown or missing action.",
                                             'method':method,
                                             'path':path,
                                             'action':action })
+
+                case ("GET", "/heartbeat", _):
+                    return do_heartbeat(event, context)
+
+
+                ################################################################
+                # error
+                case (_,_,_):
+                    return error_404(path)
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unhandled exception!")
