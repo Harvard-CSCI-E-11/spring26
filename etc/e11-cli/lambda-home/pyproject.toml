@@ -58,10 +58,16 @@ ignore = ["jinja-block","jinja-variable","J004", "J018"]
 extend_exclude = "node_modules/**,.venv/**"
 indent = 4
 
-[tool.pylint.main]
+[tool.pylint]
 # Specify the Python version Pylint should assume for syntax checking.
 py-version = "3.13"
-ignore-paths = ["src/home_app/e11"]
+ignore-paths = [
+    ".venv/.*", 
+    "src/home_app/e11/.*"
+]
+source-roots = [".."]
+[tool.pylint.FORMAT]
+max-line-length=200
 
 [tool.pylint.messages_control]
 # Disable specific messages by their symbolic name or message ID.
@@ -70,7 +76,9 @@ disable = [
     "missing-class-docstring",
     "missing-function-docstring",
     "line-too-long",
-    "unspecified-encoding"
+    "unspecified-encoding",
+    "too-few-public-methods"
+
 ]
 
 [tool.pylint.design]

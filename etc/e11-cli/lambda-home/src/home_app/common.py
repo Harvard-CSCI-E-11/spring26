@@ -10,16 +10,14 @@ import logging
 import functools
 import datetime
 from os.path import dirname, join, isdir
-from typing import TypedDict
-from typing import Any, Dict, Tuple, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel,ConfigDict
 import boto3
 
-from mypy_boto3_dynamodb.client import DynamoDBClient
 from mypy_boto3_route53.client import Route53Client
 from mypy_boto3_secretsmanager.client import SecretsManagerClient
-
+from mypy_boto3_dynamodb.client import DynamoDBClient
 from mypy_boto3_dynamodb.service_resource import (
     DynamoDBServiceResource,
     Table as DynamoDBTable,
@@ -122,8 +120,6 @@ def _configure_root_once():
 
     # If this code is used as a library elsewhere, avoid “No handler” warnings:
     logging.getLogger(__name__).addHandler(logging.NullHandler())
-
-    _CONFIGURED = True
 
 def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger under the 'e11' namespace (e.g., e11.grader)."""

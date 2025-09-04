@@ -36,6 +36,7 @@ from boto3.dynamodb.conditions import Key
 from itsdangerous import BadSignature, SignatureExpired
 import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
+from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 from . import common
 from . import oidc
@@ -44,7 +45,6 @@ from . import grader
 from .common import get_logger,smash_email,add_user_log
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, Session
-from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 LOGGER = get_logger("home")
 
@@ -481,7 +481,7 @@ def get_user_from_email(email) -> User:
     item = resp['Items'][0]
     return convert_dynamodb_item_to_user(item)
 
-def send_email(to_addr: str, email_subject: str, email_body: str, cc: Optional[str] = None):
+def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [to_addr]},
