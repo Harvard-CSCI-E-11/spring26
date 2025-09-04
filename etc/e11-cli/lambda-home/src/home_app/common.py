@@ -85,11 +85,11 @@ class User(DictLikeModel):
     created: int
     claims: Dict[str, Any]
     updated: int
-    ipaddr: Optional[str]
-    hostname: Optional[str]
+    ipaddr: Optional[str] = None
+    hostname: Optional[str] = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
-class Session(**DictLikeModel):
+class Session(DictLikeModel):
     """e11-sessions table record"""
     sid: str
     email: str                  # used to find the user in the Users table

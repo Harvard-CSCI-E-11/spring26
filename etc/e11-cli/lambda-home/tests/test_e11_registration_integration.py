@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch, MagicMock
 import requests
 
 import home_app.home as home
+from home_app.common import User
 
 
 class MockedAWSServices:
@@ -153,12 +154,12 @@ def test_e11_registration_with_test_config(monkeypatch):
 
     # Mock the user lookup to return a valid user
     def mock_get_user_from_email(email):
-        return {
+        return User(**{
             'user_id': 'test-user-id',
             'email': email,
             'course_key': test_config_data['course_key'],
             'sk': '#'
-        }
+        })
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 

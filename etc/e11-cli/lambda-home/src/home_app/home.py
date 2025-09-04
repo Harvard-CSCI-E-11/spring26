@@ -476,7 +476,7 @@ def get_user_from_email(email) -> User:
     resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
     if resp['Count']>1:
         raise DatabaseInconsistency(f"multiple database entries with the same email: {resp}")
-    if resp['Count']==1:
+    if resp['Count']!=1:
         raise EmailNotRegistered(email)
     item = resp['Items'][0]
     return convert_dynamodb_item_to_user(item)
@@ -723,6 +723,10 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # error
                 case (_,_,_):
                     return error_404(path)
+
+        except EmailNotRegistered as e:
+            LOGGER.info(f"EmailNotRegistered: {e}")
+            return resp_json(302, {"error" : f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unhandled exception!")

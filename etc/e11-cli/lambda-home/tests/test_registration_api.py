@@ -6,6 +6,8 @@ import configparser
 from unittest.mock import Mock, patch, MagicMock
 
 import home_app.home as home
+from home_app.common import User
+from home_app.home import EmailNotRegistered
 
 class MockedAWSServices:
     """Mock AWS services for testing registration API"""
@@ -179,12 +181,13 @@ def test_registration_api_flow(monkeypatch):
 
         # Mock the user lookup to return a valid user
         def mock_get_user_from_email(email):
-            return {
-                'user_id': 'test-user-id',
-                'email': email,
-                'course_key': '123456',
-                'sk': '#'
-            }
+            return User(**{ 'user_id': 'test-user-id',
+                            'email': email,
+                            'course_key': '123456',
+                            'sk': '#',
+                            'claims':{},
+                            'updated':0,
+                            'created':0})
 
         monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -293,7 +296,7 @@ def test_registration_api_invalid_user(monkeypatch):
 
     # Mock the user lookup to return None (user not found)
     def mock_get_user_from_email(email):
-        return None
+        raise EmailNotRegistered(email)
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -344,12 +347,15 @@ def test_registration_api_invalid_course_key(monkeypatch):
 
     # Mock the user lookup to return a user with different course key
     def mock_get_user_from_email(email):
-        return {
+        return User(**{
             'user_id': 'test-user-id',
             'email': email,
             'course_key': '654321',  # Different course key
-            'sk': '#'
-        }
+            'sk': '#',
+            'claims': {},
+            'updated': 0,
+            'created': 0
+        })
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 

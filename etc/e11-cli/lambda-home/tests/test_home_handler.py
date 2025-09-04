@@ -6,7 +6,7 @@ import logging
 import home_app.home as home
 import home_app.oidc as oidc
 
-def _api_event(path, *, qs=None, cookies=None, method='GET', body:None):
+def _api_event(path, *, qs=None, cookies=None, method='GET', body=None):
     return {
         "rawPath": path,
         "queryStringParameters": qs or {},
