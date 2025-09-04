@@ -32,6 +32,27 @@ dev = [
 [project.scripts]
 e11 = "e11.__main__:main"
 
+[tool.pylint.main]
+# Specify the Python version Pylint should assume for syntax checking.
+py-version = "3.12"
+
+[tool.pylint.messages_control]
+# Disable specific messages by their symbolic name or message ID.
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "line-too-long",
+    "unspecified-encoding"
+]
+
+[tool.pylint.design]
+# Set the maximum number of arguments for a function.
+max-args = 10
+
+# Set the maximum number of public methods in a class.
+max-public-methods = 20
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["e11*"]

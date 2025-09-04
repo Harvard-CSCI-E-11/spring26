@@ -1,4 +1,4 @@
-name: CI for all of e11
+name: CI for e11-cli
 
 on:
   push:
@@ -36,20 +36,16 @@ jobs:
           pipx install poetry
           poetry --version
 
-      - name: Configure Poetry (.venv in project)
-        run: |
-          poetry config virtualenvs.create true
-          poetry config virtualenvs.in-project true
-
-      - name: Sync deps
-        run: poetry sync
-
       - name: e11 command tests with coverage
-        run: poetry run make pytest
+        run: make pytest
 
       - name: lambda-home tests with coverage
         run: |
           (cd lambda-home; make pytest)
+
+      - name: list coverage files
+        run: |
+          find . -name coverage.xml -ls
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4

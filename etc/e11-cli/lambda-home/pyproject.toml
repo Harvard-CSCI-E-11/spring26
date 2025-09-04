@@ -54,3 +54,24 @@ profile = "jinja"
 ignore = ["jinja-block","jinja-variable","J004", "J018"]
 extend_exclude = "node_modules/**,.venv/**"
 indent = 4
+
+[tool.pylint.main]
+# Specify the Python version Pylint should assume for syntax checking.
+py-version = "3.13"
+
+[tool.pylint.messages_control]
+# Disable specific messages by their symbolic name or message ID.
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "line-too-long",
+    "unspecified-encoding"
+]
+
+[tool.pylint.design]
+# Set the maximum number of arguments for a function.
+max-args = 10
+
+# Set the maximum number of public methods in a class.
+max-public-methods = 20

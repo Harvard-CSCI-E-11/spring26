@@ -2,6 +2,7 @@ import re
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.primitives import run_command, read_file, http_get, python_entry, port_check
 from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail
+from e11.e11core.context import build_ctx
 
 @timeout(5)
 def test_venv_present():
@@ -19,7 +20,6 @@ def test_nginx_config_syntax_ok():
 @retry(times=3, backoff=0.25)
 @timeout(10)
 def test_https_root_ok():
-    from e11.e11core.context import build_ctx
     ctx = build_ctx("lab3")
     url = f"https://{ctx['labdns']}/"
     r = http_get(url, follow_redirects=True, tls_info=True)
@@ -29,7 +29,6 @@ def test_https_root_ok():
 
 @timeout(5)
 def test_backdoor_ssh_on_port_80_closed():
-    from e11.e11core.context import build_ctx
     ctx = build_ctx("lab3")
     if port_check(ctx["public_ip"], 80):
         raise TestFail("TCP/80 accepted a connection (SSH backdoor likely active)")

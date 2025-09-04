@@ -18,10 +18,8 @@ install:
 lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 
-pytest: install
-	.venv/bin/pytest -q --maxfail=1 --disable-warnings --cov=e11 --cov-report=term-missing --cov-report=xml tests/
-
-lint:
+pytest: .venv/pyvenv.cfg
+	.venv/bin/pytest -q --maxfail=1 --cov=e11 --cov-report=term-missing --cov-report=xml tests/
 
 
 clean:

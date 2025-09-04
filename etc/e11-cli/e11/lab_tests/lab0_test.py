@@ -2,7 +2,9 @@
 # This test is for the pytest self-test
 #
 
-import os, sys, re
+#import os
+#import sys
+#import re
 from pathlib import Path
 from e11.e11core.decorators import timeout
 from e11.e11core.primitives import run_command, read_file
