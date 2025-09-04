@@ -49,9 +49,10 @@ jobs:
           find . -name coverage.xml -ls
 
       - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13'
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.xml${{ matrix.python-version == '3.13' && ',lambda-home/coverage.xml' || '' }}
+          files: coverage.xml,lambda-home/coverage.xml
           flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
