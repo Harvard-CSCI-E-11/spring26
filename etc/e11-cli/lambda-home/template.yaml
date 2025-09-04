@@ -102,7 +102,6 @@ Resources:
                 - dynamodb:DeleteItem
                 - dynamodb:UpdateItem
                 - dynamodb:Query
-                - dynamodb:Scan
               Resource:
                 - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
                 - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
@@ -116,7 +115,6 @@ Resources:
                 - dynamodb:DeleteItem
                 - dynamodb:UpdateItem
                 - dynamodb:Query
-                - dynamodb:Scan
               Resource:
                 - !GetAtt SessionsTable.Arn
                 - !Sub "${SessionsTable.Arn}/index/*"

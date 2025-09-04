@@ -39,17 +39,17 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 from . import common
 from . import oidc
+from . import grader
 
-from .common import get_logger
-LOGGER = get_logger("grader")
+from .common import get_logger,smash_email,add_user_log
+from .common import users_table,sessions_table,SESSION_TTL_SECS,A
+
+LOGGER = get_logger("home")
 
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
-SESSION_CREATED='session_created'
-SESSION_EXPIRE='session_expire'
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
-IPADDR = 'ipaddr'
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -73,17 +73,8 @@ env.filters["eastern"] = eastern_filter
 # OIDC
 OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
 
-# DynamoDB
-DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
-USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
-SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
-SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
-dynamodb_client = boto3.client("dynamodb")
-dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
-users_table    = dynamodb_resource.Table(USERS_TABLE_NAME)
-sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
-
-USER_ID = 'user_id'
+# SSH
+SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID")
 
 # Auth Cookie
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
@@ -124,7 +115,7 @@ EMAIL_BODY="""
     The following DNS record has been created:
 
     Hostname: {hostname}
-    IP Address: {ipaddr}
+    Public IP Address: {ipaddr}
 
     Best regards,
     CSCIE-11 Team
@@ -202,23 +193,9 @@ def _with_request_log_level(payload: Dict[str, Any]):
             LOGGER.setLevel(self.old)
     return _Ctx()
 
-################################################################
-## Add to user log
-def add_user_log(event, user_id, message, **extra):
-    """
-    :param user_id: user_id
-    :param message: Message to add to log
-    """
-    client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
-    now = datetime.datetime.now().isoformat()
-    LOGGER.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
-    ret = users_table.put_item(Item={USER_ID:user_id,
-                               'sk':f'log#{now}',
-                               'client_ip':client_ip,
-                               'message':message,
-                               **extra})
-    LOGGER.debug("put_table=%s",ret)
-
+def make_course_key():
+    """Make a course key"""
+    return str(uuid.uuid4())[0:COURSE_KEY_LEN]
 
 ################################################################
 ## Parse Lambda Events and cookies
@@ -289,27 +266,27 @@ def new_session(event, claims):
     """
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
-    email = claims['email']
+    email = claims[A.EMAIL]
 
     user = get_user_from_email(email)
     if user is None:
         now = int(time.time())
         user_id = str(uuid.uuid4())
-        user = {USER_ID:user_id,
-                'sk':'#',
-                'email':email,
-                'course_key':str(uuid.uuid4())[0:COURSE_KEY_LEN],
-                'created':now,
-                'claims':claims,
-                'updated':now}
+        user = {A.USER_ID:user_id,
+                A.SK:A.SK_USER,
+                A.EMAIL:email,
+                A.COURSE_KEY: make_course_key(),
+                A.CREATED:now,
+                A.CLAIMS:claims,
+                A.UPDATED:now}
         ret = users_table.put_item(Item=user)        # USER CREATION POINT
         add_user_log(event, user_id, f"User {email} created", claims=claims)
 
     sid = str(uuid.uuid4())
     session = { "sid": sid,
              "email": email,
-             SESSION_CREATED : int(time.time()),
-             SESSION_EXPIRE  : int(time.time() + SESSION_TTL_SECS),
+             A.SESSION_CREATED : int(time.time()),
+             A.SESSION_EXPIRE  : int(time.time() + SESSION_TTL_SECS),
              "name" : claims.get('name',''),
              "client_ip": client_ip,
              "claims" : claims }
@@ -342,7 +319,7 @@ def get_session(event) -> Optional[dict]:
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
-    key_query = Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
+    key_query = Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)
     logs = []
     resp = users_table.query( KeyConditionExpression=key_query    )
     logs.extend(resp['Items'])
@@ -412,26 +389,25 @@ def do_dashboard(event):
     client_ip = event["requestContext"]["http"]["sourceIp"]
     ses = get_session(event)
     if not ses:
-        LOGGER.debug("No session; redirecting to /")
         return redirect("/")
-    email = ses['email']
+    email = ses[A.EMAIL]
     user = get_user_from_email(email)
     if not user:
         return resp_text(500, f"Internal error: no user for email address {email}")
 
-    user_id = user[USER_ID]
+    user_id = user[A.USER_ID]
 
     # Get the dashboard items
     items = []
-    resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id) )
+    resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user_id) )
     items.extend(resp['Items'])
     while LastEvaluatedKey in resp:
-        resp = users_table.query( KeyConditionExpression=Key(USER_ID).eq(user_id),
+        resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user_id),
                                   ExclusiveStartKey=resp[LastEvaluatedKey] )
         items.extend(resp['Items'])
 
     logs = all_logs_for_userid(user_id)
-    sessions = all_sessions_for_email(user['email'])
+    sessions = all_sessions_for_email(user[A.EMAIL])
     template = env.get_template("dashboard.html")
     return resp_text(200, template.render(user=user,
                                           ses=ses,
@@ -472,12 +448,6 @@ def do_logout(event):
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
-def smash_email(email):
-    """Convert an email into the CSCI E-11 smashed email"""
-    email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
-    smashed_email = "".join(email.replace("@",".").split(".")[0:2])
-    return smashed_email
-
 def get_user_from_email(email):
     """Given an email address, get the user record from the users_table.
     Note - when the first session is created, we don't know the user-id.
@@ -489,12 +459,23 @@ def get_user_from_email(email):
         return resp['Items'][0]
     return None
 
+def send_email(to_addr: str, email_subject: str, email_body: str, cc: str = None):
+    r = ses_client.send_email(
+        Source=SES_VERIFIED_EMAIL,
+        Destination={'ToAddresses': [to_addr]},
+        Message={ 'Subject': {'Data': email_subject},
+                  'Body': {'Text': {'Data': email_body}} } )
+
+    LOGGER.info("send_email to=%s subject=%s SES response: %s",to_addr,email_subject,r)
+    return r
+
+
 # pylint: disable=too-many-locals
 def do_register(event,payload):
     """Register a VM"""
     LOGGER.info("do_register payload=%s event=%s",payload,event)
     registration = payload['registration']
-    email = registration.get('email')
+    email = registration.get(A.EMAIL)
     ipaddr = registration.get('ipaddr')
     instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
@@ -503,28 +484,29 @@ def do_register(event,payload):
     user = get_user_from_email(email)
     if not user:
         return resp_json(403, {'message':'User email not registered. Please visit {DASHBOARD} to register.',
-                               'email':email})
+                               A.EMAIL:email})
 
     # See if the user's course_key matches
     if user['course_key'] != registration.get('course_key'):
-        return resp_json(403, {'message':'User course_key does not match registration course_key. Please visit {DASHBOARD} to find correct course_key.',
-                               'email':email})
+        return resp_json(403,
+                         {'message':
+                          'User course_key does not match registration course_key. '
+                          'Please visit {DASHBOARD} to find correct course_key.',
+                          A.EMAIL:email})
 
     # update the user record
-    users_table.update_item(
-        Key={
-            "user_id": user["user_id"],
-            "sk": user["sk"],
-        },
-        UpdateExpression="SET ipaddr = :ip, hostname = :hn, reg_time = :t, name = :name",
-        ExpressionAttributeValues={
-            ":ip": ipaddr,
-            ":hn": hostname,
-            ":t": int(time.time()),
-            ":name": registration.get('name')
+    users_table.update_item( Key={ "user_id": user["user_id"],
+                                   "sk": user["sk"],
+                                  },
+                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.REG_TIME} = :t, {A.NAME} = :name",
+                             ExpressionAttributeValues={
+                                 ":ip": ipaddr,
+                                 ":hn": hostname,
+                                 ":t": int(time.time()),
+                                 ":name": registration.get('name')
         }
     )
-    add_user_log(event, user[USER_ID], f'User registered instanceId={instanceId} ipaddr={ipaddr}')
+    add_user_log(event, user[A.USER_ID], f'User registered instanceId={instanceId} ipaddr={ipaddr}')
 
     # Create DNS records in Route53
     changes = []
@@ -545,25 +527,17 @@ def do_register(event,payload):
         })
     LOGGER.info("Route53 response: %s",route53_response)
     for h in hostnames:
-        add_user_log(event, user[USER_ID], f'DNS updated for {h}.{DOMAIN}')
+        add_user_log(event, user[A.USER_ID], f'DNS updated for {h}.{DOMAIN}')
 
     # Send email notification using SES
-    email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}"
-    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user['course_key'])
-    ses_response = ses_client.send_email(
-        Source=SES_VERIFIED_EMAIL,
-        Destination={'ToAddresses': [email]},
-        Message={ 'Subject': {'Data': email_subject},
-                  'Body': {'Text': {'Data': email_body}} } )
-    LOGGER.info("SES response: %s",ses_response)
-    add_user_log(event, user[USER_ID], f'Registration email sent to {email}')
+    send_email(to_addr=email,
+               email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
+               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user['course_key']))
+    add_user_log(event, user[A.USER_ID], f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
-def do_grade(event):
-    """Do a grade"""
-    LOGGER.info("do_grade event=%s",event)
-    return resp_json(400, {'error':True})
+
 
 ################################################################
 def expire_batch(now:int, items: dict) -> int:
@@ -590,6 +564,56 @@ def do_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
+def do_grader(event, context, payload):
+    """Get ready for grading, then run the grader."""
+    LOGGER.info("do_grade event=%s context=%s",event,context)
+    ses = get_session(event)
+    if not ses:
+        return resp_json(400, {'message':'No session cookie.','error':True})
+
+    # Open SSH (fetch key from Secrets Manager)
+    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
+    key_pem = secret.get("SecretString") or secret.get("SecretBinary")
+    if isinstance(key_pem, bytes):
+        key_pem = key_pem.decode("utf-8", "replace")
+
+    lab = payload['lab']
+    ipaddr = ses[A.IPADDR]
+    email = ses[A.email]
+    summary = grader.grade_student_vm(user_id=ses[A.USER_ID],lab=lab,ipaddr=ipaddr,email=email, key_pem=key_pem)
+
+    # Create email message for user
+    subject = f"[E11] {lab} score {summary['score']}/5.0"
+    body_lines = [subject, "", "Passes:"]
+    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
+    if summary["fails"]:
+        body_lines += ["", "Failures:"]
+        for t in summary["tests"]:
+            if t["status"] == "fail":
+                body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
+                if t.get("context"):
+                    body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
+    body = "\n".join(body_lines)
+
+    send_email(to_addr = email,
+               email_subject=subject,
+               email_body = body)
+
+    now = datetime.datetime.now().isoformat()
+    item = { A.USER_ID: ses[A.USER_ID],
+             A.SK: f"{A.SK_GRADE_PREFIX}{now}",
+             A.LAB: lab,
+             A.IPADDR: ipaddr,
+             "score": str(summary["score"]),
+             "pass_names": summary["passes"],
+             "fail_names": summary["fails"],
+             "raw": json.dumps(summary)[:35000]}
+    users_table.put_item(Item=item)
+    LOGGER.info("DDB put_item to %s", users_table)
+
+    return resp_json(200, {'summary':summary})
+
+
 ################################################################
 ## main entry point from lambda system
 
@@ -604,22 +628,6 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
             match (method, path, action):
                 ################################################################
-                # Human actions
-                case ("GET","/", _):
-                    return do_page(event)
-
-                case ("GET","/dashboard",_):
-                    return do_dashboard(event)
-
-                case ("GET","/logout",_):
-                    return do_logout(event)
-
-                case ("GET", p, _):
-                    if p.startswith("/static"):
-                        return static_file(p.removeprefix("/static/"))
-                    return error_404(p)
-
-                ################################################################
                 # Authentication callback
                 #
                 case ("GET","/auth/callback",_):
@@ -629,24 +637,31 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # JSON Actions
                 #
                 case ("POST", "/api/v1", "ping"):
-                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path,
+                                           'context':dict(context),
+                                           'environ':dict(os.environ)
+                                           })
 
                 case ("POST", "/api/v1", "ping-mail"):
                     hostnames = ['first']
                     ipaddr = '<address>'
-                    email_subject = "E11 email ping"
-                    email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr)
-                    ses_response = ses_client.send_email(
-                        Source=SES_VERIFIED_EMAIL,
-                        Destination={'ToAddresses': [payload['email']]},
-                        Message={ 'Subject': {'Data': email_subject},
-                                  'Body': {'Text': {'Data': email_body}} } )
-                    LOGGER.info("SES response: %s",ses_response)
+                    resp = send_email(email_subject = "E11 email ping",
+                               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr),
+                               to_addr=payload[A.EMAIL])
 
-                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path, 'environ':dict(os.environ)})
+                    return resp_json(200, {"error": False, "message": "ok",
+                                           "path":sys.path,
+                                           "resp":resp,
+                                           'environ':dict(os.environ)})
 
                 case ("POST", "/api/v1", "register"):
                     return do_register(event, payload)
+
+                case ("POST", '/api/v1', 'heartbeat'):
+                    return do_heartbeat(event, context)
+
+                case ("POST", '/api/v1', 'grade'):
+                    return do_grader(event, context, payload)
 
                 case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,
@@ -658,6 +673,23 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 case ("GET", "/heartbeat", _):
                     return do_heartbeat(event, context)
 
+
+                ################################################################
+                # Human actions
+                case ("GET","/", _):
+                    return do_page(event)
+
+                case ("GET","/dashboard",_):
+                    return do_dashboard(event)
+
+                case ("GET","/logout",_):
+                    return do_logout(event)
+
+                # This must be last - catch all GETs, check for /static
+                case ("GET", p, _):
+                    if p.startswith("/static"):
+                        return static_file(p.removeprefix("/static/"))
+                    return error_404(p)
 
                 ################################################################
                 # error

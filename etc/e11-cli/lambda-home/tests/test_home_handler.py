@@ -6,13 +6,13 @@ import logging
 import home_app.home as home
 import home_app.oidc as oidc
 
-def _api_event(path, qs=None, cookies=None):
+def _api_event(path, *, qs=None, cookies=None, method='GET', body:None):
     return {
         "rawPath": path,
         "queryStringParameters": qs or {},
-        "requestContext": {"http": {"method": "GET", "sourceIp": "203.0.113.9"}, "stage": ""},
+        "requestContext": {"http": {"method": method, "sourceIp": "203.0.113.9"}, "stage": ""},
         "isBase64Encoded": False,
-        "body": None,
+        "body": body,
         "cookies" : cookies or {}
     }
 
@@ -71,3 +71,6 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     assert logout_resp["statusCode"] == 200
     assert "Max-Age=0;" in logout_resp['cookies'][0] # validate that it logs the user out
     assert "You have been logged out" in logout_resp['body']
+
+    # 6) Check point
+    home.lambda_handler(_api_event('/api/v1',method='POST',body={'action':'ping'}))

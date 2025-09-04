@@ -52,12 +52,46 @@
       <td>{{ session.client_ip }}</td>
       <td>{{ session.session_created | eastern }}</td>
       <td>{{ session.session_expire |eastern }}</td>
-      <td><a href='/api/v1/del-session?sid={{ session.sid }}'>×</a></td>
+      <td><span class="delete-btn"> data-sid="{{ session.sid }}">×</span></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
 <p><i>(All times in eastern time.)</i></p>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+   document.querySelectorAll(".delete-btn").forEach(btn => {
+     btn.style.cursor = "pointer"; // make it obvious it's clickable
+
+     btn.addEventListener("click", async (event) => {
+       const sid = btn.dataset.sid;
+       try {
+         const resp = await fetch("/api/v1", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ action: "delete-session", sid: sid
+           })
+         });
+
+         if (resp.ok) {           // Remove the row containing the clicked button
+           btn.closest("tr").remove();
+         } else {
+           btn.textContent = "failed";
+           btn.classList.add = "failed";
+           console.error("Delete failed:", resp.status, resp.statusText);
+           console.error("Response body:", await resp.text());
+         }
+       } catch (err) {
+         btn.textContent = "failed";
+         btn.classList.add = "failed";
+         console.error("Fetch error:", err);
+       }
+     });
+   });
+ });
+</script>
+
 
 {% endblock body %}

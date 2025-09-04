@@ -7,3 +7,12 @@ body {
 .current-session {
     background-color: #ffeeff;
 }
+
+.delete-btn {
+  cursor: pointer;
+}
+
+.delete-btn.failed {
+  color: red;
+  font-weight: bold;
+}

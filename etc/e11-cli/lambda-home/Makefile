@@ -5,7 +5,7 @@ STACK_STAGE     ?= home-app-stage
 CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 REGION          ?= us-east-1
 PROFILE         ?= fas
-PY              = python3.13
+PYTHON          = python3.13
 PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 313 --only-binary=:all:
 DJLINT_FLAGS ?= --profile=jinja --lint --quiet --ignore J004,J018
 SHELL := /bin/bash
@@ -17,63 +17,81 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1
 export PYTHONDONTWRITEBYTECODE=1
 
-.PHONY: install
+.PHONY: install vend-e11 lint pytest
 install:
 	make .venv/pyvenv.cfg
 
 .venv/pyvenv.cfg: pyproject.toml Makefile
-	$(PY) -m venv .venv
+	$(PYTHON) -m venv .venv
 	.venv/bin/pip install -e .
 	.venv/bin/pip install -e ".[dev]"
 
-pytest: .venv/pyvenv.cfg
-	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
+vend-e11:
+	@echo vending e11 module to src/
+	rsync --archive --verbose --delete ../e11 src/home_app/e11 --exclude '*.pyc'
 
 lint: .venv/pyvenv.cfg
 	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
 	.venv/bin/pylint src
 
+pytest: .venv/pyvenv.cfg
+	make vend-e11
+	make lint
+	.venv/bin/python -m pytest -v --cov=. --cov-report=xml --cov-report=html --log-cli-level=DEBUG tests
+
 
 build-prod: template.yaml samconfig.toml src/requirements.txt
+	make vend-e11
 	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
 
 # don't specify template in deploy-prod or deploy-stage
 deploy-prod: build-prod
+	make vend-e11
 	sam deploy --config-file samconfig.toml
 	curl --silent  https://csci-e-11.org/ | head -3
 
 vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
 	make lint
+	make vend-e11
 	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://stage.csci-e-11.org/ | head -3
 
+# sync is just not working
 # Note - sync and watch don't work because the files in requirements.txt are not vendored into the src/
 # directory. There are a number of workarounds but we aren't using them here.
-sync-stage: build-stage
-	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)
-
-sync-watch-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
-	@echo note that SAM resolves relative paths from the template’s directory when you pass -t
-	sam sync --config-file "$$(pwd)/samconfig-stage.toml" --stack-name home-app-stage --watch --code -t .aws-sam/build/template.yaml
+# sync-stage: build-stage
+#	make vend-e11
+#	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)
+#
+# sync-watch-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+#	@echo note that SAM resolves relative paths from the template’s directory when you pass -t
+#	make vend-e11
+#	sam sync --config-file "$$(pwd)/samconfig-stage.toml" --stack-name home-app-stage --watch --code -t .aws-sam/build/template.yaml
 
 # Tail production logs
 tail:
 	@echo "Tailing production logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) --query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" --since 15m --follow --region $(REGION) --profile $(PROFILE)
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
+		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
 # Tail stage logs (separate stack)
 tail-stage:
 	@echo "Tailing stage logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) --query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" --since 15m --follow --region $(REGION) --profile $(PROFILE)
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
+		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
 # Show function names
 functions:
 	@echo "Production function:"
-	@aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) --query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
+	@aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 	@echo "Stage function:"
-	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) --query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
+	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
 src/requirements.txt: pyproject.toml Makefile .venv/pyvenv.cfg
 	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
