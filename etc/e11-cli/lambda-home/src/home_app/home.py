@@ -288,8 +288,11 @@ def new_session(event, claims) -> Session:
     LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
     email = claims[A.EMAIL]
 
-    user = get_user_from_email(email)
-    if user is None:
+    try:
+        user = get_user_from_email(email)
+        user_id = user.user_id
+    except EmailNotRegistered:
+        # User doesn't exist, create new user
         now = int(time.time())
         user_id = str(uuid.uuid4())
         user = {A.USER_ID:user_id,
@@ -725,7 +728,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return error_404(path)
 
         except EmailNotRegistered as e:
-            LOGGER.info(f"EmailNotRegistered: {e}")
+            LOGGER.info("EmailNotRegistered: %s",e)
             return resp_json(302, {"error" : f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught

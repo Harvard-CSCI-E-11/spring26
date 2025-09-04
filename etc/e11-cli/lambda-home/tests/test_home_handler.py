@@ -17,11 +17,10 @@ def _api_event(path, *, qs=None, cookies=None, method='GET', body=None):
     }
 
 def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
-    # Make home.get_odic_config() discovery point to our fake IdP
-    import conftest as cf
-    # Patch the secret fixture to point at the fake IdP
+    # Set up mocked AWS services manually since the fixture doesn't seem to be working
     import json
-    class PatchedSecrets:
+    
+    class FakeSecrets:
         def get_secret_value(self, SecretId):
             return {"SecretString": json.dumps({
                 "oidc_discovery_endpoint": fake_idp_server["discovery"],
@@ -30,7 +29,63 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
                 "hmac_secret": "super-secret-hmac",
                 "secret_key": "client-secret-xyz",
             })}
-    monkeypatch.setattr(home, "secretsmanager_client", PatchedSecrets())
+    
+    class FakeTable:
+        def __init__(self):
+            self.db = {}
+        
+        def put_item(self, Item):
+            # Store the item in our fake database
+            key = f"{Item.get('user_id', '')}#{Item.get('sk', '')}"
+            self.db[key] = Item
+            return {}
+        
+        def query(self, **kwargs):
+            # Handle GSI queries
+            if kwargs.get("IndexName") == "GSI_Email":
+                key_condition = kwargs.get("KeyConditionExpression")
+                if key_condition == "email = :e":
+                    email = kwargs.get("ExpressionAttributeValues", {}).get(":e")
+                    items = []
+                    for item in self.db.values():
+                        if item.get("email") == email:
+                            items.append(item)
+                    return {
+                        "Items": items,
+                        "Count": len(items),
+                        "LastEvaluatedKey": None
+                    }
+            return {"Items": [], "Count": 0, "LastEvaluatedKey": None}
+    
+    class FakeSessionsTable:
+        def __init__(self):
+            self.db = {}
+        
+        def put_item(self, Item):
+            key = Item.get("sid", "")
+            self.db[key] = Item
+            return {}
+        
+        def get_item(self, Key):
+            return {"Item": self.db.get(Key["sid"])}
+        
+        def delete_item(self, Key):
+            self.db.pop(Key["sid"], None)
+    
+    # Set up the mocked services
+    monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(home, "users_table", FakeTable())
+    monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
+    
+    # Also need to monkeypatch the users_table in common.py since add_user_log uses it
+    import home_app.common as common
+    monkeypatch.setattr(common, "users_table", FakeTable())
+    
+    # Debug: Check if the monkeypatch worked
+    # print(f"After monkeypatch:")
+    # print(f"users_table type: {type(home.users_table)}")
+    # print(f"sessions_table type: {type(home.sessions_table)}")
+    # print(f"secretsmanager_client type: {type(home.secretsmanager_client)}")
 
     # 1) GET "/" should embed login URL
     resp = home.lambda_handler(_api_event("/"), None)
@@ -42,14 +97,16 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     cfg = oidc.load_openid_config(fake_idp_server["discovery"], client_id="client-123",
                                   redirect_uri="https://app.example.org/auth/callback")
     cfg["hmac_secret"] = "super-secret-hmac"
-    cfg["secret_key"] = "client-secret-xyz"
+    cfg["secret_key"]  = "client-secret-xyz"
     auth_url, _ = oidc.build_oidc_authorization_url_stateless(openid_config=cfg)
     r = requests.get(auth_url, allow_redirects=False)
     qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["Location"]).query))
 
     # 3) Call the Lambda callback with the returned code/state
     cb_event = _api_event("/auth/callback", qs=qs)
-    cb_resp = home.lambda_handler(cb_event, None)
+    cb_resp  = home.lambda_handler(cb_event, None)
+    print("cb_resp=",cb_resp)
+
     assert cb_resp["statusCode"] == 302
     assert cb_resp["headers"]["Location"] == "/dashboard"
     # cookie should be set
@@ -73,4 +130,4 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     assert "You have been logged out" in logout_resp['body']
 
     # 6) Check point
-    home.lambda_handler(_api_event('/api/v1',method='POST',body={'action':'ping'}))
+    home.lambda_handler(_api_event('/api/v1',method='POST',body='{"action":"ping"}'), None)
