@@ -4,6 +4,10 @@
 
 This is the CSCI E-11 git repo for the Spring of 2026. It contains sample code, templates, and the text of the labs themselves.
 
+You will find the lab writeups on our [Google Drive](https://drive.google.com/drive/folders/1BexB_lGIw93CP4c6JPEMELY2m6h_qdvr).
+
+Currently these labs require that you have a [Harvard Key](https://key.harvard.edu/) account. By January 2026, you will also be able to use them with a Google Account.
+
 To use this repo, log into your AWS instance and type these commands at the `$` prompt (you do not type the prompt below):
 ```
 $ sudo apt install git
