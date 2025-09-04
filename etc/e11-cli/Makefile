@@ -19,7 +19,7 @@ lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 
 pytest: .venv/pyvenv.cfg
-	.venv/bin/pytest -q --maxfail=1 --cov=e11 --cov-report=term-missing --cov-report=xml tests/
+	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
 
 pyright: .venv/pyvenv.cfg
 	pyright
