@@ -44,11 +44,23 @@ from . import grader
 from .common import get_logger,smash_email,add_user_log
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, Session
+from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 LOGGER = get_logger("home")
 
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
+
+def convert_dynamodb_item_to_user(item: dict) -> User:
+    """Convert a DynamoDB item to a User object, handling type conversions."""
+    converted_item = {}
+    for key, value in item.items():
+        # Convert numeric types to strings for Pydantic model compatibility
+        if isinstance(value, (int, float)):
+            converted_item[key] = str(value)
+        else:
+            converted_item[key] = value
+    return User(**converted_item)
 
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
 
@@ -72,10 +84,10 @@ env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.pa
 env.filters["eastern"] = eastern_filter
 
 # OIDC
-OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID")
+OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
 
 # SSH
-SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID")
+SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID","please define SSH_SECRET_ID")
 
 # Auth Cookie
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
@@ -143,7 +155,7 @@ def resp_json(status: int, body: Dict[str, Any], headers: Optional[Dict[str, str
         "body": json.dumps(body),
     }
 
-def resp_text(status: int, body: str, headers: Optional[Dict[str, str]] = None, cookies: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+def resp_text(status: int, body: str, headers: Optional[Dict[str, str]] = None, cookies: Optional[list[str]] = None) -> Dict[str, Any]:
     """End HTTP event processing with text/html"""
     LOGGER.debug("resp_text(status=%s)",status)
     return {
@@ -266,10 +278,11 @@ def get_odic_config():
 ##
 
 
-def new_session(event, claims):
+def new_session(event, claims) -> Session:
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
     Get the USER_ID from the users table. If it is not there, create it.
+    Returns the Session object.
     """
     client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     LOGGER.debug("in new_session. claims=%s client_ip=%s",claims,client_ip)
@@ -300,7 +313,7 @@ def new_session(event, claims):
     ret = sessions_table.put_item(Item=session)
     LOGGER.debug("new_session table=%s user=%s session=%s ret=%s",sessions_table,user, session, ret)
     add_user_log(event, user_id, f"Session {sid} created")
-    return sid
+    return Session(**session)
 
 def get_session(event) -> Optional[Session]:
     """Return the session dictionary if the session is valid and not expired."""
@@ -336,7 +349,7 @@ def all_logs_for_userid(user_id):
     while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=key_query,
                                   ExclusiveStartKey=resp[LastEvaluatedKey])
-        logs.extend([User(**u) for u in resp['Items']])
+        logs.extend([convert_dynamodb_item_to_user(u) for u in resp['Items']])
     return logs
 
 
@@ -411,8 +424,8 @@ def do_dashboard(event):
     items.extend(resp['Items'])
     while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user.user_id),
-                                  ExclusiveStartKey=resp[LastEvaluatedKey] )
-        items.extend([User(**u) for u in resp['Items']))
+                                  ExclusiveStartKey=resp[LastEvaluatedKey])
+        items.extend([convert_dynamodb_item_to_user(u) for u in resp['Items']])
 
     logs = all_logs_for_userid(user.user_id)
     sessions = all_sessions_for_email(user.email)
@@ -443,9 +456,9 @@ def do_callback(event):
         return redirect("/expired")
 
     LOGGER.debug("obj=%s",obj)
-    sid = new_session(event,obj['claims'])
-    sid_cookie = make_cookie(COOKIE_NAME, sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
-    LOGGER.debug("new_session sid=%s",sid)
+    ses = new_session(event,obj['claims'])
+    sid_cookie = make_cookie(COOKIE_NAME, ses.sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
+    LOGGER.debug("new_session sid=%s",ses.sid)
     return redirect("/dashboard", cookies=[sid_cookie])
 
 def do_logout(event):
@@ -465,9 +478,10 @@ def get_user_from_email(email) -> User:
         raise DatabaseInconsistency(f"multiple database entries with the same email: {resp}")
     if resp['Count']==1:
         raise EmailNotRegistered(email)
-    return User(**resp['Items'][0])
+    item = resp['Items'][0]
+    return convert_dynamodb_item_to_user(item)
 
-def send_email(to_addr: str, email_subject: str, email_body: str, cc: str = None):
+def send_email(to_addr: str, email_subject: str, email_body: str, cc: Optional[str] = None):
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={'ToAddresses': [to_addr]},
@@ -518,22 +532,25 @@ def do_register(event,payload):
     add_user_log(event, user.user_id, f'User registered instanceId={instanceId} ipaddr={ipaddr}')
 
     # Create DNS records in Route53
-    changes = []
     hostnames = [f"{hostname}{suffix}.{DOMAIN}" for suffix in DOMAIN_SUFFIXES]
-    changes   = [{ "Action": "UPSERT",
-                         "ResourceRecordSet": {
-                             "Name": hostname,
-                             "Type": "A",
-                             "TTL": 300,
-                             "ResourceRecords": [{"Value": ipaddr}]
-                             }}
-                 for hostname in hostnames]
+    changes: list[ChangeTypeDef] = [
+        ChangeTypeDef(
+            Action="UPSERT",
+            ResourceRecordSet={
+                "Name": hostname,
+                "Type": "A",
+                "TTL": 300,
+                "ResourceRecords": [{"Value": ipaddr}]
+            }
+        )
+        for hostname in hostnames
+    ]
 
+    change_batch = ChangeBatchTypeDef(Changes=changes)
     route53_response = route53_client.change_resource_record_sets(
         HostedZoneId=HOSTED_ZONE_ID,
-        ChangeBatch={
-            "Changes": changes
-        })
+        ChangeBatch=change_batch
+    )
     LOGGER.info("Route53 response: %s",route53_response)
     for h in hostnames:
         add_user_log(event, user.user_id, f'DNS updated for {h}.{DOMAIN}')
@@ -549,7 +566,7 @@ def do_register(event,payload):
 
 
 ################################################################
-def expire_batch(now:int, items: dict) -> int:
+def expire_batch(now:int, items: list) -> int:
     """Actually delete the items"""
     n = 0
     for item in items:
@@ -564,7 +581,7 @@ def do_heartbeat(event, context):
     t0 = time.time()
     now = int(time.time())
     expired = 0
-    scan_kwargs = {"ProjectionExpression": "sid, session_expire"}
+    scan_kwargs: dict[str, Any] = {"ProjectionExpression": "sid, session_expire"}
     while True:
         page = sessions_table.scan(**scan_kwargs)
         expired += expire_batch(now, page.get("Items", []))
@@ -576,11 +593,11 @@ def do_heartbeat(event, context):
 def do_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
     LOGGER.info("do_grade event=%s context=%s",event,context)
-    ses = Session(get_session(event))
+    ses = get_session(event)
     if not ses:
         return resp_json(400, {'message':'No session cookie.','error':True})
 
-    user = get_user_for_email(ses.email)
+    user = get_user_from_email(ses.email)
 
     # Open SSH (fetch key from Secrets Manager)
     secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
@@ -589,9 +606,9 @@ def do_grader(event, context, payload):
         key_pem = key_pem.decode("utf-8", "replace")
 
     lab = payload['lab']
-    ipaddr = ses.ipaddr
-    email = ses.email
-    summary = grader.grade_student_vm(user_id=ses.user_id,lab=lab,ipaddr=ipaddr,email=email, key_pem=key_pem)
+    ipaddr = user.ipaddr
+    email = user.email
+    summary = grader.grade_student_vm(user=user,lab=lab,key_pem=key_pem)
 
     # Create email message for user
     subject = f"[E11] {lab} score {summary['score']}/5.0"
@@ -611,7 +628,7 @@ def do_grader(event, context, payload):
                email_body = body)
 
     now = datetime.datetime.now().isoformat()
-    item = { A.USER_ID: ses.user_id,
+    item = { A.USER_ID: user.user_id,
              A.SK: f"{A.SK_GRADE_PREFIX}{now}",
              A.LAB: lab,
              A.IPADDR: ipaddr,

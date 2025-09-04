@@ -25,7 +25,7 @@ LOGGER = get_logger("grader")
 def grade_student_vm(*,user:User, lab:str, key_pem:str):
     """Run grading by SSHing into the student's VM and executing tests via shared runner."""
 
-    add_user_log(None, user_id, 'Grading lab {lab} starts')
+    add_user_log(None, user.user_id, 'Grading lab {lab} starts')
 
     smashed = smash_email(user.email)
 

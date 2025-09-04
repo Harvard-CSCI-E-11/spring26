@@ -50,6 +50,7 @@ include = ["home_app"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-ra -q"
+norecursedirs = ["src/home_app/e11"]
 
 [tool.djlint]
 profile = "jinja"
@@ -60,6 +61,7 @@ indent = 4
 [tool.pylint.main]
 # Specify the Python version Pylint should assume for syntax checking.
 py-version = "3.13"
+ignore-paths = ["src/home_app/e11"]
 
 [tool.pylint.messages_control]
 # Disable specific messages by their symbolic name or message ID.
