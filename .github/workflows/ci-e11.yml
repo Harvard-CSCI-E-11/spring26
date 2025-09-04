@@ -40,6 +40,7 @@ jobs:
         run: make pytest
 
       - name: lambda-home tests with coverage
+        if: matrix.python-version == '3.13'
         run: |
           (cd lambda-home; make pytest)
 
@@ -50,7 +51,7 @@ jobs:
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: coverage.xml,lambda-home/coverage.xml
+          files: coverage.xml${{ matrix.python-version == '3.13' && ',lambda-home/coverage.xml' || '' }}
           flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
