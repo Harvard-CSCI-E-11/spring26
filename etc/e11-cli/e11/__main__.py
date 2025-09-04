@@ -13,7 +13,8 @@ import subprocess
 import json
 from os.path import join # ,abspath,dirname
 import dns
-from dns import resolver,reversename
+import dns.resolver
+import dns.reversename
 
 import requests
 
@@ -37,7 +38,7 @@ logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-HOME_DIR = os.getenv("HOME")
+HOME_DIR = os.getenv("HOME",".")
 
 # Figure out where ETC_DIR is likely installed
 ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
@@ -177,12 +178,12 @@ def do_register(args):
         print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
-    name = cp[STUDENT].get(STUDENT_NAME).strip()
+    name = cp[STUDENT].get(STUDENT_NAME,"").strip()
     if len(name)<3 or name.count(" ")<1:
         print(f"ERROR: '{name}' is not a valid student name.")
         errors += 1
 
-    course_key = cp[STUDENT].get(COURSE_KEY).strip()
+    course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
     if len(course_key)!=COURSE_KEY_LEN:
         print(f"ERROR: course_key '{course_key}' is not valid")
 
@@ -222,7 +223,7 @@ def do_status(args):
     ipaddr = get_ipaddr()
     print("Instance IP address: ", ipaddr)
     try:
-        raddr = resolver.resolve(reversename.from_address(ipaddr), "PTR")[0]
+        raddr = dns.resolver.resolve(dns.reversename.from_address(ipaddr), "PTR")[0]
         print("Reverse DNS: ", raddr)
     except dns.resolver.NXDOMAIN:
         print("No reverse DNS for",ipaddr)

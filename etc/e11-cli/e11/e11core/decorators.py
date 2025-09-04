@@ -1,4 +1,8 @@
-import functools, signal, time
+import functools
+import signal
+import time
+from typing import Any, Callable, TypeVar
+
 
 class TimeoutError(RuntimeError): pass
 
@@ -18,12 +22,12 @@ def timeout(seconds: int):
         return wrapper
     return deco
 
-def retry(times=3, backoff=0.25):
+def retry(times: int=3, backoff: float=0.25):
     def deco(f):
         @functools.wraps(f)
             # noqa: C901
         def wrapper(*a, **k):
-            last = None
+            last: Exception | None = None
             for i in range(times):
                 try:
                     return f(*a, **k)
@@ -31,6 +35,7 @@ def retry(times=3, backoff=0.25):
                     last = e
                     if i < times - 1:
                         time.sleep(backoff * (2**i))
+            assert last is not None
             raise last
         return wrapper
     return deco

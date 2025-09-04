@@ -21,6 +21,7 @@ dependencies = [
     "itsdangerous",
     "pyjwt",
     "jinja2",
+    "pydantic"
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,7 @@ dev = [
     "pytest",
     "pip-tools",
     "pytest-cov",
+    "boto3-stubs[essential,route53,secretsmanager]",
     "flask"
 ]
 
@@ -75,3 +77,23 @@ max-args = 10
 
 # Set the maximum number of public methods in a class.
 max-public-methods = 20
+
+[tool.pyright]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+exclude = [
+  "**/build",
+  "**/.aws-sam",
+  "**/.venv",
+  "**/.mypy_cache",
+  "**/.pytest_cache",
+  "**/__pycache__",
+]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+extraPaths = ["src", "src/home_app", "src/home_app/e11"]

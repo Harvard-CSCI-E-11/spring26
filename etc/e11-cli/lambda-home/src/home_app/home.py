@@ -25,8 +25,8 @@ import sys
 import binascii
 import uuid
 import time
-import re
 import datetime
+
 from typing import Any, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
 
@@ -43,6 +43,7 @@ from . import grader
 
 from .common import get_logger,smash_email,add_user_log
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
+from .common import route53_client,secretsmanager_client, User, Session
 
 LOGGER = get_logger("home")
 
@@ -96,8 +97,13 @@ def get_cookie_domain(event) -> str:
         return 'csci-e-11.org'
     return COOKIE_DOMAIN
 
+class DatabaseInconsistency(RuntimeError):
+    pass
+
+class EmailNotRegistered(RuntimeError):
+    pass
+
 # Secrets Manager
-secretsmanager_client = boto3.client("secretsmanager")
 
 # Simple Email Service
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
@@ -105,7 +111,6 @@ ses_client = boto3.client("ses")
 
 # Route53 config for this course
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
-route53_client = boto3.client('route53')
 
 EMAIL_BODY="""
     You have successfully registered your AWS instance.
@@ -129,7 +134,7 @@ DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-l
 DASHBOARD='https://csci-e-11.org'
 
 
-def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None) -> Dict[str, Any]:
+def resp_json(status: int, body: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """End HTTP event processing with a JSON object"""
     LOGGER.debug("resp_json(status=%s)",status)
     return {
@@ -138,7 +143,7 @@ def resp_json(status: int, body: Dict[str, Any], headers: Dict[str, str] = None)
         "body": json.dumps(body),
     }
 
-def resp_text(status: int, body: str, headers: Dict[str, str] = None, cookies: Dict[str, str]=None) -> Dict[str, Any]:
+def resp_text(status: int, body: str, headers: Optional[Dict[str, str]] = None, cookies: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """End HTTP event processing with text/html"""
     LOGGER.debug("resp_text(status=%s)",status)
     return {
@@ -259,6 +264,8 @@ def get_odic_config():
 ################################################################
 ## session management - sessions are signed cookies that are stored in the DynamoDB
 ##
+
+
 def new_session(event, claims):
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
@@ -291,11 +298,11 @@ def new_session(event, claims):
              "client_ip": client_ip,
              "claims" : claims }
     ret = sessions_table.put_item(Item=session)
-    LOGGER.debug("new_session SESSIONS_TABLE_NAME=%s user=%s session=%s ret=%s",SESSIONS_TABLE_NAME,user, session, ret)
+    LOGGER.debug("new_session table=%s user=%s session=%s ret=%s",sessions_table,user, session, ret)
     add_user_log(event, user_id, f"Session {sid} created")
     return sid
 
-def get_session(event) -> Optional[dict]:
+def get_session(event) -> Optional[Session]:
     """Return the session dictionary if the session is valid and not expired."""
     sid = parse_cookies(event).get(COOKIE_NAME)
     LOGGER.debug("get_session sid=%s get_cookie_domain(%s)=%s",sid,event,get_cookie_domain(event))
@@ -303,16 +310,19 @@ def get_session(event) -> Optional[dict]:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
     LOGGER.debug("get_session sid=%s resp=%s",sid,resp)
-    ses = resp.get("Item")
+    item = resp.get('Item')
+    if item is None:
+        return None
+    ses = Session(**item)
     now  = int(time.time())
     if not ses:
         LOGGER.debug("get_session no ses")
         return None
-    if ses.get("session_expire", 0) <= now:
+    if ses.session_expire <= now:
         # Session has expired. Delete it and return none
-        LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.get("session_expire",0),now)
+        LOGGER.debug("Deleting expired sid=%s session_expire=%s now=%s",sid,ses.session_expire,now)
         sessions_table.delete_item(Key={"sid":sid})
-        add_user_log(event, user_id, f"Session {sid} expired")
+        add_user_log(event, "unknown", f"Session {sid} expired")
         return None
     LOGGER.debug("get_session session=%s",ses)
     return ses
@@ -326,7 +336,7 @@ def all_logs_for_userid(user_id):
     while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=key_query,
                                   ExclusiveStartKey=resp[LastEvaluatedKey])
-        logs.extend(resp['Items'])
+        logs.extend([User(**u) for u in resp['Items']])
     return logs
 
 
@@ -390,24 +400,22 @@ def do_dashboard(event):
     ses = get_session(event)
     if not ses:
         return redirect("/")
-    email = ses[A.EMAIL]
-    user = get_user_from_email(email)
-    if not user:
-        return resp_text(500, f"Internal error: no user for email address {email}")
-
-    user_id = user[A.USER_ID]
+    try:
+        user = get_user_from_email(ses.email)
+    except EmailNotRegistered:
+        return resp_text(500, f"Internal error: no user for email address {ses.email}")
 
     # Get the dashboard items
     items = []
-    resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user_id) )
+    resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user.user_id) )
     items.extend(resp['Items'])
     while LastEvaluatedKey in resp:
-        resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user_id),
+        resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user.user_id),
                                   ExclusiveStartKey=resp[LastEvaluatedKey] )
-        items.extend(resp['Items'])
+        items.extend([User(**u) for u in resp['Items']))
 
-    logs = all_logs_for_userid(user_id)
-    sessions = all_sessions_for_email(user[A.EMAIL])
+    logs = all_logs_for_userid(user.user_id)
+    sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(200, template.render(user=user,
                                           ses=ses,
@@ -448,16 +456,16 @@ def do_logout(event):
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
-def get_user_from_email(email):
+def get_user_from_email(email) -> User:
     """Given an email address, get the user record from the users_table.
     Note - when the first session is created, we don't know the user-id.
     """
     resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
     if resp['Count']>1:
-        return resp_json(400, {'message':"multiple database entries with the same email: {resp}"})
+        raise DatabaseInconsistency(f"multiple database entries with the same email: {resp}")
     if resp['Count']==1:
-        return resp['Items'][0]
-    return None
+        raise EmailNotRegistered(email)
+    return User(**resp['Items'][0])
 
 def send_email(to_addr: str, email_subject: str, email_body: str, cc: str = None):
     r = ses_client.send_email(
@@ -481,13 +489,14 @@ def do_register(event,payload):
     hostname = smash_email(email)
 
     # See if there is an existing user_id for this email address.
-    user = get_user_from_email(email)
-    if not user:
+    try:
+        user = get_user_from_email(email)
+    except EmailNotRegistered:
         return resp_json(403, {'message':'User email not registered. Please visit {DASHBOARD} to register.',
                                A.EMAIL:email})
 
     # See if the user's course_key matches
-    if user['course_key'] != registration.get('course_key'):
+    if user.course_key != registration.get('course_key'):
         return resp_json(403,
                          {'message':
                           'User course_key does not match registration course_key. '
@@ -495,8 +504,8 @@ def do_register(event,payload):
                           A.EMAIL:email})
 
     # update the user record
-    users_table.update_item( Key={ "user_id": user["user_id"],
-                                   "sk": user["sk"],
+    users_table.update_item( Key={ "user_id": user.user_id,
+                                   "sk": user.sk,
                                   },
                              UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.REG_TIME} = :t, {A.NAME} = :name",
                              ExpressionAttributeValues={
@@ -506,7 +515,7 @@ def do_register(event,payload):
                                  ":name": registration.get('name')
         }
     )
-    add_user_log(event, user[A.USER_ID], f'User registered instanceId={instanceId} ipaddr={ipaddr}')
+    add_user_log(event, user.user_id, f'User registered instanceId={instanceId} ipaddr={ipaddr}')
 
     # Create DNS records in Route53
     changes = []
@@ -527,13 +536,13 @@ def do_register(event,payload):
         })
     LOGGER.info("Route53 response: %s",route53_response)
     for h in hostnames:
-        add_user_log(event, user[A.USER_ID], f'DNS updated for {h}.{DOMAIN}')
+        add_user_log(event, user.user_id, f'DNS updated for {h}.{DOMAIN}')
 
     # Send email notification using SES
     send_email(to_addr=email,
                email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
-               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user['course_key']))
-    add_user_log(event, user[A.USER_ID], f'Registration email sent to {email}')
+               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user.course_key))
+    add_user_log(event, user.user_id, f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
@@ -567,9 +576,11 @@ def do_heartbeat(event, context):
 def do_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
     LOGGER.info("do_grade event=%s context=%s",event,context)
-    ses = get_session(event)
+    ses = Session(get_session(event))
     if not ses:
         return resp_json(400, {'message':'No session cookie.','error':True})
+
+    user = get_user_for_email(ses.email)
 
     # Open SSH (fetch key from Secrets Manager)
     secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
@@ -578,9 +589,9 @@ def do_grader(event, context, payload):
         key_pem = key_pem.decode("utf-8", "replace")
 
     lab = payload['lab']
-    ipaddr = ses[A.IPADDR]
-    email = ses[A.email]
-    summary = grader.grade_student_vm(user_id=ses[A.USER_ID],lab=lab,ipaddr=ipaddr,email=email, key_pem=key_pem)
+    ipaddr = ses.ipaddr
+    email = ses.email
+    summary = grader.grade_student_vm(user_id=ses.user_id,lab=lab,ipaddr=ipaddr,email=email, key_pem=key_pem)
 
     # Create email message for user
     subject = f"[E11] {lab} score {summary['score']}/5.0"
@@ -600,7 +611,7 @@ def do_grader(event, context, payload):
                email_body = body)
 
     now = datetime.datetime.now().isoformat()
-    item = { A.USER_ID: ses[A.USER_ID],
+    item = { A.USER_ID: ses.user_id,
              A.SK: f"{A.SK_GRADE_PREFIX}{now}",
              A.LAB: lab,
              A.IPADDR: ipaddr,

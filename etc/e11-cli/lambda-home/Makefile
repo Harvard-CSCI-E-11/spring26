@@ -28,11 +28,14 @@ install:
 
 vend-e11:
 	@echo vending e11 module to src/
-	rsync --archive --verbose --delete ../e11 src/home_app/e11 --exclude '*.pyc'
+	rsync --archive --verbose --delete ../e11 src/home_app/ --exclude '*.pyc'
 
 lint: .venv/pyvenv.cfg
 	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
 	.venv/bin/pylint src
+
+pyright:.venv/pyvenv.cfg
+	pyright
 
 pytest: .venv/pyvenv.cfg
 	make vend-e11

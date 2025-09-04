@@ -22,7 +22,7 @@ def test_nginx_config_syntax_ok():
 def test_https_root_ok():
     ctx = build_ctx("lab3")
     url = f"https://{ctx['labdns']}/"
-    r = http_get(url, follow_redirects=True, tls_info=True)
+    r = http_get(url, tls_info=True)
     if r.status != 200:
         raise TestFail(f"Expected 200 at {url}, got {r.status}", context=r.headers)
     assert_contains(r.text, re.compile(r"welcome\s+to\s+lab\s*3", re.I), context=3)

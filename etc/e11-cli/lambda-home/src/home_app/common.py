@@ -4,13 +4,26 @@ Common includes for lambda-home.
 
 import os
 import os.path
+import re
 import sys
 import logging
 import functools
 import datetime
 from os.path import dirname, join, isdir
+from typing import TypedDict
+from typing import Any, Dict, Tuple, Optional
 
+from pydantic import BaseModel,ConfigDict
 import boto3
+
+from mypy_boto3_dynamodb.client import DynamoDBClient
+from mypy_boto3_route53.client import Route53Client
+from mypy_boto3_secretsmanager.client import SecretsManagerClient
+
+from mypy_boto3_dynamodb.service_resource import (
+    DynamoDBServiceResource,
+    Table as DynamoDBTable,
+)
 
 # fix the path. Don't know why this is necessary
 MY_DIR = dirname(__file__)
@@ -28,10 +41,16 @@ DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
 USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
-dynamodb_client = boto3.client("dynamodb")
-dynamodb_resource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
-users_table    = dynamodb_resource.Table(USERS_TABLE_NAME)
-sessions_table = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
+dynamodb_client : DynamoDBClient= boto3.client("dynamodb")
+dynamodb_resource : DynamoDBServiceResource = boto3.resource( 'dynamodb', region_name=DDB_REGION ) # our dynamoDB is in region us-east-1
+users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
+sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
+route53_client :Route53Client = boto3.client('route53')
+secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager")
+
+# Classes
+
+
 
 # attributes
 
@@ -48,11 +67,39 @@ class A:
     CLAIMS = 'claims'
     CREATED = 'created'         # time_t
     UPDATED = 'updated'         # time_t
+    LAB = 'lab'
     SK = 'sk'                   # sort key
     SK_USER = '#'               # sort key for the user record
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
 
+
+class DictLikeModel(BaseModel):
+    def __getitem__(self, key: str):
+        return getattr(self, key)
+
+class User(DictLikeModel):
+    """e11-users table sk='#' record"""
+    user_id: str
+    sk: str
+    email: str
+    course_key: str
+    created: int
+    claims: Dict[str, Any]
+    updated: int
+    ipaddr: Optional[str]
+    hostname: Optional[str]
+    model_config = ConfigDict(extra="ignore") # allow additional keys
+
+class Session(**DictLikeModel):
+    """e11-sessions table record"""
+    sid: str
+    email: str                  # used to find the user in the Users table
+    session_created: int
+    session_expire: int
+    name: str
+    claims: Dict[str, Any]
+    model_config = ConfigDict(extra="ignore") # allow additional keys
 
 
 @functools.cache                # singleton

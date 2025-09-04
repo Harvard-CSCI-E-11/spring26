@@ -21,6 +21,8 @@ lint: .venv/pyvenv.cfg
 pytest: .venv/pyvenv.cfg
 	.venv/bin/pytest -q --maxfail=1 --cov=e11 --cov-report=term-missing --cov-report=xml tests/
 
+pyright: .venv/pyvenv.cfg
+	pyright
 
 clean:
 	rm -f .coverage coverage.xml
