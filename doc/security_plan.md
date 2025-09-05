@@ -67,6 +67,16 @@ Because all access to sensitive data is moderated through python functions runni
 
 * Code coverage is tracked using `pytest-cov` and reported at the end of each test. Results are archived at https://app.codecov.io/github/Harvard-CSCI-E-11/spring26.
 
+### Secrets
+All secrets are stored in AWS Secrets Manager, including:
+
+* SSH private key used to access student VMs for grading. (`e11 access on` adds the public key to `/home/ubuntu/.ssh/authorized_keys` and `e11 access off` removes it.)
+
+* Secrets for accessing Harvard Key OIDC.
+
+### Email
+Email is sent to users with Amazon's Simple Email Service.
+
 
 Security Model
 --------------
