@@ -12,7 +12,7 @@ def run_doctor():
         print("  ✘ ~/e11-config.ini missing [email/smashedemail]")
     else:
         print(f"  ✔ email: {cfg.email} smashed: {cfg.smashedemail}")
-    if not Path(COURSE_ROOT).exists():
+    if not Path(constants.COURSE_ROOT).exists():
         ok = False
         print(f"  ✘ missing course root {constants.COURSE_ROOT}")
     else:

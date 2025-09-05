@@ -7,19 +7,12 @@ import subprocess
 import sys
 import traceback
 import json
-import shlex
 import importlib.util
-
-from urllib.request import HTTPRedirectHandler, build_opener, Request
-from urllib.error import HTTPError
-from urllib.parse import urlparse
-
-
+import urllib
 from dataclasses import dataclass
 from typing import Optional
 from .constants import DEFAULT_NET_TIMEOUT_S
 from .assertions import TestFail  # for nice errors in grader mode
-from . import ssh
 
 GRADER = os.getenv("E11_MODE") == "grader"
 
@@ -68,20 +61,23 @@ def read_file(path: str) -> str:
         data = ssh.sftp_read(path)
         return data.decode("utf-8", "replace")
     except Exception:
+        import shlex
         rc, out, err = ssh.exec(f"sudo -n /bin/cat -- {shlex.quote(path)}", timeout=DEFAULT_NET_TIMEOUT_S)
         if rc != 0:
             raise TestFail(f"cannot read {path} (rc={rc})", context=err)
         return out
 
-def http_get(url: str, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
-    opener = build_opener()
-    req = Request(url, method="GET")
+def http_get(url: str, follow_redirects=True, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k): return None
+    opener = urllib.request.build_opener(None if follow_redirects else _NoRedirect)
+    req = urllib.request.Request(url, method="GET")
     try:
         with opener.open(req, timeout=timeout) as r:
             status = r.getcode()
             headers = "".join(f"{k}: {v}\n" for k, v in r.headers.items())
             text = r.read().decode("utf-8", errors="replace")
-    except HTTPError as e:
+    except urllib.error.HTTPError as e:
         status = e.code
         headers = "".join(f"{k}: {v}\n" for k, v in (e.headers or {}).items())
         text = e.read().decode("utf-8", errors="replace") if e.fp else ""
@@ -93,14 +89,12 @@ def http_get(url: str, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResu
             ctx = ssl.create_default_context()
             with socket.create_connection((host, 443), timeout=timeout) as sock:
                 with ctx.wrap_socket(sock, server_hostname=host) as ssock:
-                    cert_info = {}
                     pc = ssock.getpeercert()
-                    if pc:
-                        cert_info = {
-                            "subject": pc.get("subject"),
-                            "issuer": pc.get("issuer"),
-                            "dns_names": [v for k, v in pc.get("subjectAltName", []) if k == "DNS"],
-                        }
+                    cert_info = {
+                        "subject": pc.get("subject"),
+                        "issuer": pc.get("issuer"),
+                        "dns_names": [v for k, v in pc.get("subjectAltName", []) if k == "DNS"],
+                    }
     return HTTPResult(status=status, headers=headers, text=text, cert=cert_info)
 
 def port_check(host: str, port: int, timeout=3) -> bool:
@@ -139,6 +133,8 @@ def python_entry(file: str, func: str, args=(), kwargs=None, venv=".venv", timeo
         return PythonEntryResult(exit_code=exit_code, stdout=out, stderr=err, value=value)
 
     # grader: run remotely using the student's Python; print JSON sentinel
+    from . import ssh
+    import shlex
     py = ".venv/bin/python" if venv else "python3"
     args_js = json.dumps(list(args))
     kwargs_js = json.dumps(kwargs)

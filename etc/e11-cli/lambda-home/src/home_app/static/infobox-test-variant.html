@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" />
+  <link rel="stylesheet" href="infobox.css" />
+  <title>infobox test</title>
+  <style>
+    body { min-height: 200vh; padding: 1rem; } /* ensure page scrolls */
+    .demo-block { height: 1200px; background: linear-gradient(#fff,#f6f6f6); }
+  </style>
+</head>
+<body>
+  <div class="infobox infobox-floating">
+    <button class="infobox-close" onclick="this.parentElement.style.display='none'">&times;</button>
+    <span class="infobox-title">This session</span>
+    <p>Same behavior, different title technique.</p>
+  </div>
+  <div class="demo-block"></div>
+</body>
+</html>

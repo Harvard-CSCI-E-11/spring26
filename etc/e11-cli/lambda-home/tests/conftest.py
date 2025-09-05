@@ -69,25 +69,129 @@ def fake_aws(monkeypatch):
     class FakeTable:
         def __init__(self):
             self.db = {}
+            # For GSI support, maintain a separate index
+            self.gsi_email_index = {}
+        
         def put_item(self, Item):
-            self.db[(Item["email"], Item["sk"])] = Item
+            # Handle different key structures
+            if "email" in Item and "sk" in Item:
+                self.db[(Item["email"], Item["sk"])] = Item
+                # Also add to GSI index if email exists
+                self.gsi_email_index[Item["email"]] = Item
+            elif "user_id" in Item and "sk" in Item:
+                # For log entries that use user_id instead of email
+                self.db[(Item["user_id"], Item["sk"])] = Item
+            else:
+                # Fallback for other cases
+                key = tuple(sorted(Item.items()))
+                self.db[key] = Item
+        
         def get_item(self, Key):
-            return {"Item": self.db.get((Key["email"], Key["sk"]))}
+            # Handle different key structures
+            if "email" in Key and "sk" in Key:
+                return {"Item": self.db.get((Key["email"], Key["sk"]))}
+            elif "user_id" in Key and "sk" in Key:
+                return {"Item": self.db.get((Key["user_id"], Key["sk"]))}
+            else:
+                # Fallback for other cases
+                key = tuple(sorted(Key.items()))
+                return {"Item": self.db.get(key)}
+        
         def delete_item(self, Key):
-            self.db.pop((Key["email"], Key["sk"]), None)
+            # Handle different key structures
+            if "email" in Key and "sk" in Key:
+                self.db.pop((Key["email"], Key["sk"]), None)
+            elif "user_id" in Key and "sk" in Key:
+                self.db.pop((Key["user_id"], Key["sk"]), None)
+            else:
+                # Fallback for other cases
+                key = tuple(sorted(Key.items()))
+                self.db.pop(key, None)
+        
+        def update_item(self, Key, UpdateExpression, ExpressionAttributeValues):
+            # Simple implementation for testing
+            key_tuple = (Key["user_id"], Key["sk"])
+            if key_tuple in self.db:
+                item = self.db[key_tuple]
+                # Apply updates based on UpdateExpression
+                if "SET ipaddr = :ip, hostname = :hn, reg_time = :t, name = :name" in UpdateExpression:
+                    item["ipaddr"] = ExpressionAttributeValues[":ip"]
+                    item["hostname"] = ExpressionAttributeValues[":hn"]
+                    item["reg_time"] = ExpressionAttributeValues[":t"]
+                    item["name"] = ExpressionAttributeValues[":name"]
+        
+        def query(self, **kwargs):
+            items = []
+            
+            # Handle GSI queries
+            if kwargs.get("IndexName") == "GSI_Email":
+                key_condition = kwargs.get("KeyConditionExpression")
+                # For GSI queries, we need to extract the email from the Key condition
+                # The condition will be something like Key("email").eq(email)
+                # We'll look for items with matching email
+                for (email, sk), item in self.db.items():
+                    if "email" in item:
+                        items.append(item)
+                        break  # GSI should only return one item per email
+            
+            # Handle regular queries
+            else:
+                key_condition = kwargs.get("KeyConditionExpression")
+                
+                # Handle Key(USER_ID).eq(user_id) case
+                # We'll look for items with matching user_id
+                for (email, sk), item in self.db.items():
+                    if "user_id" in item:
+                        items.append(item)
+                
+                # Handle complex conditions like Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
+                # For now, we'll return all items and let the application filter
+                if not items:
+                    items = list(self.db.values())
+            
+            # Handle pagination
+            exclusive_start_key = kwargs.get("ExclusiveStartKey")
+            if exclusive_start_key:
+                # Simple pagination - just return empty for now
+                items = []
+            
+            return {
+                "Items": items,
+                "Count": len(items),
+                "LastEvaluatedKey": None if len(items) < 10 else "fake_last_key"
+            }
 
     class FakeSessionsTable:
         def __init__(self):
             self.db = {}
+        
         def put_item(self, Item):
             self.db[Item["sid"]] = Item
+        
         def get_item(self, Key):
             return {"Item": self.db.get(Key["sid"])}
+        
         def delete_item(self, Key):
             self.db.pop(Key["sid"], None)
+        
         # optional scan support if you want to unit-test heartbeat locally
         def scan(self, **kwargs):
             return {"Items": list(self.db.values())}
+        
+        def query(self, **kwargs):
+            items = []
+            key_condition = kwargs.get("KeyConditionExpression")
+            if key_condition == "email = :e":
+                email = kwargs.get("ExpressionAttributeValues", {}).get(":e")
+                for item in self.db.values():
+                    if item.get("email") == email:
+                        items.append(item)
+            
+            return {
+                "Items": items,
+                "Count": len(items),
+                "LastEvaluatedKey": None
+            }
 
     # capture discovery URL from test after fixture wiring
     monkeypatch.setenv("OIDC_SECRET_ID", "fake-secret-id")

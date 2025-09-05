@@ -9,31 +9,36 @@ import logging
 import os
 import shutil
 import configparser
-import requests
-import boto3
 import subprocess
-from os.path import join,abspath,dirname
+import json
+from os.path import join # ,abspath,dirname
+import dns
+import dns.resolver
+import dns.reversename
+
+import requests
 
 from email_validator import validate_email, EmailNotValidError
-import dns
-import boto3
-import requests
-from dns import resolver,reversename
 
 from e11.e11core.context import build_ctx, chdir_to_lab
 from e11.e11core.loader import discover_and_run
 from e11.e11core.render import print_summary
 from e11.e11core.doctor import run_doctor
 
+# because of our argument processing, args is typically given and frequently not used.
+# pylint: disable=unused-argument, disable=invalid-name
+
 REPO_YEAR='spring26'
-REGISTRATION_ENDPOINT = 'https://csci-e-11.org/api/v1/register'
+API_ENDPOINT = 'https://csci-e-11.org/api/v1'
+DEFAULT_TIMEOUT = 3
+GRADING_TIMEOUT = 30
 __version__ = '0.1.0'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-HOME_DIR = os.getenv("HOME")
+HOME_DIR = os.getenv("HOME",".")
 
 # Figure out where ETC_DIR is likely installed
 ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
@@ -79,17 +84,18 @@ def get_config():
     return cp
 
 def get_ipaddr():
-    r = requests.get('https://checkip.amazonaws.com')
+    r = requests.get('https://checkip.amazonaws.com',timeout=DEFAULT_TIMEOUT)
     return r.text.strip()
 
 def on_ec2():
     """https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html"""
     r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
                        encoding='utf8',
-                       capture_output=True)
+                       capture_output=True,
+                       check=True)
     return r.stdout.startswith('ec2')
 
-def get_instanceId():
+def get_instanceId():           # pylint: disable=invalid-name
     token_url = "http://169.254.169.254/latest/api/token"
     headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
     response = requests.put(token_url, headers=headers, timeout=1)
@@ -124,7 +130,7 @@ def do_access_off(args):
     shutil.move(AUTHORIZED_KEYS_FILE+'.new', AUTHORIZED_KEYS_FILE)
 
 def do_access_check(args):
-    logger.info(f"Checking access status for {get_ipaddr()}:")
+    logger.info("Checking access status for %s:",get_ipaddr())
     key = cscie11_bot_key()
     with open(AUTHORIZED_KEYS_FILE,'r') as f:
         for line in f:
@@ -142,7 +148,7 @@ def do_config(args):
                 cp[STUDENT][attrib] = buf
             if cp[STUDENT].get(attrib,'') != '':
                 break
-    with open(CONFIG_FILE,'w') as f:
+    with open(CONFIG_FILE_NAME,'w') as f:
         cp.write(f)
 
 def do_register(args):
@@ -172,26 +178,26 @@ def do_register(args):
         print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
-    name = cp[STUDENT].get(STUDENT_NAME).strip()
+    name = cp[STUDENT].get(STUDENT_NAME,"").strip()
     if len(name)<3 or name.count(" ")<1:
         print(f"ERROR: '{name}' is not a valid student name.")
         errors += 1
 
-    course_key = cp[STUDENT].get(COURSE_KEY).strip()
+    course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
     if len(course_key)!=COURSE_KEY_LEN:
         print(f"ERROR: course_key '{course_key}' is not valid")
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
         print("Please re-run 'e11 config' and then re-run 'e11 config'.")
-        exit(0)
+        sys.exit(0)
 
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
     data = {'action':'register', 'registration' : dict(cp[STUDENT])}
 
-    r = requests.post(REGISTRATION_ENDPOINT, json=data)
+    r = requests.post(API_ENDPOINT, json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
@@ -199,11 +205,25 @@ def do_register(args):
         print("If you do not receive a message in 60 seconds, check your email address and try again.")
 
 
+def do_grade(args):
+    print("Requesting server to grade...")
+    cp = get_config()
+    r = requests.post(API_ENDPOINT, json={'action':'grade',
+                                          'grade': dict(cp[STUDENT])},
+                      timeout = GRADING_TIMEOUT )
+    result = r.json()
+    print("Response:")
+    print_summary(result['summary'], verbose=getattr(args, "verbose", False))
+    if args.debug:
+        print(json.dumps(r.json(),indent=4))
+    sys.exit(0 if not result['summary']["fails"] else 1)
+
+
 def do_status(args):
     ipaddr = get_ipaddr()
     print("Instance IP address: ", ipaddr)
     try:
-        raddr = resolver.resolve(reversename.from_address(ipaddr), "PTR")[0]
+        raddr = dns.resolver.resolve(dns.reversename.from_address(ipaddr), "PTR")[0]
         print("Reverse DNS: ", raddr)
     except dns.resolver.NXDOMAIN:
         print("No reverse DNS for",ipaddr)
@@ -217,22 +237,11 @@ def do_update(args):
     repo_dir = f"/home/ubuntu/{REPO_YEAR}"
     if not os.path.exists(repo_dir):
         print(f"{REPO_YEAR} does not exist",file=sys.stderr)
-        exit(1)
+        sys.exit(1)
     os.chdir(repo_dir)
     for cmd in UPDATE_CMDS.split('\n'):
         print(f"$ {cmd}")
         os.system(cmd)
-
-def do_grade(args):
-    print("Attempting to grade...")
-    ctx = build_ctx(args.lab)
-    chdir_to_lab(ctx)
-    # local preview (optional): comment out if you want server-only
-    summary = discover_and_run(ctx)
-    print_summary(summary, verbose=getattr(args, "verbose", False))
-    # TODO: POST to grader API with HMAC if desired; for now, exit with local status
-    sys.exit(0 if not summary["fails"] else 1)
-
 
 def do_check(args):
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
@@ -241,13 +250,12 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
-    print("Checking not implemented yet")
-
 def do_doctor(args):
-    print("Doctor not implemented yet")
+    run_doctor()
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
+    parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # primary commands
@@ -285,7 +293,7 @@ def main():
             print("WARNING: This should be run on EC2")
         else:
             print("ERROR: This must be run on EC2")
-            exit(1)
+            sys.exit(1)
     args.func(args)
 
 

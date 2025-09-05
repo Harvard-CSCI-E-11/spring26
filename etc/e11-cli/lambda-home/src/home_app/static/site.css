@@ -1,0 +1,18 @@
+body {
+    background:  white;
+    margin-left: 20px;
+    margin-right: 20px;
+}
+
+.current-session {
+    background-color: #ffeeff;
+}
+
+.delete-btn {
+  cursor: pointer;
+}
+
+.delete-btn.failed {
+  color: red;
+  font-weight: bold;
+}

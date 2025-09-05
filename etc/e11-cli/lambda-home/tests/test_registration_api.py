@@ -6,6 +6,36 @@ import configparser
 from unittest.mock import Mock, patch, MagicMock
 
 import home_app.home as home
+from home_app.common import User
+from home_app.home import EmailNotRegistered
+
+"""
+Registration API Test Coverage:
+
+Flow 1: First-time user registration (test_registration_api_flow)
+- User doesn't exist in database initially
+- OIDC callback should create new User record + new Session record
+- Verify User record is created with correct data
+- Verify Session record is created
+- Verify DNS records are created
+- Verify email is sent
+
+Flow 2: Returning user registration (test_registration_api_returning_user_flow)  
+- User already exists in database
+- OIDC callback should use existing User record + create new Session record
+- Verify no new User record is created (existing one is reused)
+- Verify new Session record is created
+- Verify DNS records are created
+- Verify email is sent
+
+Flow 3: Invalid user (test_registration_api_invalid_user)
+- User email not found in database
+- Should return 403 error
+
+Flow 4: Invalid course key (test_registration_api_invalid_course_key)
+- User exists but course_key doesn't match
+- Should return 403 error
+"""
 
 class MockedAWSServices:
     """Mock AWS services for testing registration API"""
@@ -179,12 +209,13 @@ def test_registration_api_flow(monkeypatch):
 
         # Mock the user lookup to return a valid user
         def mock_get_user_from_email(email):
-            return {
-                'user_id': 'test-user-id',
-                'email': email,
-                'course_key': '123456',
-                'sk': '#'
-            }
+            return User(**{ 'user_id': 'test-user-id',
+                            'email': email,
+                            'course_key': '123456',
+                            'sk': '#',
+                            'claims':{},
+                            'updated':0,
+                            'created':0})
 
         monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -215,7 +246,7 @@ def test_registration_api_flow(monkeypatch):
         }
 
         # Call the registration handler
-        response = home.do_register(registration_payload, event)
+        response = home.do_register(event, registration_payload)
 
         # Verify the response
         assert response['statusCode'] == 200
@@ -293,7 +324,7 @@ def test_registration_api_invalid_user(monkeypatch):
 
     # Mock the user lookup to return None (user not found)
     def mock_get_user_from_email(email):
-        return None
+        raise EmailNotRegistered(email)
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -326,7 +357,7 @@ def test_registration_api_invalid_user(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.do_register(registration_payload, event)
+    response = home.do_register(event, registration_payload)
 
     # Verify the response indicates user not found
     assert response['statusCode'] == 403
@@ -344,12 +375,15 @@ def test_registration_api_invalid_course_key(monkeypatch):
 
     # Mock the user lookup to return a user with different course key
     def mock_get_user_from_email(email):
-        return {
+        return User(**{
             'user_id': 'test-user-id',
             'email': email,
             'course_key': '654321',  # Different course key
-            'sk': '#'
-        }
+            'sk': '#',
+            'claims': {},
+            'updated': 0,
+            'created': 0
+        })
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -382,13 +416,151 @@ def test_registration_api_invalid_course_key(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.do_register(registration_payload, event)
+    response = home.do_register(event, registration_payload)
 
     # Verify the response indicates invalid course key
     assert response['statusCode'] == 403
     response_body = json.loads(response['body'])
     assert 'course_key does not match' in response_body['message']
     assert response_body['email'] == 'test@csci-e-11.org'
+
+
+def test_registration_api_returning_user_flow(monkeypatch):
+    """Test registration API with returning user (Flow 2: existing user + new session)"""
+
+    # Setup mocked AWS services
+    mock_aws = MockedAWSServices()
+    mock_aws.setup_mocks(monkeypatch)
+
+    # Create test config data
+    test_config_data = {
+        'name': 'Test User',
+        'email': 'test@csci-e-11.org',
+        'course_key': '123456',
+        'ipaddr': '1.2.3.4',
+        'instanceId': 'i-1234567890abcdef0'
+    }
+
+    # Create temporary config file
+    config_path = create_test_config(test_config_data)
+
+    try:
+        # Set environment variable to use our test config
+        monkeypatch.setenv('E11_CONFIG', config_path)
+
+        # Mock the user lookup to return an existing user (Flow 2: returning user)
+        def mock_get_user_from_email(email):
+            return User(**{
+                'user_id': 'existing-user-id',
+                'email': email,
+                'course_key': test_config_data['course_key'],  # Use test config data
+                'sk': '#',
+                'claims': {'name': test_config_data['name'], 'email': email},
+                'updated': 1000000000,  # Old timestamp
+                'created': 1000000000,  # Old timestamp
+                'ipaddr': '0.0.0.0',    # Old IP (different from new registration)
+                'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
+            })
+
+        monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
+
+        # Mock the add_user_log function
+        def mock_add_user_log(user_id, message, extra=None):
+            # Just a no-op for testing
+            pass
+
+        monkeypatch.setattr(home, 'add_user_log', mock_add_user_log)
+
+        # Create the registration payload that would be sent by e11 CLI
+        registration_payload = {
+            'action': 'register',
+            'registration': test_config_data
+        }
+
+        # Create the Lambda event
+        event = {
+            'rawPath': '/api/v1/register',
+            'requestContext': {
+                'http': {
+                    'method': 'POST',
+                    'sourceIp': '1.2.3.4'
+                }
+            },
+            'body': json.dumps(registration_payload),
+            'isBase64Encoded': False
+        }
+
+        # Call the registration handler
+        response = home.do_register(event, registration_payload)
+
+        # Verify the response
+        assert response['statusCode'] == 200
+        response_body = json.loads(response['body'])
+        assert 'message' in response_body
+        assert 'DNS record created and email sent successfully' in response_body['message']
+
+        # Verify DynamoDB was called with correct data
+        assert len(mock_aws.dynamodb_items) > 0
+
+        # Find the user update - should update existing user, not create new one
+        user_update_found = False
+        for key, item in mock_aws.dynamodb_items.items():
+            if key[0] == 'existing-user-id' and key[1] == '#':
+                # Verify the existing user was updated with new data
+                assert item.get('ip_address') == '1.2.3.4'
+                assert item.get('name') == 'Test User'
+                assert 'reg_time' in item
+                # Verify it's the same user_id (not a new one)
+                assert item.get('user_id') == 'existing-user-id'
+                user_update_found = True
+                break
+
+        assert user_update_found, "Existing user record was not updated in DynamoDB"
+
+        # Verify Route53 was called
+        assert len(mock_aws.route53_changes) == 1
+        route53_change = mock_aws.route53_changes[0]
+        assert route53_change['HostedZoneId'] == 'Z05034072HOMXYCK23BRA'
+
+        # Verify DNS records were created for all suffixes
+        changes = route53_change['ChangeBatch']['Changes']
+        expected_hostnames = [
+            'testcsci-e-11.csci-e-11.org',
+            'testcsci-e-11-lab1.csci-e-11.org',
+            'testcsci-e-11-lab2.csci-e-11.org',
+            'testcsci-e-11-lab3.csci-e-11.org',
+            'testcsci-e-11-lab4.csci-e-11.org',
+            'testcsci-e-11-lab5.csci-e-11.org',
+            'testcsci-e-11-lab6.csci-e-11.org',
+            'testcsci-e-11-lab7.csci-e-11.org'
+        ]
+
+        assert len(changes) == len(expected_hostnames)
+        for change in changes:
+            assert change['Action'] == 'UPSERT'
+            assert change['ResourceRecordSet']['Type'] == 'A'
+            assert change['ResourceRecordSet']['TTL'] == 300
+            assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == '1.2.3.4'
+            assert change['ResourceRecordSet']['Name'] in expected_hostnames
+
+        # Verify SES email was sent
+        assert len(mock_aws.ses_emails) == 1
+        ses_email = mock_aws.ses_emails[0]
+        assert ses_email['Source'] == 'admin@csci-e-11.org'
+        assert ses_email['Destination']['ToAddresses'] == ['test@csci-e-11.org']
+
+        # Verify email content
+        message = ses_email['Message']
+        assert message['Subject']['Data'] == 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org'
+
+        email_body = message['Body']['Text']['Data']
+        assert '1.2.3.4' in email_body  # IP address
+        assert '123456' in email_body  # course key
+        assert 'Hostname: testcsci-e-11.csci-e-11.org' in email_body  # hostname
+
+    finally:
+        # Clean up temporary config file
+        os.unlink(config_path)
 
 
 if __name__ == '__main__':

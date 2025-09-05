@@ -1,0 +1,59 @@
+/* shared background token so it works on non-white pages */
+.infobox {
+  --infobox-bg: #fff;            /* set this to your page color if not white */
+  position: relative;
+  border: 2px solid #f5a3a3;
+  border-radius: 8px;
+  background: var(--infobox-bg);
+  padding: 0.75em;
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+/* floating */
+.infobox.infobox-floating {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  width: clamp(220px, 28vw, 300px);
+  z-index: 1000;
+  max-height: calc(100vh - 24px);
+  overflow: auto;
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+}
+
+/* inner title */
+.infobox-title,
+.infobox[data-title]::before {
+  position: absolute;
+  top: 10px;                         /* center over border */
+  left: 0px;
+  transform: translateY(-50%);
+  background: var(--infobox-bg);  /* match box bg */
+  padding: 0 0.5em;
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: #b00000;
+  z-index: -1;
+  /* the halo that hides the border reliably */
+  box-shadow: 0 0 0 3px var(--infobox-bg);
+  pointer-events: none;           /* so it won't block the close button */
+}
+
+/* only create ::before when a title exists */
+.infobox[data-title]::before { content: attr(data-title); }
+
+/* close button */
+.infobox-close {
+  position: absolute;
+  top: 0.2em;
+  right: 0.4em;
+  cursor: pointer;
+  font-weight: 700;
+  background: transparent;
+  border: 0;
+  font-size: 1rem;
+  color: #666;
+}
+.infobox-close:hover { color: #b00000; }

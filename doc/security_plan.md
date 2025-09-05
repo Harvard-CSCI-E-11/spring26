@@ -43,7 +43,7 @@ The following tables are in use:
 | Name         | FERPA Data?                                                 | Access                                       | Purpose                                                      |
 | ------------ | ----------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------ |
 | e11-users    | Yes                                                         | Lambda at https://csci-e-11.org/             | Stores OIDC `claims` for each user, user provided information, results of instance grading, and logs of user interaction with the website. |
-| e11-sessions | No, but contains authenticators that can access FERPA data. | Lambda at https://csci-e-11.org/             | Stores active sessions (`sid`) and mapping to `user_id`.      |
+| e11-sessions | No, but contains authenticators that can access FERPA data. | Lambda at https://csci-e-11.org/             | Stores active sessions (`sid`) and mapping to `email`.       |
 | Leaderboard  | No                                                          | Lambda at https://leaderboard.csci-e-11.org/ | Operates the leaderboard used in lab6.                       |
 
 All access to the tables is moderated through python functions running in AWS Lambda.
@@ -74,13 +74,13 @@ The basic security model is:
 
 1. All users are authenticated using Harvard Key. The claims returned by Harvard Key are stored in the `e11-users` table. Currently the only information returned by Harvard is the user's name, email address, and user identifier. The HUID, enrollment, or school/college is not collected or stored.
 
-2. Each user is assigned a unique `user_id` that is a `uuid4`. This is the sole database key and is used as the partition key for the DynamoDB `e11-users` table. This has the effect of localizing student data to each student. The only way to learn the `user_id` of another student is through using the DynamoDB `scan` primitive, and the Lambda functions are not authorized to use the `scan` API.
+2. Each user is assigned a unique `user_id` that is a `uuid4`. This is the sole database key and is used as the partition key for the DynamoDB `e11-users` table. This has the effect of localizing student data to each student. Records can only be retrieved by `user_id` or by email address. The DynamoDB `scan` primitive is disallowed.
 
-3. When a user is authenticated, a cookie is stored on the user's browser with a unique session id (`sid`) and a signature generated with the `itsdangerous` python module. The only information in the cookie is the `sid` and the signature.
+3. When a user is authenticated, a cookie is stored on the user's browser with a unique session id (`sid`) and a signature generated with the `itsdangerous` python module. The only information in the cookie is the `sid` and the signature. The sessions table contains the email address, which is then searched for in the `e11-users` table to get the user record.
 
-3. The dashboard will only display to a user with a cookie that has a valid signature and for which the `sid` is stored in the `e11-sessions` table.  The dashboard displays a list of all active sessions and allows any to be deleted. There is also a logout button that allows the student to log out (which destroys the current session).
+4. The dashboard will only display to a user with a cookie that has a valid signature and for which the `sid` is stored in the `e11-sessions` table.  The dashboard displays a list of all active sessions and allows any to be deleted. There is also a logout button that allows the student to log out (which destroys the current session).
 
-4. The dashboard displays all of the user's log, which includes each time the dashboard was accessed and the results of each grade run.
+5. The dashboard displays all of the user's log, which includes each time the dashboard was accessed and the results of each grade run.
 
 
 FERPA-protected student data is stored solely in the e11-users table.

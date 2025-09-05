@@ -1,24 +1,23 @@
-# HOW TO DEPLOY WITH SAM (creates samconfig.toml on first guided deploy):
-#   sam build -t template.yaml
-#   sam deploy -t template.yaml --guided --profile fas
+# HOW TO DEPLOY STAGING WITH SAM:
+#   make generate-templates
+#   sam build -t template-staging.yaml
+#   sam deploy -t template-staging.yaml --guided --profile fas
 #     # Answer the prompts; you'll be asked for:
-#     #   - Stack Name (e.g., e11-home)
+#     #   - Stack Name (e.g., home-app-staging)
 #     #   - AWS Region (e.g., us-east-1)
 #     #   - Parameters: DynamoTableArn, HostedZoneId
 #     #   - (Optional) CertificateArn; leave blank to auto-create one in ACM
 #   # On next runs:
-#   make generate-templates && sam build && sam deploy
+#   make generate-templates && sam build -t template-staging.yaml && sam deploy -t template-staging.yaml
 #
-# Live:
-#   sam sync --stack-name e11-home --template template.yaml
 # Result:
-#   - An HTTP API at https://csci-e-11.org/
+#   - An HTTP API at https://stage.csci-e-11.org/
 #   - Routes handled by the Lambda handler in home.py (lambda_handler)
 #   - JSON API (POST) for grading; also supports ping/ping-mail actions
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: e11 home Lambda with custom domain (csci-e-11.org)
+Description: e11 home Lambda staging environment (stage.csci-e-11.org)
 
 Globals:
   Function:
@@ -27,12 +26,15 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         OIDC_SECRET_ID: !Ref OidcSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
-        SESSIONS_TABLE_NAME: !Ref SessionsTable     # new (optional helper)
+        SESSIONS_TABLE_NAME: !Ref SessionsTableName
 
 Parameters:
   UsersTableName:
     Type: String
     Description: Name of existing DynamoDB table for grades/logs
+  SessionsTableName:
+    Type: String
+    Description: Name of existing DynamoDB table for sessions
   OidcSecretId:
     Type: String
     Description: Secrets Manager SecretId/ARN containing the OIDC data
@@ -53,28 +55,28 @@ Conditions:
   CreateAcmCert: !Equals [!Ref CertificateArn, ""]
 
 Resources:
-  # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
-  HomeCertificate:
+  # Optional, auto-created ACM cert for the staging domain
+  StagingCertificate:
     Type: AWS::CertificateManager::Certificate
     Condition: CreateAcmCert
     Properties:
-      DomainName: csci-e-11.org
+      DomainName: stage.csci-e-11.org
       ValidationMethod: DNS
       DomainValidationOptions:
-        - DomainName: csci-e-11.org
+        - DomainName: stage.csci-e-11.org
           HostedZoneId: !Ref HostedZoneId
 
-  # HTTP API fronting the Lambda, bound to csci-e-11.org in Route53
-  HomeHttpApi:
+  # Staging HTTP API fronting the Lambda, bound to stage.csci-e-11.org in Route53
+  StagingHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: prod
+      StageName: stage
       CorsConfiguration:
         AllowOrigins: ['*']
         AllowMethods: ['GET','POST','OPTIONS']
       Domain:
-        DomainName: csci-e-11.org
-        CertificateArn: !If [CreateAcmCert, !Ref HomeCertificate, !Ref CertificateArn]
+        DomainName: stage.csci-e-11.org
+        CertificateArn: !If [CreateAcmCert, !Ref StagingCertificate, !Ref CertificateArn]
         Route53:
           HostedZoneId: !Ref HostedZoneId
   # Lambda function — JSON-only API (no Flask)
@@ -106,19 +108,6 @@ Resources:
                 - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
                 - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
 
-            - Sid: SessionsTableRW
-              Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:DeleteItem
-                - dynamodb:UpdateItem
-                - dynamodb:Query
-              Resource:
-                - !GetAtt SessionsTable.Arn
-                - !Sub "${SessionsTable.Arn}/index/*"
-
             - Sid: SecretsGet
               Effect: Allow
               Action: secretsmanager:GetSecretValue
@@ -138,91 +127,46 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
+            - Sid: SessionsTableRW
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource:
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SessionsTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${SessionsTableName}/index/*"
 
       Events:
-        AnyRoot:
+        StageAnyRoot:
           Type: HttpApi
           Properties:
-            ApiId: !Ref HomeHttpApi
+            ApiId: !Ref StagingHttpApi
             Path: /
             Method: ANY
             PayloadFormatVersion: "2.0"
-        AnyProxy:
+        StageAnyProxy:
           Type: HttpApi
           Properties:
-            ApiId: !Ref HomeHttpApi
+            ApiId: !Ref StagingHttpApi
             Path: /{proxy+}
             Method: ANY
             PayloadFormatVersion: "2.0"
-        Heartbeat:
-          Type: Schedule
-          Properties:
-            Schedule: rate(5 minutes)
-            Input: '{"action":"heartbeat"}'
-
-      Events:
-        AnyRoot:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HomeHttpApi
-            Path: /
-            Method: ANY
-            PayloadFormatVersion: "2.0"
-        AnyProxy:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HomeHttpApi
-            Path: /{proxy+}
-            Method: ANY
-            PayloadFormatVersion: "2.0"
-        Heartbeat:
-          Type: Schedule
-          Properties:
-            Schedule: rate(5 minutes)
-            Input: '{"action":"heartbeat"}'
-
-  # Sessions table holds the cookie sessions
-  SessionsTable:
-    Type: AWS::DynamoDB::Table
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BillingMode: PAY_PER_REQUEST
-      TableName: !Sub "${AWS::StackName}-sessions"
-      AttributeDefinitions:
-        - AttributeName: sid
-          AttributeType: S
-        - AttributeName: email
-          AttributeType: S
-      KeySchema:
-        - AttributeName: sid
-          KeyType: HASH
-      TimeToLiveSpecification:
-        AttributeName: ttl
-        Enabled: true
-      GlobalSecondaryIndexes:
-        - IndexName: GSI_Email
-          KeySchema:
-            - AttributeName: email
-              KeyType: HASH
-          Projection:
-            ProjectionType: ALL
 
 Outputs:
-  # Production-specific outputs
-  ApiId:
-    Description: HTTP API ID
-    Value: !Ref HomeHttpApi
-  CustomDomainUrl:
-    Description: Public base URL
-    Value: "https://csci-e-11.org/"
-  # Common outputs
+  # Staging-specific outputs
+  StagingApiId:
+    Description: Staging HTTP API ID
+    Value: !Ref StagingHttpApi
+  StagingDomainUrl:
+    Description: Staging base URL
+    Value: "https://stage.csci-e-11.org/"
   HomeFunction:
     Description: Home Lambda function name
     Value: !Ref E11HomeFunction
   HostedZoneId:
     Description: Route53 Hosted Zone
     Value: !Ref HostedZoneId
-  UsersTableIndexArn:
-    Description: ARN for Users Table Index
-    Value: !Sub "${SessionsTable.Arn}/index/*"

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/purecss@3.0.0/build/pure-min.css" />
+  <link rel="stylesheet" href="infobox.css" />
+  <title>infobox test</title>
+  <style>
+    body { min-height: 200vh; padding: 1rem; } /* ensure page scrolls */
+    .demo-block { height: 1200px; background: linear-gradient(#fff,#f6f6f6); }
+  </style>
+</head>
+<body>
+  <!-- Attribute-title variant -->
+  <div class="infobox infobox-floating" data-title="This session">
+    <button class="infobox-close" onclick="this.parentElement.style.display='none'">&times;</button>
+    <p>Floating box content. Stays fixed top-right. Close hides it.</p>
+    <pre>
+This is some pretty pre stuff 1.
+This is some pretty pre stuff 2
+This is some pretty pre stuff 3.
+This is some pretty pre stuff 4.
+This is some pretty pre stuff 5.
+This is some pretty pre stuff 6.
+This is some pretty pre stuff 7.
+This is some pretty pre stuff 8. This is some pretty pre stuff 9.
+
+  </div>
+  <div class="demo-block"></div>
+</body>
+</html>

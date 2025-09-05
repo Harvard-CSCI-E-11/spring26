@@ -15,3 +15,5 @@ build/
 htmlcov/
 src/requirements.txt
 *-cut
+
+# Generated template files

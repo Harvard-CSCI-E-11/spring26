@@ -1,3 +1,7 @@
+# Install optional dependencies with:
+# pip install -e .[dev]
+
+
 [project]
 name = "lambda-home"
 version = "0.1.1"
@@ -17,14 +21,17 @@ dependencies = [
     "itsdangerous",
     "pyjwt",
     "jinja2",
+    "pydantic"
 ]
 
 [project.optional-dependencies]
 dev = [
+    "djlint",
     "pylint",
     "pytest",
     "pip-tools",
     "pytest-cov",
+    "boto3-stubs[essential,route53,secretsmanager]",
     "flask"
 ]
 
@@ -43,3 +50,60 @@ include = ["home_app"]
 testpaths = ["tests"]
 pythonpath = ["src", "tests"]
 addopts = "-ra -q"
+norecursedirs = ["src/home_app/e11"]
+
+[tool.djlint]
+profile = "jinja"
+ignore = ["jinja-block","jinja-variable","J004", "J018"]
+extend_exclude = "node_modules/**,.venv/**"
+indent = 4
+
+[tool.pylint]
+# Specify the Python version Pylint should assume for syntax checking.
+py-version = "3.13"
+ignore-paths = [
+    ".venv/.*", 
+    "src/home_app/e11/.*"
+]
+source-roots = [".."]
+[tool.pylint.FORMAT]
+max-line-length=200
+
+[tool.pylint.messages_control]
+# Disable specific messages by their symbolic name or message ID.
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "line-too-long",
+    "unspecified-encoding",
+    "too-few-public-methods"
+
+]
+
+[tool.pylint.design]
+# Set the maximum number of arguments for a function.
+max-args = 10
+
+# Set the maximum number of public methods in a class.
+max-public-methods = 20
+
+[tool.pyright]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+exclude = [
+  "**/build",
+  "**/.aws-sam",
+  "**/.venv",
+  "**/.mypy_cache",
+  "**/.pytest_cache",
+  "**/__pycache__",
+]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+extraPaths = ["src", "src/home_app", "src/home_app/e11"]

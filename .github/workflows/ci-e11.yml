@@ -1,8 +1,8 @@
-name: CI
+name: CI for e11-cli
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13"]
+        python-version: ["3.12", "3.13"]
     env:
       AWS_DEFAULT_REGION: 'localhost'
       AWS_ENDPOINT_URL: 'http://localhost:8000'
@@ -36,22 +36,20 @@ jobs:
           pipx install poetry
           poetry --version
 
-      - name: Configure Poetry (.venv in project)
-        run: |
-          poetry config virtualenvs.create true
-          poetry config virtualenvs.in-project true
-
-      - name: Sync deps
-        run: poetry sync
-
       - name: e11 command tests with coverage
-        run: poetry run make pytest
+        run: make pytest
 
       - name: lambda-home tests with coverage
+        if: matrix.python-version == '3.13'
         run: |
           (cd lambda-home; make pytest)
 
+      - name: list coverage files
+        run: |
+          find . -name coverage.xml -ls
+
       - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.13'
         uses: codecov/codecov-action@v4
         with:
           files: coverage.xml,lambda-home/coverage.xml

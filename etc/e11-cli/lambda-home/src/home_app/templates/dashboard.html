@@ -1,29 +1,58 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% block body %}
 <h2> Dashboard </h2>
 <h3>User Info</h3>
-<table class='pure-table'>
+<table class="pure-table">
   <thead>
   </thead>
   <tbody>
-    <tr><th>Name</th><td>{{user.name}}</td></tr>
-    <tr><th>Email</th><td>{{user.email}}</td></tr>
-    <tr><th>course_key</th><td>{{user.course_key}}</td></tr>
+    <tr><th>Name</th><td>{{ user.name }}</td></tr>
+    <tr><th>Email</th><td>{{ user.email }}</td></tr>
+    <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
+    <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>
+    <tr><th>Instance IP address:</th><td>{{ user.ipaddr }}</td></tr>
+    <tr><th>InstanceId:</th><td>{{ user.instanceId }}</td></tr>
   </tbody>
 </table>
 <h3>User Log</h3>
-<h3>Active Sessions</h3>
-
-<table class='pure-table'>
+<table class="pure-table">
   <thead>
-    <tr><th>Session #</th><th>IP Address</th><th>Created</th><th>Expires</th></tr>
+    <tr><th>sk</th><th>client_ip</th><th>message</th><th>claims</th></tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+    <tr>
+      <th>{{ log.sk }}</th>
+      <td>{{ log.client_ip }}</td>
+      <td>{{ log.message }}</td>
+      <td>{{ log.claims }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h3>Authenticated Sessions</h3>
+  <div class="infobox infobox-floating" data-title="DynamDB record for this browser session">
+    <button class="infobox-close" onclick="this.parentElement.style.display='none'">×</button>
+    <pre>
+{{ ses_dump }}
+    </pre>
+  </div>
+  <h4>Active Sessions Table</h4>
+
+  <table class="pure-table">
+  <thead>
+    <tr><th>Session #</th><th>sid</th><th>IP Address</th><th>Created</th><th>Expires</th><th>Delete</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
-    <tr>
-      <th>{{ loop.index }}</th><td>{{session.client_ip}}</td>
-      <td>{{session.session_created | eastern}}</td>
-      <td>{{session.session_expire |eastern}}</td>
+    <tr class="{% if session.sid==ses.sid %}current-session{% endif %}" >
+      <th>{{ loop.index }}</th>
+      <th>{{ session.sid }}</th>
+      <td>{{ session.client_ip }}</td>
+      <td>{{ session.session_created | eastern }}</td>
+      <td>{{ session.session_expire |eastern }}</td>
+      <td><span class="delete-btn"> data-sid="{{ session.sid }}">×</span></td>
     </tr>
     {% endfor %}
   </tbody>
@@ -31,5 +60,38 @@
 
 <p><i>(All times in eastern time.)</i></p>
 
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+   document.querySelectorAll(".delete-btn").forEach(btn => {
+     btn.style.cursor = "pointer"; // make it obvious it's clickable
 
-{% endblock %}
+     btn.addEventListener("click", async (event) => {
+       const sid = btn.dataset.sid;
+       try {
+         const resp = await fetch("/api/v1", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ action: "delete-session", sid: sid
+           })
+         });
+
+         if (resp.ok) {           // Remove the row containing the clicked button
+           btn.closest("tr").remove();
+         } else {
+           btn.textContent = "failed";
+           btn.classList.add = "failed";
+           console.error("Delete failed:", resp.status, resp.statusText);
+           console.error("Response body:", await resp.text());
+         }
+       } catch (err) {
+         btn.textContent = "failed";
+         btn.classList.add = "failed";
+         console.error("Fetch error:", err);
+       }
+     });
+   });
+ });
+</script>
+
+
+{% endblock body %}
