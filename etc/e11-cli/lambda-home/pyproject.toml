@@ -21,7 +21,8 @@ dependencies = [
     "itsdangerous",
     "pyjwt",
     "jinja2",
-    "pydantic"
+    "pydantic",
+    "boto3-stubs[essential,route53,secretsmanager,dynamodb]"
 ]
 
 [project.optional-dependencies]
@@ -31,7 +32,6 @@ dev = [
     "pytest",
     "pip-tools",
     "pytest-cov",
-    "boto3-stubs[essential,route53,secretsmanager]",
     "flask"
 ]
 
