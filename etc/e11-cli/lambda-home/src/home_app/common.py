@@ -9,10 +9,11 @@ import sys
 import logging
 import functools
 import datetime
+from decimal import Decimal
 from os.path import dirname, join, isdir
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel,ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 
 from mypy_boto3_route53.client import Route53Client
@@ -63,14 +64,23 @@ class A:
     REG_TIME = 'reg_time'
     COURSE_KEY = 'course_key'
     CLAIMS = 'claims'
-    CREATED = 'created'         # time_t
-    UPDATED = 'updated'         # time_t
+    SESSION_CREATED = 'session_created'  # time_t
+    SESSION_EXPIRE = 'session_expire'    # time_t
     LAB = 'lab'
     SK = 'sk'                   # sort key
     SK_USER = '#'               # sort key for the user record
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
 
+
+def convert_dynamodb_value(value: Any) -> Any:
+    """Convert DynamoDB values to Python types."""
+    if isinstance(value, Decimal):
+        # Convert Decimal to int if it's a whole number, otherwise to float
+        if value % 1 == 0:
+            return int(value)
+        return float(value)
+    return value
 
 class DictLikeModel(BaseModel):
     def __getitem__(self, key: str):
@@ -82,12 +92,24 @@ class User(DictLikeModel):
     sk: str
     email: str
     course_key: str
-    created: int
+    session_created: int
     claims: Dict[str, Any]
-    updated: int
+    session_expire: int
     ipaddr: Optional[str] = None
     hostname: Optional[str] = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
+
+    @field_validator('session_created', 'session_expire', mode='before')
+    @classmethod
+    def convert_decimal_to_int(cls, v):
+        """Convert Decimal values to int for integer fields."""
+        return convert_dynamodb_value(v)
+
+    @field_validator('user_id', 'sk', 'email', 'course_key', 'ipaddr', 'hostname', mode='before')
+    @classmethod
+    def convert_decimal_to_str(cls, v):
+        """Convert Decimal values to str for string fields."""
+        return convert_dynamodb_value(v)
 
 class Session(DictLikeModel):
     """e11-sessions table record"""
@@ -98,6 +120,18 @@ class Session(DictLikeModel):
     name: str
     claims: Dict[str, Any]
     model_config = ConfigDict(extra="ignore") # allow additional keys
+
+    @field_validator('session_created', 'session_expire', mode='before')
+    @classmethod
+    def convert_decimal_to_int(cls, v):
+        """Convert Decimal values to int for integer fields."""
+        return convert_dynamodb_value(v)
+
+    @field_validator('sid', 'email', 'name', mode='before')
+    @classmethod
+    def convert_decimal_to_str(cls, v):
+        """Convert Decimal values to str for string fields."""
+        return convert_dynamodb_value(v)
 
 
 @functools.cache                # singleton

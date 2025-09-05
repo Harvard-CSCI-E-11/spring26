@@ -51,16 +51,10 @@ LOGGER = get_logger("home")
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
-def convert_dynamodb_item_to_user(item: dict) -> User:
-    """Convert a DynamoDB item to a User object, handling type conversions."""
-    converted_item = {}
-    for key, value in item.items():
-        # Convert numeric types to strings for Pydantic model compatibility
-        if isinstance(value, (int, float)):
-            converted_item[key] = str(value)
-        else:
-            converted_item[key] = value
-    return User(**converted_item)
+
+def convert_dynamodb_item(item: dict) -> dict:
+    """Convert DynamoDB item values to proper Python types."""
+    return {k: common.convert_dynamodb_value(v) for k, v in item.items()}
 
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
 
@@ -299,9 +293,9 @@ def new_session(event, claims) -> Session:
                 A.SK:A.SK_USER,
                 A.EMAIL:email,
                 A.COURSE_KEY: make_course_key(),
-                A.CREATED:now,
+                A.SESSION_CREATED:now,
                 A.CLAIMS:claims,
-                A.UPDATED:now}
+                A.SESSION_EXPIRE:now}
         ret = users_table.put_item(Item=user)        # USER CREATION POINT
         add_user_log(event, user_id, f"User {email} created", claims=claims)
 
@@ -329,7 +323,7 @@ def get_session(event) -> Optional[Session]:
     item = resp.get('Item')
     if item is None:
         return None
-    ses = Session(**item)
+    ses = Session(**convert_dynamodb_item(item))
     now  = int(time.time())
     if not ses:
         LOGGER.debug("get_session no ses")
@@ -352,7 +346,7 @@ def all_logs_for_userid(user_id):
     while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=key_query,
                                   ExclusiveStartKey=resp[LastEvaluatedKey])
-        logs.extend([convert_dynamodb_item_to_user(u) for u in resp['Items']])
+        logs.extend([User(**convert_dynamodb_item(u)) for u in resp['Items']])
     return logs
 
 
@@ -428,7 +422,7 @@ def do_dashboard(event):
     while LastEvaluatedKey in resp:
         resp = users_table.query( KeyConditionExpression=Key(A.USER_ID).eq(user.user_id),
                                   ExclusiveStartKey=resp[LastEvaluatedKey])
-        items.extend([convert_dynamodb_item_to_user(u) for u in resp['Items']])
+        items.extend([User(**convert_dynamodb_item(u)) for u in resp['Items']])
 
     logs = all_logs_for_userid(user.user_id)
     sessions = all_sessions_for_email(user.email)
@@ -476,13 +470,16 @@ def get_user_from_email(email) -> User:
     """Given an email address, get the user record from the users_table.
     Note - when the first session is created, we don't know the user-id.
     """
+    LOGGER.debug("get_user_from_email: looking for email=%s", email)
     resp = users_table.query(IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email))
+    LOGGER.debug("get_user_from_email: query result count=%s", resp['Count'])
     if resp['Count']>1:
         raise DatabaseInconsistency(f"multiple database entries with the same email: {resp}")
     if resp['Count']!=1:
         raise EmailNotRegistered(email)
     item = resp['Items'][0]
-    return convert_dynamodb_item_to_user(item)
+    LOGGER.debug("get_user_from_email: found item with keys=%s", list(item.keys()))
+    return User(**convert_dynamodb_item(item))
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
@@ -652,6 +649,10 @@ def do_grader(event, context, payload):
 def lambda_handler(event, context): # pylint: disable=unused-argument
     """called by lambda"""
     method, path, payload = parse_event(event)
+
+    # Detect if this is a browser request vs API request
+    accept_header = event.get('headers', {}).get('accept', '')
+    is_browser_request = 'text/html' in accept_header
     with _with_request_log_level(payload):
         try:
             LOGGER.info("req method='%s' path='%s' action='%s'", method, path, payload.get("action"))
@@ -729,8 +730,32 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
         except EmailNotRegistered as e:
             LOGGER.info("EmailNotRegistered: %s",e)
+
+            if is_browser_request:
+                template = env.get_template('error_user_not_registered.html')
+                return resp_text(403, template.render())
             return resp_json(302, {"error" : f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
-            LOGGER.exception("Unhandled exception!")
-            return resp_json(500, {"error": True, "message": str(e)})
+            # Try to get session ID from cookies for better debugging
+            session_id = "unknown"
+            try:
+                cookies = event.get('cookies', [])
+                for cookie in cookies:
+                    if cookie.startswith('AuthSid='):
+                        session_id = cookie.split('=')[1]
+                        break
+            except Exception:  # pylint: disable=broad-exception-caught
+                pass
+
+            LOGGER.exception("Unhandled exception! Session ID: %s", session_id)
+
+            if is_browser_request:
+                # Return HTML error page for browser requests
+                template = env.get_template('error_generic.html')
+                return resp_text(500, template.render(
+                    session_id=session_id,
+                    error_message=str(e)
+                ))
+            # Return JSON for API requests
+            return resp_json(500, {"error": True, "message": str(e), "session_id": session_id})

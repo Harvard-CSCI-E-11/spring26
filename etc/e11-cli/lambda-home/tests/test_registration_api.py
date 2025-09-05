@@ -214,8 +214,8 @@ def test_registration_api_flow(monkeypatch):
                             'course_key': '123456',
                             'sk': '#',
                             'claims':{},
-                            'updated':0,
-                            'created':0})
+                            'session_expire':0,
+                            'session_created':0})
 
         monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -381,8 +381,8 @@ def test_registration_api_invalid_course_key(monkeypatch):
             'course_key': '654321',  # Different course key
             'sk': '#',
             'claims': {},
-            'updated': 0,
-            'created': 0
+            'session_expire': 0,
+            'session_created': 0
         })
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
@@ -456,8 +456,8 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 'course_key': test_config_data['course_key'],  # Use test config data
                 'sk': '#',
                 'claims': {'name': test_config_data['name'], 'email': email},
-                'updated': 1000000000,  # Old timestamp
-                'created': 1000000000,  # Old timestamp
+                'session_expire': 1000000000,  # Old timestamp
+                'session_created': 1000000000,  # Old timestamp
                 'ipaddr': '0.0.0.0',    # Old IP (different from new registration)
                 'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
             })
