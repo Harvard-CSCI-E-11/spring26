@@ -32,14 +32,7 @@
 </table>
 
 <h3>Authenticated Sessions</h3>
-  <div class="infobox infobox-floating" data-title="DynamDB record for this browser session">
-    <button class="infobox-close" onclick="this.parentElement.style.display='none'">×</button>
-    <pre>
-{{ ses_dump }}
-    </pre>
-  </div>
   <h4>Active Sessions Table</h4>
-
   <table class="pure-table">
   <thead>
     <tr><th>Session #</th><th>sid</th><th>IP Address</th><th>Created</th><th>Expires</th><th>Delete</th></tr>
@@ -52,7 +45,7 @@
       <td>{{ session.client_ip }}</td>
       <td>{{ session.session_created | eastern }}</td>
       <td>{{ session.session_expire |eastern }}</td>
-      <td><span class="delete-btn"> data-sid="{{ session.sid }}">×</span></td>
+      <td><span class="delete-btn" data-sid="{{ session.sid }}">×</span></td>
     </tr>
     {% endfor %}
   </tbody>
