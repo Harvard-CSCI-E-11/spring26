@@ -431,7 +431,6 @@ def do_dashboard(event):
                                           sessions=sessions,
                                           logs=logs,
                                           items=items,
-                                          ses_dump=json.dumps(ses,default=str,indent=4),
                                           now=round(time.time())))
 
 def do_callback(event):
