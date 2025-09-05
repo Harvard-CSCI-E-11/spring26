@@ -20,7 +20,7 @@ Flow 1: First-time user registration (test_registration_api_flow)
 - Verify DNS records are created
 - Verify email is sent
 
-Flow 2: Returning user registration (test_registration_api_returning_user_flow)  
+Flow 2: Returning user registration (test_registration_api_returning_user_flow)
 - User already exists in database
 - OIDC callback should use existing User record + create new Session record
 - Verify no new User record is created (existing one is reused)
@@ -77,7 +77,7 @@ class MockedAWSServices:
                         elif attr_name == ':hn':
                             item['hostname'] = attr_value
                         elif attr_name == ':t':
-                            item['reg_time'] = attr_value
+                            item['host_registered'] = attr_value
                         elif attr_name == ':name':
                             item['name'] = attr_value
                 else:
@@ -87,7 +87,7 @@ class MockedAWSServices:
                         'sk': Key.get('sk', '#'),
                         'ip_address': ExpressionAttributeValues.get(':ip'),
                         'hostname': ExpressionAttributeValues.get(':hn'),
-                        'reg_time': ExpressionAttributeValues.get(':t'),
+                        'host_registered': ExpressionAttributeValues.get(':t'),
                         'name': ExpressionAttributeValues.get(':name')
                     }
                     self.mock_aws.dynamodb_items[key] = item
@@ -213,9 +213,8 @@ def test_registration_api_flow(monkeypatch):
                             'email': email,
                             'course_key': '123456',
                             'sk': '#',
-                            'claims':{},
-                            'session_expire':0,
-                            'session_created':0})
+                            'user_registered': 1000000,
+                            'claims':{}})
 
         monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
@@ -263,7 +262,7 @@ def test_registration_api_flow(monkeypatch):
             if key[0] == 'test-user-id' and key[1] == '#':
                 assert item.get('ip_address') == '1.2.3.4'
                 assert item.get('name') == 'Test User'
-                assert 'reg_time' in item
+                assert 'host_registered' in item
                 user_update_found = True
                 break
 
@@ -381,8 +380,7 @@ def test_registration_api_invalid_course_key(monkeypatch):
             'course_key': '654321',  # Different course key
             'sk': '#',
             'claims': {},
-            'session_expire': 0,
-            'session_created': 0
+            'user_registered': 0
         })
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
@@ -456,8 +454,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 'course_key': test_config_data['course_key'],  # Use test config data
                 'sk': '#',
                 'claims': {'name': test_config_data['name'], 'email': email},
-                'session_expire': 1000000000,  # Old timestamp
-                'session_created': 1000000000,  # Old timestamp
+                'user_registered': 1000000000,
                 'ipaddr': '0.0.0.0',    # Old IP (different from new registration)
                 'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
             })
@@ -509,7 +506,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 # Verify the existing user was updated with new data
                 assert item.get('ip_address') == '1.2.3.4'
                 assert item.get('name') == 'Test User'
-                assert 'reg_time' in item
+                assert 'host_registered' in item
                 # Verify it's the same user_id (not a new one)
                 assert item.get('user_id') == 'existing-user-id'
                 user_update_found = True

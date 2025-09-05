@@ -71,7 +71,7 @@ def fake_aws(monkeypatch):
             self.db = {}
             # For GSI support, maintain a separate index
             self.gsi_email_index = {}
-        
+
         def put_item(self, Item):
             # Handle different key structures
             if "email" in Item and "sk" in Item:
@@ -85,7 +85,7 @@ def fake_aws(monkeypatch):
                 # Fallback for other cases
                 key = tuple(sorted(Item.items()))
                 self.db[key] = Item
-        
+
         def get_item(self, Key):
             # Handle different key structures
             if "email" in Key and "sk" in Key:
@@ -96,7 +96,7 @@ def fake_aws(monkeypatch):
                 # Fallback for other cases
                 key = tuple(sorted(Key.items()))
                 return {"Item": self.db.get(key)}
-        
+
         def delete_item(self, Key):
             # Handle different key structures
             if "email" in Key and "sk" in Key:
@@ -107,22 +107,22 @@ def fake_aws(monkeypatch):
                 # Fallback for other cases
                 key = tuple(sorted(Key.items()))
                 self.db.pop(key, None)
-        
+
         def update_item(self, Key, UpdateExpression, ExpressionAttributeValues):
             # Simple implementation for testing
             key_tuple = (Key["user_id"], Key["sk"])
             if key_tuple in self.db:
                 item = self.db[key_tuple]
                 # Apply updates based on UpdateExpression
-                if "SET ipaddr = :ip, hostname = :hn, reg_time = :t, name = :name" in UpdateExpression:
+                if "SET ipaddr = :ip, hostname = :hn, host_registered = :t, name = :name" in UpdateExpression:
                     item["ipaddr"] = ExpressionAttributeValues[":ip"]
                     item["hostname"] = ExpressionAttributeValues[":hn"]
-                    item["reg_time"] = ExpressionAttributeValues[":t"]
+                    item["host_registered"] = ExpressionAttributeValues[":t"]
                     item["name"] = ExpressionAttributeValues[":name"]
-        
+
         def query(self, **kwargs):
             items = []
-            
+
             # Handle GSI queries
             if kwargs.get("IndexName") == "GSI_Email":
                 key_condition = kwargs.get("KeyConditionExpression")
@@ -133,28 +133,28 @@ def fake_aws(monkeypatch):
                     if "email" in item:
                         items.append(item)
                         break  # GSI should only return one item per email
-            
+
             # Handle regular queries
             else:
                 key_condition = kwargs.get("KeyConditionExpression")
-                
+
                 # Handle Key(USER_ID).eq(user_id) case
                 # We'll look for items with matching user_id
                 for (email, sk), item in self.db.items():
                     if "user_id" in item:
                         items.append(item)
-                
+
                 # Handle complex conditions like Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
                 # For now, we'll return all items and let the application filter
                 if not items:
                     items = list(self.db.values())
-            
+
             # Handle pagination
             exclusive_start_key = kwargs.get("ExclusiveStartKey")
             if exclusive_start_key:
                 # Simple pagination - just return empty for now
                 items = []
-            
+
             return {
                 "Items": items,
                 "Count": len(items),
@@ -164,20 +164,20 @@ def fake_aws(monkeypatch):
     class FakeSessionsTable:
         def __init__(self):
             self.db = {}
-        
+
         def put_item(self, Item):
             self.db[Item["sid"]] = Item
-        
+
         def get_item(self, Key):
             return {"Item": self.db.get(Key["sid"])}
-        
+
         def delete_item(self, Key):
             self.db.pop(Key["sid"], None)
-        
+
         # optional scan support if you want to unit-test heartbeat locally
         def scan(self, **kwargs):
             return {"Items": list(self.db.values())}
-        
+
         def query(self, **kwargs):
             items = []
             key_condition = kwargs.get("KeyConditionExpression")
@@ -186,7 +186,7 @@ def fake_aws(monkeypatch):
                 for item in self.db.values():
                     if item.get("email") == email:
                         items.append(item)
-            
+
             return {
                 "Items": items,
                 "Count": len(items),

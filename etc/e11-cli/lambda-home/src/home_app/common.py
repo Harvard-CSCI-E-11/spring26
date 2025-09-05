@@ -61,11 +61,12 @@ class A:
     IPADDR = 'ipaddr'           # public IP address
     NAME = 'name'               # Name the user prefers, not the name in the claims
     HOSTNAME = 'hostname'
-    REG_TIME = 'reg_time'
     COURSE_KEY = 'course_key'
     CLAIMS = 'claims'
     SESSION_CREATED = 'session_created'  # time_t
     SESSION_EXPIRE = 'session_expire'    # time_t
+    USER_REGISTERED = 'user_registered'
+    HOST_REGISTERED = 'host_registered'
     LAB = 'lab'
     SK = 'sk'                   # sort key
     SK_USER = '#'               # sort key for the user record
@@ -92,24 +93,19 @@ class User(DictLikeModel):
     sk: str
     email: str
     course_key: str
-    session_created: int
+    user_registered: int
     claims: Dict[str, Any]
-    session_expire: int
     ipaddr: Optional[str] = None
     hostname: Optional[str] = None
+    host_registered: Optional[int] = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
-    @field_validator('session_created', 'session_expire', mode='before')
+    @field_validator('user_registered', mode='before')
     @classmethod
     def convert_decimal_to_int(cls, v):
         """Convert Decimal values to int for integer fields."""
         return convert_dynamodb_value(v)
 
-    @field_validator('user_id', 'sk', 'email', 'course_key', 'ipaddr', 'hostname', mode='before')
-    @classmethod
-    def convert_decimal_to_str(cls, v):
-        """Convert Decimal values to str for string fields."""
-        return convert_dynamodb_value(v)
 
 class Session(DictLikeModel):
     """e11-sessions table record"""
@@ -117,7 +113,6 @@ class Session(DictLikeModel):
     email: str                  # used to find the user in the Users table
     session_created: int
     session_expire: int
-    name: str
     claims: Dict[str, Any]
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
@@ -127,11 +122,6 @@ class Session(DictLikeModel):
         """Convert Decimal values to int for integer fields."""
         return convert_dynamodb_value(v)
 
-    @field_validator('sid', 'email', 'name', mode='before')
-    @classmethod
-    def convert_decimal_to_str(cls, v):
-        """Convert Decimal values to str for string fields."""
-        return convert_dynamodb_value(v)
 
 
 @functools.cache                # singleton

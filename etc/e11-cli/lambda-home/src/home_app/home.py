@@ -293,9 +293,8 @@ def new_session(event, claims) -> Session:
                 A.SK:A.SK_USER,
                 A.EMAIL:email,
                 A.COURSE_KEY: make_course_key(),
-                A.SESSION_CREATED:now,
-                A.CLAIMS:claims,
-                A.SESSION_EXPIRE:now}
+                A.USER_REGISTERED:now,
+                A.CLAIMS:claims}
         ret = users_table.put_item(Item=user)        # USER CREATION POINT
         add_user_log(event, user_id, f"User {email} created", claims=claims)
 
@@ -304,7 +303,6 @@ def new_session(event, claims) -> Session:
              "email": email,
              A.SESSION_CREATED : int(time.time()),
              A.SESSION_EXPIRE  : int(time.time() + SESSION_TTL_SECS),
-             "name" : claims.get('name',''),
              "client_ip": client_ip,
              "claims" : claims }
     ret = sessions_table.put_item(Item=session)
@@ -479,6 +477,7 @@ def get_user_from_email(email) -> User:
         raise EmailNotRegistered(email)
     item = resp['Items'][0]
     LOGGER.debug("get_user_from_email: found item with keys=%s", list(item.keys()))
+    LOGGER.debug("get_user_from_email - item=%s",item)
     return User(**convert_dynamodb_item(item))
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
@@ -521,7 +520,7 @@ def do_register(event,payload):
     users_table.update_item( Key={ "user_id": user.user_id,
                                    "sk": user.sk,
                                   },
-                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.REG_TIME} = :t, {A.NAME} = :name",
+                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.NAME} = :name",
                              ExpressionAttributeValues={
                                  ":ip": ipaddr,
                                  ":hn": hostname,
@@ -745,10 +744,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     if cookie.startswith('AuthSid='):
                         session_id = cookie.split('=')[1]
                         break
-            except Exception:  # pylint: disable=broad-exception-caught
-                pass
-
-            LOGGER.exception("Unhandled exception! Session ID: %s", session_id)
+            except Exception as ef:  # pylint: disable=broad-exception-caught
+                LOGGER.exception("Unhandled innder exception. ef=%s",ef)
+            LOGGER.exception("Unhandled exception! Session ID: %s  e=%s", session_id,e)
 
             if is_browser_request:
                 # Return HTML error page for browser requests

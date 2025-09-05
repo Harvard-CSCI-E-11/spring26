@@ -50,7 +50,7 @@ class MockedAWSServices:
                         elif attr_name == ':hn':
                             item['hostname'] = attr_value
                         elif attr_name == ':t':
-                            item['reg_time'] = attr_value
+                            item['host_registered'] = attr_value
                         elif attr_name == ':name':
                             item['name'] = attr_value
                 return {'ResponseMetadata': {'HTTPStatusCode': 200}}
@@ -158,6 +158,7 @@ def test_e11_registration_with_test_config(monkeypatch):
             'user_id': 'test-user-id',
             'email': email,
             'course_key': test_config_data['course_key'],
+            'user_registered': 1000000,
             'sk': '#'
         })
 
@@ -264,7 +265,7 @@ def test_e11_registration_with_test_config(monkeypatch):
             if key[0] == 'test-user-id' and key[1] == '#':
                 assert item.get('ip_address') == test_config_data['ipaddr']
                 assert item.get('name') == test_config_data['name']
-                assert 'reg_time' in item
+                assert 'host_registered' in item
                 user_update_found = True
                 break
 
