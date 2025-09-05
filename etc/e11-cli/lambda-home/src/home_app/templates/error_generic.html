@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Error - CSCI E-11{% endblock title %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-danger">
+        <h1>An Error Occurred</h1>
+        <p>We're sorry, but something went wrong while processing your request.</p>
+        {% if session_id %}
+        <div class="session-info">
+            <strong>Session ID:</strong> {{ session_id }}
+        </div>
+        {% endif %}
+        <h3>Error Details:</h3>
+        <pre class="error-details">{{ error_message }}</pre>
+        <p><a href="/" class="btn btn-primary">Return to Home</a></p>
+    </div>
+</div>
+{% endblock content %}
