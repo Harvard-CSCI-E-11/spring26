@@ -279,12 +279,12 @@ def main():
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
 
     # e11 grade [lab]
-    grade_parser = subparsers.add_parser('grade', help='Grade a lab')
+    grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]
-    check_parser = subparsers.add_parser('check', help='Check a lab')
+    check_parser = subparsers.add_parser('check', help='Check a lab (run from your instance)')
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
 
