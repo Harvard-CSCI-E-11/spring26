@@ -6,6 +6,7 @@ def test_discover_and_run_lab0(tmp_path):
     chdir_to_lab(ctx)
     summary = discover_and_run(ctx)
     assert summary["lab"] == "lab0"
+
     # lab0 should have at least 3 passing tests defined above
     assert len(summary["passes"]) >= 3
     assert summary["score"] > 0
