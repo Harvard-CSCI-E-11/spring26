@@ -24,6 +24,7 @@ from e11.e11core.context import build_ctx, chdir_to_lab
 from e11.e11core.loader import discover_and_run
 from e11.e11core.render import print_summary
 from e11.e11core.doctor import run_doctor
+from e11.e11core.utils import get_logger
 
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
@@ -66,7 +67,8 @@ git stash apply
 """
 
 def config_file_name():
-    return os.getenv('E11_CONFIG', join( HOME_DIR, CONFIG_FILE_NAME))
+    HOME = os.getenv('HOME','')
+    return os.getenv('E11_CONFIG', join(HOME, CONFIG_FILE_NAME))
 
 def do_version(args):
     print("version",__version__)

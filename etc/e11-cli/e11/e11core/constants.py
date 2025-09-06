@@ -1,4 +1,6 @@
-COURSE_ROOT = "/home/ubuntu/spring26"
+from pathlib import Path
+
+COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
 VERSION = "spring26"
 # Defaults

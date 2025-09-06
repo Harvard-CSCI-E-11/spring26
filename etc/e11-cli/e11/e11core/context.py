@@ -19,12 +19,12 @@ def build_ctx(lab: str):
         "labnum": labnum,
         "course_root": str(constants.COURSE_ROOT),
         "labdir": str(labdir),
-        "email": cfg.email,
-        "smashedemail": cfg.smashedemail,
-        "public_ip": cfg.public_ip,
         "labdns": labdns,
         "shared_secret": cfg.shared_secret,
         "mode": os.environ.get("E11_MODE", "local"),  # 'local' or 'grader'
+        "email": cfg.email,
+        "smashedemail": cfg.smashedemail,
+        "public_ip": cfg.public_ip,
     }
     return ctx
 

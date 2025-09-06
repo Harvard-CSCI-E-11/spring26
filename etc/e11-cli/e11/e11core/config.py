@@ -18,7 +18,7 @@ class E11Config:
             return cfg
         p = configparser.ConfigParser()
         p.read(config_path)
-        s = p["e11"] if "e11" in p else p["DEFAULT"]
+        s = p["student"] if "student" in p else p["DEFAULT"]
         cfg.email = s.get("email")
         cfg.smashedemail = s.get("smashedemail")
         cfg.public_ip = s.get("public_ip")
