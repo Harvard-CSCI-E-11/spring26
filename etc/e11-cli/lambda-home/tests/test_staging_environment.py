@@ -6,6 +6,7 @@ import pytest
 from unittest.mock import Mock
 
 import home_app.home as home
+import home_app.common as common
 
 def test_is_staging_environment():
     """Test staging environment detection"""
@@ -16,13 +17,13 @@ def test_is_staging_environment():
             "stage": "prod"
         }
     }
-    assert not home.is_staging_environment(prod_event)
+    assert not common.is_staging_environment(prod_event)
 
     # Production event (no stage field)
     prod_event_no_stage = {
         "requestContext": {}
     }
-    assert not home.is_staging_environment(prod_event_no_stage)
+    assert not common.is_staging_environment(prod_event_no_stage)
 
     # Staging event
     stage_event = {
@@ -30,7 +31,7 @@ def test_is_staging_environment():
             "stage": "stage"
         }
     }
-    assert home.is_staging_environment(stage_event)
+    assert common.is_staging_environment(stage_event)
 
 
 def test_get_cookie_domain():
@@ -93,7 +94,7 @@ def test_environment_detection_integration():
         "cookies": ["AuthSid=test-session-id"]
     }
 
-    assert home.is_staging_environment(stage_event)
+    assert common.is_staging_environment(stage_event)
     assert home.get_cookie_domain(stage_event) == "csci-e-11.org"
 
     # Simulate a real API Gateway event for production
@@ -111,7 +112,7 @@ def test_environment_detection_integration():
         "cookies": ["AuthSid=test-session-id"]
     }
 
-    assert not home.is_staging_environment(prod_event)
+    assert not common.is_staging_environment(prod_event)
     assert home.get_cookie_domain(prod_event) == "csci-e-11.org"
 
 
