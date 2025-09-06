@@ -640,6 +640,13 @@ def do_grader(event, context, payload):
     return resp_json(200, {'summary':summary})
 
 
+def do_delete_session(event, context, payload):
+    """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
+    sid = payload.get('sid','')
+    LOGGER.info("do_delete_session event=%s context=%s sid=%s",event,context,sid)
+    r = sessions_table.delete_item(Key={"sid":sid})
+    return resp_json(200, {'result':r})
+
 ################################################################
 ## main entry point from lambda system
 
@@ -692,6 +699,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
                 case ("POST", '/api/v1', 'grade'):
                     return do_grader(event, context, payload)
+
+                case ("POST", '/api/v1', 'delete-session'):
+                    return do_delete_session(event, context, payload)
 
                 case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,
