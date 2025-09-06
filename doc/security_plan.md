@@ -7,7 +7,6 @@
 | Courseware Security Architect | Simson Garfinkel                                             |
 
 
-
 CSCI E-11 Courseware Security Plan
 ======================
 
@@ -94,6 +93,21 @@ The basic security model is:
 
 
 FERPA-protected student data is stored solely in the e11-users table.
+
+###Vulnerability 1 - Impact of arbitrary code running in Lambda
+
+If an attacker were able to run arbitrary code on the Lambda, the attacker could:
+
+1. Scan for all users by doing a bruteforce search on the table against the DynamoDB users table using a dictionary of likely email addresses.
+
+2. Once the `user_id` for each user is identified, the attacker could alter student data.
+
+Mitigations:
+
+1. DynamoDB is periodically backed up.
+
+2. Students do not take down their old projects, so, at worst, the student VMs could be re-graded.
+
 
 Grading
 -------
