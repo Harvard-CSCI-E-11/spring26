@@ -20,6 +20,8 @@ import requests
 
 from email_validator import validate_email, EmailNotValidError
 
+from . import staff
+
 from e11.e11core.context import build_ctx, chdir_to_lab
 from e11.e11core.loader import discover_and_run
 from e11.e11core.render import print_summary
@@ -269,7 +271,6 @@ def main():
     subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=do_doctor)
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
 
-
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
     access_subparsers = access_parser.add_subparsers(dest='action')
@@ -287,6 +288,10 @@ def main():
     check_parser = subparsers.add_parser('check', help='Check a lab (run from your instance)')
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
+
+    # e11 staff commands
+    if staff.enabled():
+        staff.add_parsers(subparsers)
 
 
     args = parser.parse_args()
