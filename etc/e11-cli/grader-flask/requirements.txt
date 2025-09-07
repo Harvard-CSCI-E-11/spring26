@@ -1,5 +1,0 @@
-# requirements.txt for running locally
-# This should be added to src/requirements.txt
-pylint
-pylint-pytest
-pytest

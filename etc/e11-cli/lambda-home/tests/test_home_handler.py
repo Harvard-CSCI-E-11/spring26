@@ -1,9 +1,10 @@
 import urllib.parse
 import requests
-import pytest
 import logging
 
 import home_app.home as home
+import home_app.sessions as sessions
+import home_app.common as common
 import home_app.oidc as oidc
 
 def _api_event(path, *, qs=None, cookies=None, method='GET', body=None):
@@ -19,7 +20,7 @@ def _api_event(path, *, qs=None, cookies=None, method='GET', body=None):
 def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     # Set up mocked AWS services manually since the fixture doesn't seem to be working
     import json
-    
+
     class FakeSecrets:
         def get_secret_value(self, SecretId):
             return {"SecretString": json.dumps({
@@ -29,17 +30,17 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
                 "hmac_secret": "super-secret-hmac",
                 "secret_key": "client-secret-xyz",
             })}
-    
+
     class FakeTable:
         def __init__(self):
             self.db = {}
-        
+
         def put_item(self, Item):
             # Store the item in our fake database
             key = f"{Item.get('user_id', '')}#{Item.get('sk', '')}"
             self.db[key] = Item
             return {}
-        
+
         def query(self, **kwargs):
             # Handle GSI queries
             if kwargs.get("IndexName") == "GSI_Email":
@@ -56,31 +57,38 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
                         "LastEvaluatedKey": None
                     }
             return {"Items": [], "Count": 0, "LastEvaluatedKey": None}
-    
+
     class FakeSessionsTable:
         def __init__(self):
             self.db = {}
-        
+
         def put_item(self, Item):
             key = Item.get("sid", "")
             self.db[key] = Item
             return {}
-        
+
         def get_item(self, Key):
             return {"Item": self.db.get(Key["sid"])}
-        
+
         def delete_item(self, Key):
             self.db.pop(Key["sid"], None)
-    
+
     # Set up the mocked services
+    fake_users = FakeTable()
+    fake_sessions = FakeSessionsTable()
+
     monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
-    monkeypatch.setattr(home, "users_table", FakeTable())
-    monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
-    
+    monkeypatch.setattr(home, "users_table", fake_users)
+    monkeypatch.setattr(home, "sessions_table", fake_sessions)
+
     # Also need to monkeypatch the users_table in common.py since add_user_log uses it
-    import home_app.common as common
-    monkeypatch.setattr(common, "users_table", FakeTable())
-    
+    monkeypatch.setattr(common, "users_table", fake_users)
+    monkeypatch.setattr(common, "sessions_table", fake_sessions)
+
+    # Also need to monkeypatch the users_table in sessions.py since add_user_log uses it
+    monkeypatch.setattr(sessions, "users_table", fake_users)
+    monkeypatch.setattr(sessions, "sessions_table", fake_sessions)
+
     # Debug: Check if the monkeypatch worked
     # print(f"After monkeypatch:")
     # print(f"users_table type: {type(home.users_table)}")
