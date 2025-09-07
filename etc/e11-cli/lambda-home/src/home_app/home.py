@@ -50,7 +50,6 @@ from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
 
-import e11.e11core.ssh as ssh
 
 LOGGER = get_logger("home")
 
