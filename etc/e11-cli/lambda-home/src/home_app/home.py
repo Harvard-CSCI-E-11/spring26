@@ -41,7 +41,7 @@ from . import common
 from . import oidc
 from . import grader
 
-from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email
+from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email,delete_session
 from .common import get_logger,smash_email,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
@@ -172,27 +172,6 @@ def _with_request_log_level(payload: Dict[str, Any]):
         def __exit__(self, exc_type, exc, tb):
             LOGGER.setLevel(self.old)
     return _Ctx()
-
-################################################################
-## Parse Lambda Events and cookies
-def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
-    """ parser HTTP API v2 event"""
-    stage = event.get("requestContext", {}).get("stage", "")
-    path  = event.get("rawPath") or event.get("path") or "/"
-    if stage and path.startswith("/" + stage):
-        path = path[len(stage)+1:] or "/"
-    method = event.get("requestContext", {}).get("http", {}).get("method", event.get("httpMethod", "GET"))
-    body = event.get("body")
-    if event.get("isBase64Encoded"):
-        try:
-            body = base64.b64decode(body or "").decode("utf-8", "replace")
-        except binascii.Error:
-            body = None
-    try:
-        payload = json.loads(body) if body else {}
-    except json.JSONDecodeError:
-        payload = {}
-    return method, path, payload
 
 ################################################################
 def get_odic_config():
@@ -473,12 +452,34 @@ def do_grader(event, context, payload):
     return resp_json(200, {'summary':summary})
 
 
-def do_delete_session(event, context, payload):
+################################################################
+## Parse Lambda Events and cookies
+# THis is the entry point
+def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+    """ parser HTTP API v2 event"""
+    stage = event.get("requestContext", {}).get("stage", "")
+    path  = event.get("rawPath") or event.get("path") or "/"
+    if stage and path.startswith("/" + stage):
+        path = path[len(stage)+1:] or "/"
+    method = event.get("requestContext", {}).get("http", {}).get("method", event.get("httpMethod", "GET"))
+    body = event.get("body")
+    if event.get("isBase64Encoded"):
+        try:
+            body = base64.b64decode(body or "").decode("utf-8", "replace")
+        except binascii.Error:
+            body = None
+    try:
+        payload = json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        payload = {}
+    return method, path, payload
+
+def do_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
     sid = payload.get('sid','')
-    LOGGER.info("do_delete_session event=%s context=%s sid=%s",event,context,sid)
-    r = sessions_table.delete_item(Key={"sid":sid})
-    return resp_json(200, {'result':r})
+    if sid:
+        return resp_json(200, {'result':delete_session(sid)})
+    return resp_json(400, {'error':'no sid provided'})
 
 ################################################################
 ## main entry point from lambda system
@@ -534,7 +535,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return do_grader(event, context, payload)
 
                 case ("POST", '/api/v1', 'delete-session'):
-                    return do_delete_session(event, context, payload)
+                    return do_delete_session(payload)
 
                 case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,

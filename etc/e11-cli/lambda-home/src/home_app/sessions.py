@@ -129,9 +129,13 @@ def all_sessions_for_email(email):
     sessions = resp["Items"]
     return sessions
 
+def delete_session(sid):
+    LOGGER.info("delete_session sid=%s",sid)
+    return sessions_table.delete_item(Key={"sid":sid})
+
 def delete_session_from_event(event):
     """Delete the session, whether it exists or not"""
     sid = parse_cookies(event).get(COOKIE_NAME)
-    if not sid:
-        return
-    sessions_table.delete_item(Key={"sid":sid})
+    if sid:
+        return delete_session(sid)
+    return None
