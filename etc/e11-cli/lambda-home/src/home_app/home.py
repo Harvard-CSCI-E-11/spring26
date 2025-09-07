@@ -37,6 +37,8 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
+from e11.e11core import ssh
+
 from . import common
 from . import oidc
 from . import grader
@@ -46,8 +48,6 @@ from .common import get_logger,smash_email,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
-
-import e11.e11core.ssh as ssh
 
 LOGGER = get_logger("home")
 
@@ -395,10 +395,10 @@ def api_heartbeat(event, context):
 
 def pkey_pem():
     secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    pkey_pem = secret.get("SecretString") or secret.get("SecretBinary")
-    if isinstance(pkey_pem, bytes):
-        pkey_pem = pkey_pem.decode("utf-8", "replace")
-    return pkey_pem
+    key = secret.get("SecretString") or secret.get("SecretBinary")
+    if isinstance(key, bytes):
+        key = key.decode("utf-8", "replace")
+    return key
 
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
@@ -455,7 +455,7 @@ def api_delete_session(payload):
         return resp_json(200, {'result':delete_session(sid)})
     return resp_json(400, {'error':'no sid provided'})
 
-def api_check_access(event, payload):
+def api_check_access(_event, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
