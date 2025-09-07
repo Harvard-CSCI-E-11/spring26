@@ -54,7 +54,6 @@ def run_command(cmd: str, timeout=DEFAULT_NET_TIMEOUT_S) -> CommandResult:
             return CommandResult(124, out, err, out)
         return CommandResult(p.returncode, out, err, out)
     # grader: SSH
-    from . import ssh
     rc, out, err = ssh.exec(cmd, timeout=timeout)
     return CommandResult(rc, out, err, out)
 
@@ -63,7 +62,6 @@ def read_file(path: str) -> str:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
     # grader: SFTP first, sudo-catat fallback
-    from . import ssh
     try:
         data = ssh.sftp_read(path)
         return data.decode("utf-8", "replace")

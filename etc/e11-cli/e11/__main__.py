@@ -93,10 +93,13 @@ def get_ipaddr():
 
 def on_ec2():
     """https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html"""
-    r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
-                       encoding='utf8',
-                       capture_output=True,
-                       check=True)
+    try:
+        r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
+                           encoding='utf8',
+                           capture_output=True,
+                           check=True)
+    except subprocess.CalledProcessError:
+        return False
     return r.stdout.startswith('ec2')
 
 def get_instanceId():           # pylint: disable=invalid-name
@@ -291,11 +294,11 @@ def main():
 
     # e11 staff commands
     if staff.enabled():
-        staff.add_parsers(subparsers)
+        staff.add_parsers(parser,subparsers)
 
 
     args = parser.parse_args()
-    if not on_ec2():
+    if not on_ec2() and not staff.enabled():
         if args.force:
             print("WARNING: This should be run on EC2")
         else:
