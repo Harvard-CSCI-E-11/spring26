@@ -8,7 +8,6 @@ import sys
 import logging
 import os
 import shutil
-import configparser
 import subprocess
 import json
 from os.path import join # ,abspath,dirname
@@ -20,6 +19,10 @@ import requests
 
 from email_validator import validate_email, EmailNotValidError
 
+from . import staff
+from .support import config_path,authorized_keys_path,bot_access_check,get_config,get_ipaddr,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT
+
+from e11.e11core.constants import GRADING_TIMEOUT
 from e11.e11core.context import build_ctx, chdir_to_lab
 from e11.e11core.loader import discover_and_run
 from e11.e11core.render import print_summary
@@ -29,26 +32,13 @@ from e11.e11core.utils import get_logger
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
 
-REPO_YEAR='spring26'
-API_ENDPOINT = 'https://csci-e-11.org/api/v1'
-DEFAULT_TIMEOUT = 3
-GRADING_TIMEOUT = 30
 __version__ = '0.1.0'
+API_ENDPOINT = 'https://csci-e-11.org/api/v1'
 
 logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-HOME_DIR = os.getenv("HOME",".")
-
-# Figure out where ETC_DIR is likely installed
-ETC_DIR = join( HOME_DIR, REPO_YEAR, "etc")
-if not os.path.exists(ETC_DIR):
-    ETC_DIR = join( HOME_DIR, "gits", "csci-e-11", "etc")
-
-CONFIG_FILE_NAME =  'e11-config.ini'
-AUTHORIZED_KEYS_FILE = join( HOME_DIR , ".ssh", "authorized_keys")
-CSCIE_BOT_KEYFILE = join(ETC_DIR, 'csci-e-11-bot.pub')
 # Student properties
 STUDENT='student'
 STUDENT_EMAIL='email'
@@ -66,80 +56,38 @@ git pull
 git stash apply
 """
 
-def config_file_name():
-    HOME = os.getenv('HOME','')
-    return os.getenv('E11_CONFIG', join(HOME, CONFIG_FILE_NAME))
-
 def do_version(args):
     print("version",__version__)
 
-def get_config():
-    """Return the config file"""
-    cp = configparser.ConfigParser()
-    try:
-        with open( config_file_name(), 'r') as f:
-            cp.read_file(f)
-    except FileNotFoundError:
-        pass
-    if STUDENT not in cp:
-        cp.add_section(STUDENT)
-    return cp
-
-def get_ipaddr():
-    r = requests.get('https://checkip.amazonaws.com',timeout=DEFAULT_TIMEOUT)
-    return r.text.strip()
-
-def on_ec2():
-    """https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html"""
-    r = subprocess.run(['sudo','-n','dmidecode','--string','system-uuid'],
-                       encoding='utf8',
-                       capture_output=True,
-                       check=True)
-    return r.stdout.startswith('ec2')
-
-def get_instanceId():           # pylint: disable=invalid-name
-    token_url = "http://169.254.169.254/latest/api/token"
-    headers = {"X-aws-ec2-metadata-token-ttl-seconds": "21600"}
-    response = requests.put(token_url, headers=headers, timeout=1)
-    response.raise_for_status()
-    token = response.text
-    metadata_url = "http://169.254.169.254/latest/meta-data/instance-id"
-    headers = {"X-aws-ec2-metadata-token": token}
-    response = requests.get(metadata_url, headers=headers, timeout=1)
-    response.raise_for_status()
-    return response.text
-
-def cscie11_bot_key():
-    with open(CSCIE_BOT_KEYFILE, 'r') as f:
-        key = f.read()
-        assert key.count("\n")==1 and key.endswith("\n")
-        return key
-
 def do_access_on(args):
-    logger.info("Granting access to course admins...")
-    with open(AUTHORIZED_KEYS_FILE,'a') as f:
-        f.write(cscie11_bot_key())
+    if bot_access_check():
+        logger.info("Course admins already has access...")
+    else:
+        logger.info("Granting access to course admins...")
+        with authorized_keys_path.open('a') as f:
+            f.write( cscie11_bot_key() )
 
 def do_access_off(args):
-    key = cscie11_bot_key()
-    logger.info("Revoking access...")
-    with open(AUTHORIZED_KEYS_FILE,'r') as infile:
-        with open(AUTHORIZED_KEYS_FILE+'.new', 'w') as outfile:
-            for line in infile:
-                if line==key:
-                    continue
-                outfile.write(line)
-    shutil.move(AUTHORIZED_KEYS_FILE+'.new', AUTHORIZED_KEYS_FILE)
+    if not bot_access_check():
+        logger.info("Course admins do not have access.")
+    else:
+        logger.info("Revoking access from course admins...")
+        key = cscie11_bot_key()
+        newpath = authorized_keys_path().with_suffix('.new')
+        with authorized_keys_path().open('r') as infile:
+            with newpath.open('w') as outfile:
+                for line in infile:
+                    if line==key:
+                        continue
+                    outfile.write(line)
+        newpath.replace(authorized_keys_path())
 
 def do_access_check(args):
     logger.info("Checking access status for %s:",get_ipaddr())
-    key = cscie11_bot_key()
-    with open(AUTHORIZED_KEYS_FILE,'r') as f:
-        for line in f:
-            if line == key:
-                logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
-                return
-    logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
+    if bot_access_check():
+        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
+    else:
+        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
 
 def do_config(args):
     cp = get_config()
@@ -151,7 +99,10 @@ def do_config(args):
             if cp[STUDENT].get(attrib,'') != '':
                 break
     with open(CONFIG_FILE_NAME,'w') as f:
+        print(f"Writing configuration to {CONFIG_FILE_NAME}:")
+        cp.write(sys.stdout)
         cp.write(f)
+        print("\nDone!")
 
 def do_register(args):
     errors = 0
@@ -212,7 +163,7 @@ def do_grade(args):
     cp = get_config()
     r = requests.post(API_ENDPOINT, json={'action':'grade',
                                           'grade': dict(cp[STUDENT])},
-                      timeout = GRADING_TIMEOUT )
+                      timeout = GRADING_TIMEOUT+1 ) # wait for 1 second longer than server waits
     result = r.json()
     print("Response:")
     print_summary(result['summary'], verbose=getattr(args, "verbose", False))
@@ -221,7 +172,7 @@ def do_grade(args):
     sys.exit(0 if not result['summary']["fails"] else 1)
 
 
-def do_status(args):
+def do_status(_):
     ipaddr = get_ipaddr()
     print("Instance IP address: ", ipaddr)
     try:
@@ -235,7 +186,7 @@ def do_status(args):
         print(f"{at} = {cp[STUDENT][at]}")
 
 
-def do_update(args):
+def do_update(_):
     repo_dir = f"/home/ubuntu/{REPO_YEAR}"
     if not os.path.exists(repo_dir):
         print(f"{REPO_YEAR} does not exist",file=sys.stderr)
@@ -252,7 +203,7 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
-def do_doctor(args):
+def do_doctor(_):
     run_doctor()
 
 def main():
@@ -268,7 +219,6 @@ def main():
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
     subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=do_doctor)
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
-
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
@@ -288,9 +238,13 @@ def main():
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
 
+    # e11 staff commands
+    if staff.enabled():
+        staff.add_parsers(parser,subparsers)
+
 
     args = parser.parse_args()
-    if not on_ec2():
+    if not on_ec2() and not staff.enabled():
         if args.force:
             print("WARNING: This should be run on EC2")
         else:

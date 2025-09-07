@@ -41,11 +41,13 @@ from . import common
 from . import oidc
 from . import grader
 
-from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email
+from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email,delete_session,expire_batch
 from .common import get_logger,smash_email,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
+
+import e11.e11core.ssh as ssh
 
 LOGGER = get_logger("home")
 
@@ -174,27 +176,6 @@ def _with_request_log_level(payload: Dict[str, Any]):
     return _Ctx()
 
 ################################################################
-## Parse Lambda Events and cookies
-def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
-    """ parser HTTP API v2 event"""
-    stage = event.get("requestContext", {}).get("stage", "")
-    path  = event.get("rawPath") or event.get("path") or "/"
-    if stage and path.startswith("/" + stage):
-        path = path[len(stage)+1:] or "/"
-    method = event.get("requestContext", {}).get("http", {}).get("method", event.get("httpMethod", "GET"))
-    body = event.get("body")
-    if event.get("isBase64Encoded"):
-        try:
-            body = base64.b64decode(body or "").decode("utf-8", "replace")
-        except binascii.Error:
-            body = None
-    try:
-        payload = json.loads(body) if body else {}
-    except json.JSONDecodeError:
-        payload = {}
-    return method, path, payload
-
-################################################################
 def get_odic_config():
     """Return the config from AWS Secrets"""
     harvard_secrets = json.loads(secretsmanager_client.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
@@ -285,7 +266,7 @@ def do_dashboard(event):
                                           items=items,
                                           now=round(time.time())))
 
-def do_callback(event):
+def oidc_callback(event):
     """OIDC callback from Harvard Key website.
     """
     params = event.get("queryStringParameters") or {}
@@ -326,7 +307,7 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     return r
 
 # pylint: disable=too-many-locals
-def do_register(event,payload):
+def api_register(event,payload):
     """Register a VM"""
     LOGGER.info("do_register payload=%s event=%s",payload,event)
     registration = payload['registration']
@@ -397,16 +378,7 @@ def do_register(event,payload):
 
 
 ################################################################
-def expire_batch(now:int, items: list) -> int:
-    """Actually delete the items"""
-    n = 0
-    for item in items:
-        if item.get("session_expire", 0) <= now:
-            sessions_table.delete_item(Key={"sid": item["sid"]})
-            n += 1
-    return n
-
-def do_heartbeat(event, context):
+def api_heartbeat(event, context):
     """Called periodically"""
     LOGGER.info("heartbeat event=%s context=%s",event,context)
     t0 = time.time()
@@ -421,7 +393,14 @@ def do_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
-def do_grader(event, context, payload):
+def pkey_pem():
+    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
+    pkey_pem = secret.get("SecretString") or secret.get("SecretBinary")
+    if isinstance(pkey_pem, bytes):
+        pkey_pem = pkey_pem.decode("utf-8", "replace")
+    return pkey_pem
+
+def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
     LOGGER.info("do_grade event=%s context=%s",event,context)
     ses = get_session(event)
@@ -431,15 +410,11 @@ def do_grader(event, context, payload):
     user = get_user_from_email(ses.email)
 
     # Open SSH (fetch key from Secrets Manager)
-    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    key_pem = secret.get("SecretString") or secret.get("SecretBinary")
-    if isinstance(key_pem, bytes):
-        key_pem = key_pem.decode("utf-8", "replace")
 
     lab = payload['lab']
     ipaddr = user.ipaddr
     email = user.email
-    summary = grader.grade_student_vm(user=user,lab=lab,key_pem=key_pem)
+    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem())
 
     # Create email message for user
     subject = f"[E11] {lab} score {summary['score']}/5.0"
@@ -473,12 +448,50 @@ def do_grader(event, context, payload):
     return resp_json(200, {'summary':summary})
 
 
-def do_delete_session(event, context, payload):
+def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
     sid = payload.get('sid','')
-    LOGGER.info("do_delete_session event=%s context=%s sid=%s",event,context,sid)
-    r = sessions_table.delete_item(Key={"sid":sid})
-    return resp_json(200, {'result':r})
+    if sid:
+        return resp_json(200, {'result':delete_session(sid)})
+    return resp_json(400, {'error':'no sid provided'})
+
+def api_check_access(event, payload):
+    """Check to see if we can access the user's VM.
+    Authentication requires knowing the user's email and the course_key.
+    """
+    user = get_user_from_email(payload.get('email',''))
+    if not user:
+        return resp_json(400, {'error':'user not found.'})
+    if user.course_key != payload.get('course_key',''):
+        return resp_json(400, {'error':'course key not valid.'})
+    ssh.configure(user.ipaddr, pkey_pem=pkey_pem())
+    rc, out, err = ssh.exec("hostname")
+    return resp_json(400, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
+
+
+
+################################################################
+## Parse Lambda Events and cookies
+# THis is the entry point
+def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
+    """ parser HTTP API v2 event"""
+    stage = event.get("requestContext", {}).get("stage", "")
+    path  = event.get("rawPath") or event.get("path") or "/"
+    if stage and path.startswith("/" + stage):
+        path = path[len(stage)+1:] or "/"
+    method = event.get("requestContext", {}).get("http", {}).get("method", event.get("httpMethod", "GET"))
+    body = event.get("body")
+    if event.get("isBase64Encoded"):
+        try:
+            body = base64.b64decode(body or "").decode("utf-8", "replace")
+        except binascii.Error:
+            body = None
+    try:
+        payload = json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        payload = {}
+    return method, path, payload
+
 
 ################################################################
 ## main entry point from lambda system
@@ -501,10 +514,10 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # Authentication callback
                 #
                 case ("GET","/auth/callback",_):
-                    return do_callback(event)
+                    return oidc_callback(event)
 
                 ################################################################
-                # JSON Actions
+                # JSON API Actions
                 #
                 case ("POST", "/api/v1", "ping"):
                     return resp_json(200, {"error": False, "message": "ok", "path":sys.path,
@@ -525,17 +538,21 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                                            'environ':dict(os.environ)})
 
                 case ("POST", "/api/v1", "register"):
-                    return do_register(event, payload)
-
-                case ("POST", '/api/v1', 'heartbeat'):
-                    return do_heartbeat(event, context)
+                    return api_register(event, payload)
 
                 case ("POST", '/api/v1', 'grade'):
-                    return do_grader(event, context, payload)
+                    return api_grader(event, context, payload)
 
                 case ("POST", '/api/v1', 'delete-session'):
-                    return do_delete_session(event, context, payload)
+                    return api_delete_session(payload)
 
+                case ("POST", '/api/v1', 'check-access'):
+                    return api_check_access(event, payload)
+
+                case ("POST", '/api/v1', 'heartbeat'):
+                    return api_heartbeat(event, context)
+
+                # Must be last API call
                 case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,
                                             'message': "unknown or missing action.",
@@ -543,19 +560,20 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                                             'path':path,
                                             'action':action })
 
-                case ("GET", "/heartbeat", _):
-                    return do_heartbeat(event, context)
 
                 ################################################################
                 # Human actions
-                case ("GET","/", _):
-                    return do_page(event)
+                case ("GET", "/heartbeat", _): # also called by lambda cron
+                    return api_heartbeat(event, context)
 
                 case ("GET","/dashboard",_):
                     return do_dashboard(event)
 
                 case ("GET","/logout",_):
                     return do_logout(event)
+
+                case ("GET","/", _):
+                    return do_page(event)
 
                 # This must be last - catch all GETs, check for /static
                 case ("GET", p, _):
