@@ -38,11 +38,8 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
-<<<<<<< Updated upstream
-=======
 from .e11.e11core import ssh
 
->>>>>>> Stashed changes
 from . import common
 from . import oidc
 from . import grader
