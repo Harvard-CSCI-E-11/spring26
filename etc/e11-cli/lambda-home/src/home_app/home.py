@@ -24,6 +24,7 @@ from os.path import join
 import sys
 import binascii
 import time
+import ipaddress
 import datetime
 
 from typing import Any, Dict, Tuple, Optional
@@ -37,6 +38,11 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
+<<<<<<< Updated upstream
+=======
+from .e11.e11core import ssh
+
+>>>>>>> Stashed changes
 from . import common
 from . import oidc
 from . import grader
@@ -459,11 +465,19 @@ def api_check_access(event, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
-    user = get_user_from_email(payload.get('email',''))
+    email = payload.get('email','')
+    if not email:
+        return resp_json(400, {'error':'user not provided.'})
+    user = get_user_from_email(email)
     if not user:
         return resp_json(400, {'error':'user not found.'})
     if user.course_key != payload.get('course_key',''):
         return resp_json(400, {'error':'course key not valid.'})
+    try:
+        ipaddress.ip_address(user.ipaddress)
+    except ValueError as e:
+        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'ipaddr':user.ipaddr})
+
     ssh.configure(user.ipaddr, pkey_pem=pkey_pem())
     rc, out, err = ssh.exec("hostname")
     return resp_json(400, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
