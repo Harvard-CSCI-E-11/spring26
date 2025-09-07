@@ -139,3 +139,13 @@ def delete_session_from_event(event):
     if sid:
         return delete_session(sid)
     return None
+
+
+def expire_batch(now:int, items: list) -> int:
+    """Actually delete the items"""
+    n = 0
+    for item in items:
+        if item.get("session_expire", 0) <= now:
+            sessions_table.delete_item(Key={"sid": item["sid"]})
+            n += 1
+    return n
