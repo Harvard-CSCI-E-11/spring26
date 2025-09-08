@@ -6,7 +6,7 @@
   <thead>
   </thead>
   <tbody>
-    <tr><th>Name</th><td>{{ user.name }}</td></tr>
+    <tr><th>Preferred Name</th><td>{{ user.preferred_name }}</td></tr>
     <tr><th>Email</th><td>{{ user.email }}</td></tr>
     <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
     <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>
@@ -17,15 +17,15 @@
 <h3>User Log</h3>
 <table class="pure-table">
   <thead>
-    <tr><th>sk</th><th>client_ip</th><th>message</th><th>claims</th></tr>
+    <tr><th class="sk">sk</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
   </thead>
   <tbody>
     {% for log in logs %}
     <tr>
-      <th>{{ log.sk }}</th>
-      <td>{{ log.client_ip }}</td>
-      <td>{{ log.message }}</td>
-      <td>{{ log.claims }}</td>
+      <th class="sk">{{ log.sk }}</th>
+      <td class="client_ip">{{ log.client_ip }}</td>
+      <td class="message">{{ log.message }}</td>
+      <td class="claims">{{ log.claims }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -56,7 +56,7 @@
 <script>
 document.addEventListener("DOMContentLoaded", () => {
    document.querySelectorAll(".delete-btn").forEach(btn => {
-     btn.style.cursor = "pointer"; // make it obvious it's clickable
+     btn.style.cursor = "pointer"; // make it obvious it is clickable
 
      btn.addEventListener("click", async (event) => {
        const sid = btn.dataset.sid;

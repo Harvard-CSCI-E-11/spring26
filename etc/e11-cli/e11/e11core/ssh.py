@@ -22,6 +22,8 @@ logger = get_logger("e11core")
 def configure(host, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10):
     """Create one SSH/SFTP session for grader mode."""
     logger.debug("configure host=%s username=%s port=%s key_filename=%s timeout=%s",host,username,port,key_filename,timeout)
+    if pkey_pem:
+        logger.debug("type(pkey_pem)=%s  len(pkey_pem)=%s first 50:%s",type(pkey_pem),len(pkey_pem),str(pkey_pem)[0:50])
     assert isinstance(host,str)
     global _ssh, _sftp
     close()
@@ -32,10 +34,13 @@ def configure(host, username="ubuntu", port=22, key_filename=None, pkey_pem=None
         for keycls in (paramiko.RSAKey, paramiko.Ed25519Key, paramiko.ECDSAKey):
             try:
                 pkey = keycls.from_private_key(io.StringIO(pkey_pem))
+                logger.debug("pkey=%s keycls=%s",pkey,keycls)
                 break
-            except Exception:
+            except Exception as e:
+                logger.debug("e=%s",e)
                 continue
     try:
+        logger.debug("key_filename=%s pkey=%s",key_filename,pkey)
         _ssh.connect(hostname=host, port=port, username=username, key_filename=key_filename,
                      pkey=pkey, timeout=timeout, banner_timeout=timeout, auth_timeout=timeout)
     except OSError as e:
