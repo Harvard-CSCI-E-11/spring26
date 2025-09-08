@@ -60,3 +60,23 @@ max-public-methods = 20
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["e11*"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+include = ["."]
+exclude = [
+  "**/build",
+  "**/.aws-sam",
+  "**/.venv",
+  "**/.mypy_cache",
+  "**/.pytest_cache",
+  "**/__pycache__",
+]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+extraPaths = ["e11"]

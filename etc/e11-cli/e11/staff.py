@@ -3,7 +3,7 @@ e11 staff commands.
 """
 
 import os
-import e11.e11core.ssh  as ssh
+from .e11core import ssh
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']

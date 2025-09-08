@@ -1,7 +1,9 @@
+import subprocess
 import configparser
 import os
-from os.path import join
 from pathlib import Path
+
+import requests
 
 REPO_YEAR='spring26'
 CONFIG_FILE_NAME =  'e11-config.ini'

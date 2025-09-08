@@ -18,11 +18,13 @@ install:
 lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 
-pytest: .venv/pyvenv.cfg
-	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
-
 pyright: .venv/pyvenv.cfg
-	pyright
+	.venv/bin/pyright e11/.
+
+pytest: .venv/pyvenv.cfg
+	make lint
+	make pyright
+	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
 
 clean:
 	rm -f .coverage coverage.xml

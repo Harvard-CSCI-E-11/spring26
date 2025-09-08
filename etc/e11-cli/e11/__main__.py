@@ -5,12 +5,8 @@ Note that we use python3.12 because that's what's installed on ubuntu 24.04
 """
 import argparse
 import sys
-import logging
 import os
-import shutil
-import subprocess
 import json
-from os.path import join # ,abspath,dirname
 import dns
 import dns.resolver
 import dns.reversename
@@ -20,14 +16,14 @@ import requests
 from email_validator import validate_email, EmailNotValidError
 
 from . import staff
-from .support import config_path,authorized_keys_path,bot_access_check,get_config,get_ipaddr,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT
+from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_ipaddr,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
-from e11.e11core.constants import GRADING_TIMEOUT
-from e11.e11core.context import build_ctx, chdir_to_lab
-from e11.e11core.loader import discover_and_run
-from e11.e11core.render import print_summary
-from e11.e11core.doctor import run_doctor
-from e11.e11core.utils import get_logger
+from .e11core.constants import GRADING_TIMEOUT
+from .e11core.context import build_ctx, chdir_to_lab
+from .e11core.loader import discover_and_run
+from .e11core.render import print_summary
+from .e11core.doctor import run_doctor
+from .e11core.utils import get_logger
 
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
@@ -35,24 +31,22 @@ from e11.e11core.utils import get_logger
 __version__ = '0.1.0'
 API_ENDPOINT = 'https://csci-e-11.org/api/v1'
 
-logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_logger()
 
 # Student properties
 STUDENT='student'
 STUDENT_EMAIL='email'
-STUDENT_NAME='name'
+STUDENT_PREFERRED_NAME='preferred_name'
 INSTANCE_IPADDR='ipaddr'
 INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
 COURSE_KEY_LEN=6
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
+STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
 
 UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
 git stash
 git pull
-(cd etc/e11; pipx install . --force)
+(cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
 
@@ -64,15 +58,15 @@ def do_access_on(args):
         logger.info("Course admins already has access...")
     else:
         logger.info("Granting access to course admins...")
-        with authorized_keys_path.open('a') as f:
-            f.write( cscie11_bot_key() )
+        with authorized_keys_path().open('a') as f:
+            f.write( bot_pubkey() )
 
 def do_access_off(args):
     if not bot_access_check():
         logger.info("Course admins do not have access.")
     else:
         logger.info("Revoking access from course admins...")
-        key = cscie11_bot_key()
+        key = bot_pubkey()
         newpath = authorized_keys_path().with_suffix('.new')
         with authorized_keys_path().open('r') as infile:
             with newpath.open('w') as outfile:
@@ -98,8 +92,8 @@ def do_config(args):
                 cp[STUDENT][attrib] = buf
             if cp[STUDENT].get(attrib,'') != '':
                 break
-    with open(CONFIG_FILE_NAME,'w') as f:
-        print(f"Writing configuration to {CONFIG_FILE_NAME}:")
+    with config_path().open('w') as f:
+        print(f"Writing configuration to {config_path()}:")
         cp.write(sys.stdout)
         cp.write(f)
         print("\nDone!")
@@ -131,9 +125,9 @@ def do_register(args):
         print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
-    name = cp[STUDENT].get(STUDENT_NAME,"").strip()
-    if len(name)<3 or name.count(" ")<1:
-        print(f"ERROR: '{name}' is not a valid student name.")
+    preferred_name = cp[STUDENT].get(STUDENT_PREFERRED_NAME,"").strip()
+    if len(preferred_name)==0:
+        print(f"ERROR: '{preferred_name}' is not a valid student preferred name.")
         errors += 1
 
     course_key = cp[STUDENT].get(COURSE_KEY,"").strip()

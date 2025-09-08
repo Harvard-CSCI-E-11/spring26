@@ -93,6 +93,8 @@ ses_client = boto3.client("ses")
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"        # from route53
 
 EMAIL_BODY="""
+    Hi {preferred_name},
+
     You have successfully registered your AWS instance.
 
     Your course key is: {course_key}
@@ -321,7 +323,7 @@ def api_register(event,payload):
     try:
         user = get_user_from_email(email)
     except EmailNotRegistered:
-        return resp_json(403, {'message':'User email not registered. Please visit {DASHBOARD} to register.',
+        return resp_json(403, {'message':f'User email not registered. Please visit {DASHBOARD} to register.',
                                A.EMAIL:email})
 
     # See if the user's course_key matches
@@ -336,12 +338,12 @@ def api_register(event,payload):
     users_table.update_item( Key={ "user_id": user.user_id,
                                    "sk": user.sk,
                                   },
-                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.NAME} = :name",
+                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.PREFERRED_NAME} = :preferred_name",
                              ExpressionAttributeValues={
                                  ":ip": ipaddr,
                                  ":hn": hostname,
                                  ":t": int(time.time()),
-                                 ":name": registration.get('name')
+                                 ":preferred_name": registration.get(A.PREFERRED_NAME)
         }
     )
     add_user_log(event, user.user_id, f'User registered instanceId={instanceId} ipaddr={ipaddr}')
@@ -373,7 +375,7 @@ def api_register(event,payload):
     # Send email notification using SES
     send_email(to_addr=email,
                email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
-               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user.course_key))
+               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user.course_key, preferred_name=user.preferred_name))
     add_user_log(event, user.user_id, f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
@@ -469,7 +471,7 @@ def api_check_access(_event, payload):
     if user.course_key != payload.get('course_key',''):
         return resp_json(400, {'error':'course key not valid.'})
     try:
-        ipaddress.ip_address(user.ipaddress)
+        ipaddress.ip_address(str(user.ipaddr))
     except ValueError as e:
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'ipaddr':user.ipaddr})
 
