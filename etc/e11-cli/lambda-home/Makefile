@@ -40,6 +40,7 @@ pyright:.venv/pyvenv.cfg
 pytest: .venv/pyvenv.cfg
 	make vend-e11
 	make lint
+	make pyright
 	.venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --log-cli-level=DEBUG tests/
 
 
