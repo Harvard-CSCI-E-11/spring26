@@ -5,12 +5,8 @@ Note that we use python3.12 because that's what's installed on ubuntu 24.04
 """
 import argparse
 import sys
-import logging
 import os
-import shutil
-import subprocess
 import json
-from os.path import join # ,abspath,dirname
 import dns
 import dns.resolver
 import dns.reversename
@@ -22,12 +18,12 @@ from email_validator import validate_email, EmailNotValidError
 from . import staff
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_ipaddr,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
-from e11.e11core.constants import GRADING_TIMEOUT
-from e11.e11core.context import build_ctx, chdir_to_lab
-from e11.e11core.loader import discover_and_run
-from e11.e11core.render import print_summary
-from e11.e11core.doctor import run_doctor
-from e11.e11core.utils import get_logger
+from .e11core.constants import GRADING_TIMEOUT
+from .e11core.context import build_ctx, chdir_to_lab
+from .e11core.loader import discover_and_run
+from .e11core.render import print_summary
+from .e11core.doctor import run_doctor
+from .e11core.utils import get_logger
 
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
@@ -35,9 +31,7 @@ from e11.e11core.utils import get_logger
 __version__ = '0.1.0'
 API_ENDPOINT = 'https://csci-e-11.org/api/v1'
 
-logging.basicConfig(format='%(asctime)s  %(filename)s:%(lineno)d %(levelname)s: %(message)s', force=True)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger = get_logger()
 
 # Student properties
 STUDENT='student'
@@ -64,7 +58,7 @@ def do_access_on(args):
         logger.info("Course admins already has access...")
     else:
         logger.info("Granting access to course admins...")
-        with authorized_keys_path.open('a') as f:
+        with authorized_keys_path().open('a') as f:
             f.write( bot_pubkey() )
 
 def do_access_off(args):
