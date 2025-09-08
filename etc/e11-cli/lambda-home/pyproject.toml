@@ -29,6 +29,7 @@ dependencies = [
 dev = [
     "djlint",
     "pylint",
+    "pyright",
     "pytest",
     "pip-tools",
     "pytest-cov",
@@ -62,7 +63,7 @@ indent = 4
 # Specify the Python version Pylint should assume for syntax checking.
 py-version = "3.13"
 ignore-paths = [
-    ".venv/.*", 
+    ".venv/.*",
     "src/home_app/e11/.*"
 ]
 source-roots = [".."]
