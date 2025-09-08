@@ -52,7 +52,7 @@ STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANC
 UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
 git stash
 git pull
-(cd etc/e11; pipx install . --force)
+(cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
 
