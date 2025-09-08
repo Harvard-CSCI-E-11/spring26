@@ -79,7 +79,7 @@ class MockedAWSServices:
                         elif attr_name == ':t':
                             item['host_registered'] = attr_value
                         elif attr_name == ':name':
-                            item['name'] = attr_value
+                            item['preferred_name'] = attr_value
                 else:
                     # Create a new item if it doesn't exist
                     item = {
@@ -88,7 +88,7 @@ class MockedAWSServices:
                         'ip_address': ExpressionAttributeValues.get(':ip'),
                         'hostname': ExpressionAttributeValues.get(':hn'),
                         'host_registered': ExpressionAttributeValues.get(':t'),
-                        'name': ExpressionAttributeValues.get(':name')
+                        'preferred_name': ExpressionAttributeValues.get(':preferred_name')
                     }
                     self.mock_aws.dynamodb_items[key] = item
                 return {'ResponseMetadata': {'HTTPStatusCode': 200}}
@@ -193,7 +193,7 @@ def test_registration_api_flow(monkeypatch):
 
     # Create test config data
     test_config_data = {
-        'name': 'Test User',
+        'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',
         'ipaddr': '1.2.3.4',
@@ -261,7 +261,7 @@ def test_registration_api_flow(monkeypatch):
         for key, item in mock_aws.dynamodb_items.items():
             if key[0] == 'test-user-id' and key[1] == '#':
                 assert item.get('ip_address') == '1.2.3.4'
-                assert item.get('name') == 'Test User'
+                assert item.get('preferred_name') == 'Test User'
                 assert 'host_registered' in item
                 user_update_found = True
                 break
@@ -329,7 +329,7 @@ def test_registration_api_invalid_user(monkeypatch):
 
     # Create test config data
     test_config_data = {
-        'name': 'Test User',
+        'preferred_name': 'Test User',
         'email': 'nonexistent@csci-e-11.org',
         'course_key': '123456',
         'ipaddr': '1.2.3.4',
@@ -387,7 +387,7 @@ def test_registration_api_invalid_course_key(monkeypatch):
 
     # Create test config data
     test_config_data = {
-        'name': 'Test User',
+        'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',  # Different from user's course key
         'ipaddr': '1.2.3.4',
@@ -432,7 +432,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
 
     # Create test config data
     test_config_data = {
-        'name': 'Test User',
+        'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',
         'ipaddr': '1.2.3.4',
@@ -453,7 +453,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 'email': email,
                 'course_key': test_config_data['course_key'],  # Use test config data
                 'sk': '#',
-                'claims': {'name': test_config_data['name'], 'email': email},
+                'claims': {'name': 'Test User', 'email': email},
                 'user_registered': 1000000000,
                 'ipaddr': '0.0.0.0',    # Old IP (different from new registration)
                 'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
@@ -505,7 +505,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
             if key[0] == 'existing-user-id' and key[1] == '#':
                 # Verify the existing user was updated with new data
                 assert item.get('ip_address') == '1.2.3.4'
-                assert item.get('name') == 'Test User'
+                assert item.get('preferred_name') == 'Test User'
                 assert 'host_registered' in item
                 # Verify it's the same user_id (not a new one)
                 assert item.get('user_id') == 'existing-user-id'

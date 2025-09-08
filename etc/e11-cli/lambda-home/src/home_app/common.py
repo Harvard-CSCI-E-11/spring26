@@ -72,7 +72,7 @@ class A:
     USER_ID = 'user_id'
     EMAIL = 'email'
     IPADDR = 'ipaddr'           # public IP address
-    NAME = 'name'               # Name the user prefers, not the name in the claims
+    PREFERRED_NAME = 'preferred_name'
     HOSTNAME = 'hostname'
     COURSE_KEY = 'course_key'
     CLAIMS = 'claims'
@@ -107,6 +107,7 @@ class User(DictLikeModel):
     email: str
     course_key: str
     user_registered: int
+    preferred_name: Optional[str] = None
     claims: Dict[str, Any]
     ipaddr: Optional[str] = None
     hostname: Optional[str] = None

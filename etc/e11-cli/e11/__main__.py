@@ -42,12 +42,12 @@ logger.setLevel(logging.INFO)
 # Student properties
 STUDENT='student'
 STUDENT_EMAIL='email'
-STUDENT_NAME='name'
+STUDENT_PREFERRED_NAME='preferred_name'
 INSTANCE_IPADDR='ipaddr'
 INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
 COURSE_KEY_LEN=6
-STUDENT_ATTRIBS = [STUDENT_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
+STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
 
 UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
 git stash
@@ -131,9 +131,9 @@ def do_register(args):
         print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
         errors += 1
 
-    name = cp[STUDENT].get(STUDENT_NAME,"").strip()
-    if len(name)<3 or name.count(" ")<1:
-        print(f"ERROR: '{name}' is not a valid student name.")
+    preferred_name = cp[STUDENT].get(STUDENT_PREFERRED_NAME,"").strip()
+    if len(preferred_name)==0:
+        print(f"ERROR: '{preferred_name}' is not a valid student preferred name.")
         errors += 1
 
     course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
