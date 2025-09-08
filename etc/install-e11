@@ -59,11 +59,7 @@ fi
 ################################################################
 
 # Lab 1 setup
-if [ -z ${NO_HACK_ME+x} ]; then
-    $SCRIPT_DIR/.install-backdoor
-else
-    echo -e '\nWelcome Wizard\n'27
-fi
+$SCRIPT_DIR/.install1
 
 # Lab3 setup
 (cd $HOME/spring26/lab3 && /bin/rm -f server.py && cp -p simple_flask_application.py server.py)
