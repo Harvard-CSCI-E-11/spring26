@@ -310,7 +310,7 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
 # pylint: disable=too-many-locals
 def api_register(event,payload):
     """Register a VM"""
-    LOGGER.info("do_register payload=%s event=%s",payload,event)
+    LOGGER.info("api_register payload=%s event=%s",payload,event)
     registration = payload['registration']
     email = registration.get(A.EMAIL)
     ipaddr = registration.get('ipaddr')
