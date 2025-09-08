@@ -196,7 +196,7 @@ def test_e11_registration_with_test_config(monkeypatch):
                 'isBase64Encoded': False
             }
 
-            response = home.do_register(event, json_data)
+            response = home.api_register(event, json_data)
             return Mock(
                 ok=response['statusCode'] == 200,
                 text=response['body'],
@@ -242,7 +242,7 @@ def test_e11_registration_with_test_config(monkeypatch):
 
         # Call the registration function directly
         args = Mock()
-        e11_main.do_register(args)
+        e11_main.api_register(args)
 
         # Verify that a request was made to the registration endpoint
         assert len(captured_requests) == 1

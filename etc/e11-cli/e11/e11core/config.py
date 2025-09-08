@@ -4,6 +4,7 @@ from pathlib import Path
 CONFIG_FILENAME = "e11-config.ini"
 
 class E11Config:
+    """Access to variables in the E11 config file, automatically resolving HOME at runtime to handle mocking."""
     def __init__(self):
         self.email = None
         self.smashedemail = None

@@ -25,6 +25,7 @@ Globals:
       Variables:
         LOG_LEVEL: !Ref LogLevel
         OIDC_SECRET_ID: !Ref OidcSecretId
+        SSH_SECRET_ID: !Ref SshSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTableName
 
@@ -38,6 +39,9 @@ Parameters:
   OidcSecretId:
     Type: String
     Description: Secrets Manager SecretId/ARN containing the OIDC data
+  SshSecretId:
+    Type: String
+    Description: Secrets Manager SecretId/ARN containing the SSH data
   HostedZoneId:
     Type: String
     Description: Route53 Hosted Zone ID for csci-e-11.org (e.g., Z123ABC...)
@@ -111,7 +115,9 @@ Resources:
             - Sid: SecretsGet
               Effect: Allow
               Action: secretsmanager:GetSecretValue
-              Resource: !Ref OidcSecretId
+              Resource:
+                - !Ref OidcSecretId
+                - !Ref SshSecretId
 
             - Sid: AllowRoute53Changes
               Effect: Allow
@@ -127,6 +133,7 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
+
             - Sid: SessionsTableRW
               Effect: Allow
               Action:

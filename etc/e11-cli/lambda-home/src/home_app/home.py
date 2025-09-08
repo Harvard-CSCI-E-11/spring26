@@ -24,6 +24,7 @@ from os.path import join
 import sys
 import binascii
 import time
+import ipaddress
 import datetime
 
 from typing import Any, Dict, Tuple, Optional
@@ -37,6 +38,8 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
+from .e11.e11core import ssh
+
 from . import common
 from . import oidc
 from . import grader
@@ -46,8 +49,6 @@ from .common import get_logger,smash_email,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
-
-import e11.e11core.ssh as ssh
 
 LOGGER = get_logger("home")
 
@@ -309,7 +310,7 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
 # pylint: disable=too-many-locals
 def api_register(event,payload):
     """Register a VM"""
-    LOGGER.info("do_register payload=%s event=%s",payload,event)
+    LOGGER.info("api_register payload=%s event=%s",payload,event)
     registration = payload['registration']
     email = registration.get(A.EMAIL)
     ipaddr = registration.get('ipaddr')
@@ -395,10 +396,10 @@ def api_heartbeat(event, context):
 
 def pkey_pem():
     secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    pkey_pem = secret.get("SecretString") or secret.get("SecretBinary")
-    if isinstance(pkey_pem, bytes):
-        pkey_pem = pkey_pem.decode("utf-8", "replace")
-    return pkey_pem
+    key = secret.get("SecretString") or secret.get("SecretBinary")
+    if isinstance(key, bytes):
+        key = key.decode("utf-8", "replace")
+    return key
 
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
@@ -455,15 +456,23 @@ def api_delete_session(payload):
         return resp_json(200, {'result':delete_session(sid)})
     return resp_json(400, {'error':'no sid provided'})
 
-def api_check_access(event, payload):
+def api_check_access(_event, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
-    user = get_user_from_email(payload.get('email',''))
+    email = payload.get('email','')
+    if not email:
+        return resp_json(400, {'error':'user not provided.'})
+    user = get_user_from_email(email)
     if not user:
         return resp_json(400, {'error':'user not found.'})
     if user.course_key != payload.get('course_key',''):
         return resp_json(400, {'error':'course key not valid.'})
+    try:
+        ipaddress.ip_address(user.ipaddress)
+    except ValueError as e:
+        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'ipaddr':user.ipaddr})
+
     ssh.configure(user.ipaddr, pkey_pem=pkey_pem())
     rc, out, err = ssh.exec("hostname")
     return resp_json(400, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
