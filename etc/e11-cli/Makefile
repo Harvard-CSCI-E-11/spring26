@@ -19,7 +19,7 @@ lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 
 pyright: .venv/pyvenv.cfg
-	pyright e11/.
+	.venv/bin/pyright e11/.
 
 pytest: .venv/pyvenv.cfg
 	make lint
