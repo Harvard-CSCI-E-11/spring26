@@ -1,7 +1,7 @@
 import configparser, os, re
 from pathlib import Path
 from .constants import CONFIG_FILENAME
-
+from .utils import smash_email
 
 class E11Config:
     """Access to variables in the E11 config file,
@@ -21,8 +21,8 @@ class E11Config:
         p = configparser.ConfigParser()
         p.read(cfg.config_path)
         s = p["student"] if "student" in p else p["DEFAULT"]
-        cfg.course_key = s.get("course_key", fallback=None)
-        cfg.email = s.get("email", fallback=None)
-        cfg.public_ip = s.get("public_ip", fallback=None)
-        cfg.smashedemail = s.get("email", fallback=None)
+        cfg.course_key   = s.get("course_key", fallback=None)
+        cfg.email        = s.get("email", fallback=None)
+        cfg.public_ip    = s.get("public_ip", fallback=None)
+        cfg.smashedemail = smash_email(s.get("email", fallback=""))
         return cfg

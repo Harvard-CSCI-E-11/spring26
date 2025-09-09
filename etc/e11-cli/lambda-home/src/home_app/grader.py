@@ -10,8 +10,9 @@ import os
 from .e11.e11core.context import build_ctx
 from .e11.e11core.loader import discover_and_run
 from .e11.e11core import ssh as e11ssh
+from .e11.e11core.utils import smash_email
 
-from .common import get_logger,smash_email,add_user_log,User
+from .common import get_logger,add_user_log,User
 
 LOGGER = get_logger("grader")
 

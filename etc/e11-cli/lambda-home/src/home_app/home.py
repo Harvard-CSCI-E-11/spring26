@@ -39,13 +39,14 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 from .e11.e11core import ssh
+from .e11.e11core.utils import smash_email
 
 from . import common
 from . import oidc
 from . import grader
 
 from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email,delete_session,expire_batch
-from .common import get_logger,smash_email,add_user_log,EmailNotRegistered
+from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME

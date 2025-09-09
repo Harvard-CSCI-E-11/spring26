@@ -4,7 +4,7 @@
 
 PYTHON = python3.12
 
-.PHONY: install pytest lint clean
+.PHONY: install pytest lint clean check test
 
 install:
 	make .venv/pyvenv.cfg
@@ -25,6 +25,12 @@ pytest: .venv/pyvenv.cfg
 	make lint
 	make pyright
 	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
+
+check:
+	make pytest
+
+test:
+	make pytest
 
 clean:
 	rm -f .coverage coverage.xml

@@ -4,6 +4,7 @@ from . import constants
 from .config import E11Config
 
 def build_ctx(lab: str):
+    """Creates a ctx that works equally well when run locally (e11 check lab) or from the grader."""
     if not lab.startswith("lab"):
         raise ValueError("lab must be like 'lab3'")
     labnum = int(lab[3:])

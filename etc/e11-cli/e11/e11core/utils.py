@@ -1,6 +1,7 @@
 import logging
 import functools
 import os
+import re
 
 @functools.cache                # singleton
 def _configure_root_once():
@@ -27,3 +28,10 @@ def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger under the 'e11' namespace (e.g., e11.grader)."""
     _configure_root_once()
     return logging.getLogger("e11" + ("" if not name else f".{name}"))
+
+
+def smash_email(email):
+    """Convert an email into the CSCI E-11 smashed email"""
+    email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
+    smashed_email = "".join(email.replace("@",".").split(".")[0:2])
+    return smashed_email

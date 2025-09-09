@@ -199,9 +199,6 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
-def do_doctor(_):
-    run_doctor()
-
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')

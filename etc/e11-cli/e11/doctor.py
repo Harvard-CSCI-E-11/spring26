@@ -1,9 +1,8 @@
-import os
 from pathlib import Path
 from .e11core import constants
 from .e11core.config import E11Config
 
-def run_doctor(args):
+def run_doctor(_):
     ok = True
     cfg = E11Config.load()
     print("e11 doctor:")
@@ -12,12 +11,12 @@ def run_doctor(args):
         print(f"  ✔ ${cfg.config_path} exists")
         if not cfg.email:
             ok = False
-            print(f"  ✘ ~/e11-config.ini missing cfg.email")
+            print( "  ✘ ~/e11-config.ini missing cfg.email")
         else:
             print(f"  ✔ ~/e11-config.ini defines email: {cfg.email}")
         if not cfg.public_ip:
             ok = False
-            print(f"  ✘ ~/e11-config.ini missing cfg.public_ip")
+            print( "  ✘ ~/e11-config.ini missing cfg.public_ip")
         else:
             print(f"  ✔ ~/e11-config.ini defines public_ip: {cfg.public_ip}")
     else:

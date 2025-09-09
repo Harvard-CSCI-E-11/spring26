@@ -11,7 +11,7 @@ def test_ctx_and_dns_and_chdir(_isolate_env,tmp_path):
     logger.error("tmp_path=%s",tmp_path)
     ctx = build_ctx("lab0")
     assert ctx["lab"] == "lab0"
-    assert ctx["smashedemail"] == "testexampleorg"
-    assert ctx["labdns"] == "testexampleorg-lab0.csci-e-11.org"
+    assert ctx["smashedemail"] == "testexample"
+    assert ctx["labdns"] == "testexample-lab0.csci-e-11.org"
     chdir_to_lab(ctx)
     assert Path.cwd() == (constants.COURSE_ROOT / "lab0")

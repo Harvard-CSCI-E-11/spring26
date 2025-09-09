@@ -4,9 +4,11 @@ import pytest
 
 TEST_CONFIG="""
 [student]
+preferred_name=Preferred Name
 email=test@example.org
 smashedemail=testexampleorg
 public_ip=127.0.0.1
+course_key=key1234
 """
 
 @pytest.fixture(autouse=True)
