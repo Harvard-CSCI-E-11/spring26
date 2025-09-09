@@ -189,7 +189,7 @@ def test_e11_registration_with_test_config(monkeypatch):
                 'requestContext': {
                     'http': {
                         'method': 'POST',
-                        'sourceIp': test_config_data.get('ipaddr', '1.2.3.4')
+                        'sourceIp': test_config_data.get('public_ip', '1.2.3.4')
                     }
                 },
                 'body': json.dumps(json_data),
@@ -208,7 +208,7 @@ def test_e11_registration_with_test_config(monkeypatch):
     # Mock the requests.get for IP address check
     def mock_requests_get(url, **kwargs):
         if 'checkip.amazonaws.com' in url:
-            return Mock(text=test_config_data.get('ipaddr', '1.2.3.4'))
+            return Mock(text=test_config_data.get('public_ip', '1.2.3.4'))
         return Mock(text="Not found")
 
             # Mock subprocess for EC2 instance ID check
@@ -254,7 +254,7 @@ def test_e11_registration_with_test_config(monkeypatch):
         assert registration_data['name'] == test_config_data['name']
         assert registration_data['email'] == test_config_data['email']
         assert registration_data['course_key'] == test_config_data['course_key']
-        assert registration_data['ipaddr'] == test_config_data['ipaddr']
+        assert registration_data['public_ip'] == test_config_data['public_ip']
 
         # Verify the backend processed the registration correctly
         assert len(mock_aws.dynamodb_items) > 0
@@ -263,7 +263,7 @@ def test_e11_registration_with_test_config(monkeypatch):
         user_update_found = False
         for key, item in mock_aws.dynamodb_items.items():
             if key[0] == 'test-user-id' and key[1] == '#':
-                assert item.get('ip_address') == test_config_data['ipaddr']
+                assert item.get('ip_address') == test_config_data['public_ip']
                 assert item.get('name') == test_config_data['name']
                 assert 'host_registered' in item
                 user_update_found = True
@@ -294,7 +294,7 @@ def test_e11_registration_with_test_config(monkeypatch):
             assert change['Action'] == 'UPSERT'
             assert change['ResourceRecordSet']['Type'] == 'A'
             assert change['ResourceRecordSet']['TTL'] == 300
-            assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == test_config_data['ipaddr']
+            assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == test_config_data['public_ip']
             assert change['ResourceRecordSet']['Name'] in expected_hostnames
 
         # Verify SES email was sent
@@ -308,7 +308,7 @@ def test_e11_registration_with_test_config(monkeypatch):
         assert 'AWS Instance Registered' in message['Subject']['Data']
 
         email_body = message['Body']['Text']['Data']
-        assert test_config_data['ipaddr'] in email_body  # IP address
+        assert test_config_data['public_ip'] in email_body  # IP address
         assert test_config_data['course_key'] in email_body  # course key
         assert 'user.csci-e-11.org' in email_body  # hostname
 

@@ -102,7 +102,7 @@ EMAIL_BODY="""
     The following DNS record has been created:
 
     Hostname: {hostname}
-    Public IP Address: {ipaddr}
+    Public IP Address: {public_ip}
 
     Best regards,
     CSCIE-11 Team
@@ -315,7 +315,7 @@ def api_register(event,payload):
     LOGGER.info("api_register payload=%s event=%s",payload,event)
     registration = payload['registration']
     email = registration.get(A.EMAIL)
-    ipaddr = registration.get('ipaddr')
+    public_ip = registration.get('public_ip')
     instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
 
@@ -338,15 +338,15 @@ def api_register(event,payload):
     users_table.update_item( Key={ "user_id": user.user_id,
                                    "sk": user.sk,
                                   },
-                             UpdateExpression=f"SET {A.IPADDR} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.PREFERRED_NAME} = :preferred_name",
+                             UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.PREFERRED_NAME} = :preferred_name",
                              ExpressionAttributeValues={
-                                 ":ip": ipaddr,
+                                 ":ip": public_ip,
                                  ":hn": hostname,
                                  ":t": int(time.time()),
                                  ":preferred_name": registration.get(A.PREFERRED_NAME)
         }
     )
-    add_user_log(event, user.user_id, f'User registered instanceId={instanceId} ipaddr={ipaddr}')
+    add_user_log(event, user.user_id, f'User registered instanceId={instanceId} public_ip={public_ip}')
 
     # Create DNS records in Route53
     hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
@@ -357,7 +357,7 @@ def api_register(event,payload):
                 "Name": hostname,
                 "Type": "A",
                 "TTL": 300,
-                "ResourceRecords": [{"Value": ipaddr}]
+                "ResourceRecords": [{"Value": public_ip}]
             }
         )
         for hostname in hostnames
@@ -375,7 +375,7 @@ def api_register(event,payload):
     # Send email notification using SES
     send_email(to_addr=email,
                email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
-               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr, course_key=user.course_key, preferred_name=user.preferred_name))
+               email_body = EMAIL_BODY.format(hostname=hostnames[0], public_ip=public_ip, course_key=user.course_key, preferred_name=user.preferred_name))
     add_user_log(event, user.user_id, f'Registration email sent to {email}')
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
@@ -419,7 +419,7 @@ def api_grader(event, context, payload):
     # Open SSH (fetch key from Secrets Manager)
 
     lab = payload['lab']
-    ipaddr = user.ipaddr
+    public_ip = user.public_ip
     email = user.email
     summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem("cscie-bot"))
 
@@ -444,7 +444,7 @@ def api_grader(event, context, payload):
     item = { A.USER_ID: user.user_id,
              A.SK: f"{A.SK_GRADE_PREFIX}{now}",
              A.LAB: lab,
-             A.IPADDR: ipaddr,
+             A.PUBLIC_IP: public_ip,
              "score": str(summary["score"]),
              "pass_names": summary["passes"],
              "fail_names": summary["fails"],
@@ -475,11 +475,11 @@ def api_check_access(_event, payload):
     if user.course_key != payload.get('course_key',''):
         return resp_json(400, {'error':'course key not valid.'})
     try:
-        ipaddress.ip_address(str(user.ipaddr))
+        ipaddress.ip_address(str(user.public_ip))
     except ValueError as e:
-        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'ipaddr':user.ipaddr})
+        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
 
-    ssh.configure(user.ipaddr, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
+    ssh.configure(user.public_ip, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
     rc, out, err = ssh.exec("hostname")
     return resp_json(200, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
 
@@ -542,9 +542,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
 
                 case ("POST", "/api/v1", "ping-mail"):
                     hostnames = ['first']
-                    ipaddr = '<address>'
+                    public_ip = '<address>'
                     resp = send_email(email_subject = "E11 email ping",
-                               email_body = EMAIL_BODY.format(hostname=hostnames[0], ipaddr=ipaddr),
+                               email_body = EMAIL_BODY.format(hostname=hostnames[0], public_ip=public_ip),
                                to_addr=payload[A.EMAIL])
 
                     return resp_json(200, {"error": False, "message": "ok",

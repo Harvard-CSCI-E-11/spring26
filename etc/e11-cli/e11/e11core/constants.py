@@ -1,8 +1,11 @@
 from pathlib import Path
 
+VERSION = "spring26"
+CONFIG_FILENAME = "e11-config.ini"
 COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
-VERSION = "spring26"
+LAB_MAX=7
+
 # Defaults
 DEFAULT_TIMEOUT_S = 5
 DEFAULT_NET_TIMEOUT_S = 10

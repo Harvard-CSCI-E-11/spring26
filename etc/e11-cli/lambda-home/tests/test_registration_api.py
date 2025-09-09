@@ -196,7 +196,7 @@ def test_registration_api_flow(monkeypatch):
         'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',
-        'ipaddr': '1.2.3.4',
+        'public_ip': '1.2.3.4',
         'instanceId': 'i-1234567890abcdef0'
     }
 
@@ -332,7 +332,7 @@ def test_registration_api_invalid_user(monkeypatch):
         'preferred_name': 'Test User',
         'email': 'nonexistent@csci-e-11.org',
         'course_key': '123456',
-        'ipaddr': '1.2.3.4',
+        'public_ip': '1.2.3.4',
         'instanceId': 'i-1234567890abcdef0'
     }
 
@@ -390,7 +390,7 @@ def test_registration_api_invalid_course_key(monkeypatch):
         'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',  # Different from user's course key
-        'ipaddr': '1.2.3.4',
+        'public_ip': '1.2.3.4',
         'instanceId': 'i-1234567890abcdef0'
     }
 
@@ -435,7 +435,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
         'preferred_name': 'Test User',
         'email': 'test@csci-e-11.org',
         'course_key': '123456',
-        'ipaddr': '1.2.3.4',
+        'public_ip': '1.2.3.4',
         'instanceId': 'i-1234567890abcdef0'
     }
 
@@ -455,7 +455,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 'sk': '#',
                 'claims': {'name': 'Test User', 'email': email},
                 'user_registered': 1000000000,
-                'ipaddr': '0.0.0.0',    # Old IP (different from new registration)
+                'public_ip': '0.0.0.0',    # Old IP (different from new registration)
                 'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
             })
 

@@ -16,14 +16,16 @@ import requests
 from email_validator import validate_email, EmailNotValidError
 
 from . import staff
-from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_ipaddr,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
+from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
 from .e11core.loader import discover_and_run
 from .e11core.render import print_summary
-from .e11core.doctor import run_doctor
 from .e11core.utils import get_logger
+
+from .doctor import run_doctor
+
 
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
@@ -37,11 +39,11 @@ logger = get_logger()
 STUDENT='student'
 STUDENT_EMAIL='email'
 STUDENT_PREFERRED_NAME='preferred_name'
-INSTANCE_IPADDR='ipaddr'
+INSTANCE_PUBLIC_IP='public_ip'
 INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
 COURSE_KEY_LEN=6
-STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_IPADDR,INSTANCE_ID]
+STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_PUBLIC_IP,INSTANCE_ID]
 
 UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
 git stash
@@ -77,7 +79,7 @@ def do_access_off(args):
         newpath.replace(authorized_keys_path())
 
 def do_access_check(args):
-    logger.info("Checking access status for %s:",get_ipaddr())
+    logger.info("Checking access status for %s:",get_public_ip())
     if bot_access_check():
         logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
     else:
@@ -109,9 +111,9 @@ def do_register(args):
             print(f"ERROR: {at} is empty in configuration file.")
             errors += 1
     # Check the IP address
-    ipaddr = cp[STUDENT].get(INSTANCE_IPADDR)
-    if ipaddr != get_ipaddr():
-        print(f"ERROR: This instance does not have the public IP address {ipaddr}.")
+    public_ip = cp[STUDENT].get(INSTANCE_PUBLIC_IP)
+    if public_ip != get_public_ip():
+        print(f"ERROR: This instance does not have the public IP address {public_ip}.")
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     try:
@@ -167,13 +169,13 @@ def do_grade(args):
 
 
 def do_status(_):
-    ipaddr = get_ipaddr()
-    print("Instance IP address: ", ipaddr)
+    public_ip = get_public_ip()
+    print("Instance Public IP address: ", public_ip)
     try:
-        raddr = dns.resolver.resolve(dns.reversename.from_address(ipaddr), "PTR")[0]
+        raddr = dns.resolver.resolve(dns.reversename.from_address(public_ip), "PTR")[0]
         print("Reverse DNS: ", raddr)
     except dns.resolver.NXDOMAIN:
-        print("No reverse DNS for",ipaddr)
+        print("No reverse DNS for",public_ip)
     print("\nE11 config variables from /home/ubuntu/e11-config.ini:")
     cp = get_config()
     for at in cp[STUDENT]:
@@ -211,7 +213,7 @@ def main():
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
-    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=do_doctor)
+    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
 
     # e11 access [on|off|check]

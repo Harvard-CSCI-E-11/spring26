@@ -62,14 +62,13 @@ where = ["."]
 include = ["e11*"]
 
 [tool.pyright]
-pythonVersion = "3.13"
-venvPath = "."
+pythonVersion = "3.12"
+venvPath = "./"
 venv = ".venv"
 include = ["."]
 exclude = [
   "**/build",
   "**/.aws-sam",
-  "**/.venv",
   "**/.mypy_cache",
   "**/.pytest_cache",
   "**/__pycache__",

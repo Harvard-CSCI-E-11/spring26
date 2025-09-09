@@ -71,7 +71,7 @@ class A:
     SESSION_EXPIRE='session_expire'
     USER_ID = 'user_id'
     EMAIL = 'email'
-    IPADDR = 'ipaddr'           # public IP address
+    PUBLIC_IP = 'public_ip'           # public IP address
     PREFERRED_NAME = 'preferred_name'
     HOSTNAME = 'hostname'
     COURSE_KEY = 'course_key'
@@ -109,7 +109,7 @@ class User(DictLikeModel):
     user_registered: int
     preferred_name: Optional[str] = None
     claims: Dict[str, Any]
-    ipaddr: Optional[str] = None
+    public_ip: Optional[str] = None
     hostname: Optional[str] = None
     host_registered: Optional[int] = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
