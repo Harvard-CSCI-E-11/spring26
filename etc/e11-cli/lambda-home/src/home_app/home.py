@@ -396,12 +396,16 @@ def api_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
-def pkey_pem():
+def pkey_pem(key_name):
+    """Return the PEM key"""
     secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    key = secret.get("SecretString") or secret.get("SecretBinary")
-    if isinstance(key, bytes):
-        key = key.decode("utf-8", "replace")
-    return key
+    json_key = secret.get("SecretString")
+    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
+    try:
+        return keys[key_name]
+    except KeyError:
+        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
+        raise
 
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
@@ -417,7 +421,7 @@ def api_grader(event, context, payload):
     lab = payload['lab']
     ipaddr = user.ipaddr
     email = user.email
-    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem())
+    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem("cscie-bot"))
 
     # Create email message for user
     subject = f"[E11] {lab} score {summary['score']}/5.0"
@@ -475,9 +479,9 @@ def api_check_access(_event, payload):
     except ValueError as e:
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'ipaddr':user.ipaddr})
 
-    ssh.configure(user.ipaddr, pkey_pem=pkey_pem())
+    ssh.configure(user.ipaddr, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
     rc, out, err = ssh.exec("hostname")
-    return resp_json(400, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
+    return resp_json(200, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
 
 
 
