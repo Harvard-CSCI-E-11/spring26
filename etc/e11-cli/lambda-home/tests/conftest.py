@@ -114,8 +114,8 @@ def fake_aws(monkeypatch):
             if key_tuple in self.db:
                 item = self.db[key_tuple]
                 # Apply updates based on UpdateExpression
-                if "SET ipaddr = :ip, hostname = :hn, host_registered = :t, name = :name" in UpdateExpression:
-                    item["ipaddr"] = ExpressionAttributeValues[":ip"]
+                if "SET public_ip = :ip, hostname = :hn, host_registered = :t, name = :name" in UpdateExpression:
+                    item["public_ip"] = ExpressionAttributeValues[":ip"]
                     item["hostname"] = ExpressionAttributeValues[":hn"]
                     item["host_registered"] = ExpressionAttributeValues[":t"]
                     item["name"] = ExpressionAttributeValues[":name"]

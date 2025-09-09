@@ -10,8 +10,9 @@ import os
 from .e11.e11core.context import build_ctx
 from .e11.e11core.loader import discover_and_run
 from .e11.e11core import ssh as e11ssh
+from .e11.e11core.utils import smash_email
 
-from .common import get_logger,smash_email,add_user_log,User
+from .common import get_logger,add_user_log,User
 
 LOGGER = get_logger("grader")
 
@@ -27,7 +28,7 @@ def grade_student_vm(*,user:User, lab:str, pkey_pem:str):
     ctx = build_ctx(lab)
     if smashed:
         ctx["smashedemail"] = smashed
-    ctx["public_ip"] = user.ipaddr  # ensure provided IP used
+    ctx["public_ip"] = user.public_ip  # ensure provided IP used
 
     LOGGER.info("SSH connect to %s (lab=%s)", ctx.get("public_ip"), lab)
     e11ssh.configure(host=ctx["public_ip"], username="ubuntu", port=22, pkey_pem=pkey_pem, timeout=10)

@@ -4,7 +4,6 @@ Common includes for lambda-home.
 
 import os
 import os.path
-import re
 import sys
 import logging
 import functools
@@ -71,7 +70,7 @@ class A:
     SESSION_EXPIRE='session_expire'
     USER_ID = 'user_id'
     EMAIL = 'email'
-    IPADDR = 'ipaddr'           # public IP address
+    PUBLIC_IP = 'public_ip'           # public IP address
     PREFERRED_NAME = 'preferred_name'
     HOSTNAME = 'hostname'
     COURSE_KEY = 'course_key'
@@ -109,7 +108,7 @@ class User(DictLikeModel):
     user_registered: int
     preferred_name: Optional[str] = None
     claims: Dict[str, Any]
-    ipaddr: Optional[str] = None
+    public_ip: Optional[str] = None
     hostname: Optional[str] = None
     host_registered: Optional[int] = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
@@ -167,12 +166,6 @@ def get_logger(name: str | None = None) -> logging.Logger:
     _configure_root_once()
     return logging.getLogger("e11" + ("" if not name else f".{name}"))
 
-
-def smash_email(email):
-    """Convert an email into the CSCI E-11 smashed email"""
-    email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
-    smashed_email = "".join(email.replace("@",".").split(".")[0:2])
-    return smashed_email
 
 
 ################################################################

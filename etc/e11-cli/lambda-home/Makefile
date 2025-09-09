@@ -35,6 +35,7 @@ lint: .venv/pyvenv.cfg
 	.venv/bin/pylint src
 
 pyright:.venv/pyvenv.cfg
+	make vend-e11
 	.venv/bin/pyright
 
 pytest: .venv/pyvenv.cfg

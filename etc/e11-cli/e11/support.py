@@ -60,7 +60,7 @@ def get_config():
         cp.add_section(STUDENT)
     return cp
 
-def get_ipaddr():
+def get_public_ip():
     r = requests.get('https://checkip.amazonaws.com',timeout=DEFAULT_TIMEOUT)
     return r.text.strip()
 

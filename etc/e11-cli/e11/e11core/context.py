@@ -4,6 +4,7 @@ from . import constants
 from .config import E11Config
 
 def build_ctx(lab: str):
+    """Creates a ctx that works equally well when run locally (e11 check lab) or from the grader."""
     if not lab.startswith("lab"):
         raise ValueError("lab must be like 'lab3'")
     labnum = int(lab[3:])
@@ -20,7 +21,7 @@ def build_ctx(lab: str):
         "course_root": str(constants.COURSE_ROOT),
         "labdir": str(labdir),
         "labdns": labdns,
-        "shared_secret": cfg.shared_secret,
+        "course_key": cfg.course_key,
         "mode": os.environ.get("E11_MODE", "local"),  # 'local' or 'grader'
         "email": cfg.email,
         "smashedemail": cfg.smashedemail,
