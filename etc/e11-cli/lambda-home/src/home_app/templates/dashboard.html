@@ -10,8 +10,12 @@
     <tr><th>Email</th><td>{{ user.email }}</td></tr>
     <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
     <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>
-    <tr><th>Instance IP address:</th><td>{{ user.ipaddr }}</td></tr>
-    <tr><th>InstanceId:</th><td>{{ user.instanceId }}</td></tr>
+    {% if user.public_ip %}
+    <tr><th>Instance public IP address:</th><td>{{ user.public_ip }}</td></tr>
+    <tr><th>Access:</th><td><span class="check-btn">(check)</span></td></tr>
+    {% else %}
+    <tr><th colspan="2">Instance not registered <span class="reload-btn">(reload)</span></th></tr>
+    {% endif %}
   </tbody>
 </table>
 <h3>User Log</h3>
@@ -57,7 +61,6 @@
 document.addEventListener("DOMContentLoaded", () => {
    document.querySelectorAll(".delete-btn").forEach(btn => {
      btn.style.cursor = "pointer"; // make it obvious it is clickable
-
      btn.addEventListener("click", async (event) => {
        const sid = btn.dataset.sid;
        try {
@@ -77,12 +80,42 @@ document.addEventListener("DOMContentLoaded", () => {
            console.error("Response body:", await resp.text());
          }
        } catch (err) {
-         btn.textContent = "failed";
+         btn.textContent = "delete session failed";
          btn.classList.add = "failed";
          console.error("Fetch error:", err);
        }
      });
    });
+
+   document.querySelectorAll(".check-btn").forEach(btn => {
+     btn.style.cursor = "pointer"; // make it obvious it is clickable
+     btn.addEventListener("click", async (event) => {
+       const sid = btn.dataset.sid;
+       try {
+         const resp = await fetch("/api/v1", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ action: "check-access", email: "{{ user.email }}", course_key: "{{ user.course_key }}" })
+         });
+
+         console.log("check-access resp=",resp);
+         if (resp.ok) {           // Remove the row containing the clicked button
+           const data = await resp.json();
+           console.log("data:",data)
+           btn.textContent = data.message;
+         } else {
+           btn.textContent = "Access check failed (1)";
+           btn.classList.add = "failed";
+         }
+       } catch (err) {
+         btn.textContent = "Access check failed (2)";
+         btn.classList.add = "failed";
+         console.error("Fetch error:", err);
+       }
+     });
+   });
+
+
  });
 </script>
 
