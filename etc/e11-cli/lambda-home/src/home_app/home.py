@@ -171,6 +171,9 @@ def error_404(page):
 
 def static_file(fname):
     """ Serve a static file """
+    if ("/" in fname) or (".." in fname) or ("\\" in fname):
+        # path transversal attack?
+        return error_404(fname)
     headers = {}
     try:
         if fname.endswith('.png'):
