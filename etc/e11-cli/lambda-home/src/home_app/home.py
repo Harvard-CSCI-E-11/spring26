@@ -136,6 +136,21 @@ def resp_text(status: int, body: str, headers: Optional[Dict[str, str]] = None, 
         "cookies": cookies or [],
     }
 
+def resp_png(status: int, png_bytes: bytes, headers: Optional[Dict[str, str]] = None, cookies: Optional[list[str]] = None) -> Dict[str, Any]:
+    """End HTTP event processing with binary PNG"""
+    LOGGER.debug("resp_png(status=%s, len=%s)", status, len(png_bytes))
+    return {
+        "statusCode": status,
+        "headers": {
+            "Content-Type": "image/png",
+            "Access-Control-Allow-Origin": "*",
+            **(headers or {})
+        },
+        "body": base64.b64encode(png_bytes).decode("ascii"),
+        "isBase64Encoded": True,
+        "cookies": cookies or [],
+    }
+
 def redirect(location:str, extra_headers: Optional[dict] = None, cookies: Optional[list]=None):
     """End HTTP event processing with redirect to another website"""
     LOGGER.debug("redirect(%s,%s,%s)",location,extra_headers,cookies)
@@ -156,13 +171,18 @@ def error_404(page):
 
 def static_file(fname):
     """ Serve a static file """
+    if ("/" in fname) or (".." in fname) or ("\\" in fname):
+        # path transversal attack?
+        return error_404(fname)
     headers = {}
     try:
+        if fname.endswith('.png'):
+            with open(join(common.STATIC_DIR,fname), "rb") as f:
+                return resp_png(200, f.read())
+
         with open(join(common.STATIC_DIR,fname), "r", encoding='utf-8') as f:
             if fname.endswith('.css'):
                 headers['Content-Type'] = 'text/css; charset=utf-8'
-            elif fname.endswith('.png'):
-                headers['Content-Type'] = 'image/png'
             return resp_text(200, f.read(), headers=headers)
     except FileNotFoundError:
         return error_404(fname)

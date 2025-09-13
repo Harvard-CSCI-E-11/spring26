@@ -76,8 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
          } else {
            btn.textContent = "failed";
            btn.classList.add = "failed";
-           console.error("Delete failed:", resp.status, resp.statusText);
-           console.error("Response body:", await resp.text());
+           console.error("Delete failed:", resp.status, resp.statusText, "body:",await resp.text());
          }
        } catch (err) {
          btn.textContent = "delete session failed";
@@ -90,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
    document.querySelectorAll(".check-btn").forEach(btn => {
      btn.style.cursor = "pointer"; // make it obvious it is clickable
      btn.addEventListener("click", async (event) => {
+       btn.textContent = "Checking...";
        const sid = btn.dataset.sid;
        try {
          const resp = await fetch("/api/v1", {
@@ -98,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
            body: JSON.stringify({ action: "check-access", email: "{{ user.email }}", course_key: "{{ user.course_key }}" })
          });
 
-         console.log("check-access resp=",resp);
          if (resp.ok) {           // Remove the row containing the clicked button
            const data = await resp.json();
            console.log("data:",data)
