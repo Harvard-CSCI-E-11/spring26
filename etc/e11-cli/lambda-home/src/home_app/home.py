@@ -33,6 +33,7 @@ from zoneinfo import ZoneInfo
 import boto3
 from boto3.dynamodb.conditions import Key
 
+import paramiko.ssh_exception
 from itsdangerous import BadSignature, SignatureExpired
 import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
@@ -45,7 +46,8 @@ from . import common
 from . import oidc
 from . import grader
 
-from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event, get_user_from_email,delete_session,expire_batch
+from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
+from .sessions import get_user_from_email,delete_session,expire_batch
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
@@ -117,7 +119,7 @@ DASHBOARD=f'https://{COURSE_DOMAIN}'
 
 def resp_json(status: int, body: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """End HTTP event processing with a JSON object"""
-    LOGGER.debug("resp_json(status=%s)",status)
+    LOGGER.debug("resp_json(status=%s) body=%s",status,body)
     return {
         "statusCode": status,
         "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*", **(headers or {})},
@@ -159,6 +161,8 @@ def static_file(fname):
         with open(join(common.STATIC_DIR,fname), "r", encoding='utf-8') as f:
             if fname.endswith('.css'):
                 headers['Content-Type'] = 'text/css; charset=utf-8'
+            elif fname.endswith('.png'):
+                headers['Content-Type'] = 'image/png'
             return resp_text(200, f.read(), headers=headers)
     except FileNotFoundError:
         return error_404(fname)
@@ -463,7 +467,7 @@ def api_delete_session(payload):
         return resp_json(200, {'result':delete_session(sid)})
     return resp_json(400, {'error':'no sid provided'})
 
-def api_check_access(_event, payload):
+def api_check_access(_, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
@@ -481,8 +485,13 @@ def api_check_access(_event, payload):
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
 
     ssh.configure(user.public_ip, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
-    rc, out, err = ssh.exec("hostname")
-    return resp_json(200, {'error':rc!=0, 'rc':rc, 'out':out, 'err':err})
+    try:
+        rc, out, err = ssh.exec("hostname")
+        return resp_json(200, {'error':False, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
+    except paramiko.ssh_exception.AuthenticationException as e:
+        return resp_json(200, {'error':False, 'message':'Access Off', 'e':str(e)})
+
+
 
 
 

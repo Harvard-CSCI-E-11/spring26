@@ -34,15 +34,15 @@ def configure(host, username="ubuntu", port=22, key_filename=None, pkey_pem=None
         for keycls in (paramiko.RSAKey, paramiko.Ed25519Key, paramiko.ECDSAKey):
             try:
                 pkey = keycls.from_private_key(io.StringIO(pkey_pem))
-                logger.debug("pkey=%s keycls=%s",pkey,keycls)
+                logger.debug("key found. pkey=%s keycls=%s",pkey,keycls)
                 break
             except Exception as e:
-                logger.debug("e=%s",e)
                 continue
     try:
-        logger.debug("key_filename=%s pkey=%s",key_filename,pkey)
+        logger.debug("Attempting SSH connect with key_filename=%s pkey=%s",key_filename,pkey)
         _ssh.connect(hostname=host, port=port, username=username, key_filename=key_filename,
                      pkey=pkey, timeout=timeout, banner_timeout=timeout, auth_timeout=timeout)
+        logger.debug("connect successful")
     except OSError as e:
         logger.error("OSError e=%s hostname=%s port=%s username=%s",e,host,port,username)
         raise

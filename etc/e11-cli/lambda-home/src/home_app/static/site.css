@@ -77,3 +77,7 @@ body {
 .btn-primary:hover {
     background-color: #0056b3;
 }
+
+th {
+  text-align: left;
+}

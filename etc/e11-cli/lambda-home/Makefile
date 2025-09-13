@@ -45,17 +45,15 @@ pytest: .venv/pyvenv.cfg
 	.venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --log-cli-level=DEBUG tests/
 
 
-build-prod: template.yaml samconfig.toml src/requirements.txt
-	make vend-e11
-	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
-
 # don't specify template in deploy-prod or deploy-stage
-deploy-prod: build-prod
+prod-vbd: template.yaml samconfig.toml src/requirements.txt
 	make vend-e11
-	sam deploy --config-file samconfig.toml
+	sam validate --config-file samconfig.toml -t template.yaml --lint
+	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
+	sam deploy --config-file "$$(pwd)/samconfig.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://csci-e-11.org/ | head -3
 
-vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
+stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt
 	make lint
 	make vend-e11
 	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
@@ -75,19 +73,8 @@ vbd-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
 #	make vend-e11
 #	sam sync --config-file "$$(pwd)/samconfig-stage.toml" --stack-name home-app-stage --watch --code -t .aws-sam/build/template.yaml
 
-# Tail production logs
-tail:
-	@echo "Tailing production logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
-		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
-		--since 15m --follow --region $(REGION) --profile $(PROFILE)
-
-# Tail stage logs (separate stack)
-tail-stage:
-	@echo "Tailing stage logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
-		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
-		--since 15m --follow --region $(REGION) --profile $(PROFILE)
+src/requirements.txt: pyproject.toml Makefile .venv/pyvenv.cfg
+	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
 
 # Show function names
 functions:
@@ -98,8 +85,20 @@ functions:
 	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
-src/requirements.txt: pyproject.toml Makefile .venv/pyvenv.cfg
-	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
+
+# Tail logs
+prod-tail:
+	@echo "Tailing production logs..."
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
+		--since 15m --follow --region $(REGION) --profile $(PROFILE)
+
+# Tail stage logs (separate stack)
+stage-tail:
+	@echo "Tailing stage logs..."
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
+		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
+		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
 # Download deployed Lambda package for inspection
 fetch-zip-prod:
