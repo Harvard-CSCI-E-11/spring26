@@ -39,4 +39,5 @@ def discover_and_run(ctx):
             fails.append(name)
 
     score = 5.0 * (len(passes) / len(tests)) if tests else 0.0
+    # return the summary
     return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2)}

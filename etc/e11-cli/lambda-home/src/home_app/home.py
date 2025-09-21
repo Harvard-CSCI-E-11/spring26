@@ -204,6 +204,7 @@ def _with_request_log_level(payload: Dict[str, Any]):
     return _Ctx()
 
 ################################################################
+## Secrets management
 def get_odic_config():
     """Return the config from AWS Secrets"""
     harvard_secrets = json.loads(secretsmanager_client.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
@@ -212,6 +213,19 @@ def get_odic_config():
                                      client_id=harvard_secrets['client_id'],
                                      redirect_uri=harvard_secrets['redirect_uri'])
     return {**config,**harvard_secrets}
+
+def get_pkey_pem(key_name):
+    """Return the PEM key"""
+    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
+    json_key = secret.get("SecretString")
+    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
+    try:
+        return keys[key_name]
+    except KeyError:
+        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
+        raise
+
+
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
@@ -334,32 +348,53 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     LOGGER.info("send_email to=%s subject=%s SES response: %s",to_addr,email_subject,r)
     return r
 
+################################################################
+## api code.
+## api calls do not use sessions. Authenticated APIs (e.g. api_register, api_grade)
+## authenticate with api_authenticate(payload), which returns the user directory.
+
+class APINotAuthenticated(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+
+def api_auth(payload):
+    # See if there is an existing user_id for this email address.
+    try:
+        auth = payload['auth']
+    except KeyError as e:
+        raise APINotAuthenticated('payload does not contain auth') from e
+
+    email = auth.get(A.EMAIL,'')
+    try:
+        user = get_user_from_email( email )
+    except EmailNotRegistered as e:
+        raise APINotAuthenticated(f'User email {email} is not registered. Please visit {DASHBOARD} to register.') from e
+
+    # See if the user's course_key matches
+    if user.course_key != auth.get(A.COURSE_KEY,''):
+        raise APINotAuthenticated(f'User course_key does not match registration course_key for email {email}. '
+                                   'Please visit {DASHBOARD} to find correct course_key.')
+    return user
+
+
 # pylint: disable=too-many-locals
 def api_register(event,payload):
     """Register a VM"""
     LOGGER.info("api_register payload=%s event=%s",payload,event)
+    if payload.get('email','') != payload.get('registration',{}).get('email',''):
+        return resp_json(404,{'message':'API email does not registration email'})
+
+    user = api_auth(payload)
+
+    # Get the registration information
     registration = payload['registration']
-    email = registration.get(A.EMAIL)
+    email = registration.get('email')
     public_ip = registration.get('public_ip')
     instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
 
-    # See if there is an existing user_id for this email address.
-    try:
-        user = get_user_from_email(email)
-    except EmailNotRegistered:
-        return resp_json(403, {'message':f'User email not registered. Please visit {DASHBOARD} to register.',
-                               A.EMAIL:email})
-
-    # See if the user's course_key matches
-    if user.course_key != registration.get('course_key'):
-        return resp_json(403,
-                         {'message':
-                          'User course_key does not match registration course_key. '
-                          'Please visit {DASHBOARD} to find correct course_key.',
-                          A.EMAIL:email})
-
-    # update the user record
+    # update the user record in table to match registration information
     users_table.update_item( Key={ "user_id": user.user_id,
                                    "sk": user.sk,
                                   },
@@ -405,9 +440,9 @@ def api_register(event,payload):
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
-################################################################
+
 def api_heartbeat(event, context):
-    """Called periodically"""
+    """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database"""
     LOGGER.info("heartbeat event=%s context=%s",event,context)
     t0 = time.time()
     now = int(time.time())
@@ -421,50 +456,19 @@ def api_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
-def pkey_pem(key_name):
-    """Return the PEM key"""
-    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    json_key = secret.get("SecretString")
-    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
-    try:
-        return keys[key_name]
-    except KeyError:
-        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
-        raise
-
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
-    LOGGER.info("do_grade event=%s context=%s",event,context)
-    ses = get_session(event)
-    if not ses:
-        return resp_json(400, {'message':'No session cookie.','error':True})
-
-    user = get_user_from_email(ses.email)
+    LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
+    user = api_auth(payload)
 
     # Open SSH (fetch key from Secrets Manager)
 
     lab = payload['lab']
     public_ip = user.public_ip
     email = user.email
-    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem("cscie-bot"))
+    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=get_pkey_pem("cscie-bot"))
 
-    # Create email message for user
-    subject = f"[E11] {lab} score {summary['score']}/5.0"
-    body_lines = [subject, "", "Passes:"]
-    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
-    if summary["fails"]:
-        body_lines += ["", "Failures:"]
-        for t in summary["tests"]:
-            if t["status"] == "fail":
-                body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
-                if t.get("context"):
-                    body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
-    body = "\n".join(body_lines)
-
-    send_email(to_addr = email,
-               email_subject=subject,
-               email_body = body)
-
+    # Record grades
     now = datetime.datetime.now().isoformat()
     item = { A.USER_ID: user.user_id,
              A.SK: f"{A.SK_GRADE_PREFIX}{now}",
@@ -476,6 +480,12 @@ def api_grader(event, context, payload):
              "raw": json.dumps(summary)[:35000]}
     users_table.put_item(Item=item)
     LOGGER.info("DDB put_item to %s", users_table)
+
+    # Send email
+    (subject,body)    = grader.create_email(summary)
+    send_email(to_addr = email,
+               email_subject=subject,
+               email_body = body)
 
     return resp_json(200, {'summary':summary})
 
@@ -504,7 +514,7 @@ def api_check_access(_, payload):
     except ValueError as e:
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
 
-    ssh.configure(user.public_ip, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
+    ssh.configure(user.public_ip, pkey_pem=get_pkey_pem("cscie-bot")) # the other key is 'hacker'
     try:
         rc, out, err = ssh.exec("hostname")
         return resp_json(200, {'error':False, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
@@ -630,6 +640,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # error
                 case (_,_,_):
                     return error_404(path)
+
+        except APINotAuthenticated as e:
+            return resp_json(403, {'message':str(e)})
 
         except EmailNotRegistered as e:
             LOGGER.info("EmailNotRegistered: %s",e)

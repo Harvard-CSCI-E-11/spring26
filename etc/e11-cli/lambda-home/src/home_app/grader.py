@@ -40,3 +40,19 @@ def grade_student_vm(*,user:User, lab:str, pkey_pem:str):
         return summary
     finally:
         e11ssh.close()
+
+
+def create_email(summary):
+    # Create email message for user
+    subject = f"[E11] {summary['lab']} score {summary['score']}/5.0"
+    body_lines = [subject, "", "Passes:"]
+    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
+    if summary["fails"]:
+        body_lines += ["", "Failures:"]
+        for t in summary["tests"]:
+            if t["status"] == "fail":
+                body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
+                if t.get("context"):
+                    body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
+    body = "\n".join(body_lines)
+    return (subject,body)

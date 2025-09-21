@@ -144,7 +144,9 @@ def do_register(args):
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
-    data = {'action':'register', 'registration' : dict(cp[STUDENT])}
+    data = {'action':'register',
+            'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'registration' : dict(cp[STUDENT])}
 
     r = requests.post(API_ENDPOINT, json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
@@ -155,11 +157,13 @@ def do_register(args):
 
 
 def do_grade(args):
-    print("Requesting server to grade...")
+    lab = args.grade
+    print(f"Requesting server to grade {lab}...")
     cp = get_config()
     r = requests.post(API_ENDPOINT, json={'action':'grade',
-                                          'grade': dict(cp[STUDENT])},
-                      timeout = GRADING_TIMEOUT+1 ) # wait for 1 second longer than server waits
+                                          'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                          'grade': lab},
+                      timeout = GRADING_TIMEOUT+5 ) # wait for 5 seconds longer than server waits
     result = r.json()
     print("Response:")
     print_summary(result['summary'], verbose=getattr(args, "verbose", False))
