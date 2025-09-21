@@ -374,7 +374,7 @@ def api_auth(payload):
     # See if the user's course_key matches
     if user.course_key != auth.get(A.COURSE_KEY,''):
         raise APINotAuthenticated(f'User course_key does not match registration course_key for email {email}. '
-                                   'Please visit {DASHBOARD} to find correct course_key.')
+                                  f'Please visit {DASHBOARD} to find correct course_key.')
     return user
 
 
@@ -382,8 +382,9 @@ def api_auth(payload):
 def api_register(event,payload):
     """Register a VM"""
     LOGGER.info("api_register payload=%s event=%s",payload,event)
-    if payload.get('email','') != payload.get('registration',{}).get('email',''):
-        return resp_json(404,{'message':'API email does not registration email'})
+    if payload.get('auth',{}).get('email','') != payload.get('registration',{}).get('email',''):
+        LOGGER.debug("*** auth.email != registration.email payload=%s",payload)
+        return resp_json(403,{'message':f'API auth.email != registration.email'})
 
     user = api_auth(payload)
 

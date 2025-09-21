@@ -3,6 +3,7 @@ import pytest
 import os
 import tempfile
 import configparser
+import copy
 from unittest.mock import Mock, patch, MagicMock
 
 import home_app.home as home
@@ -36,6 +37,20 @@ Flow 4: Invalid course key (test_registration_api_invalid_course_key)
 - User exists but course_key doesn't match
 - Should return 403 error
 """
+
+TEST_CONFIG_DATA = {
+    'preferred_name': 'Test User',
+    'email': 'test@csci-e-11.org',
+    'course_key': '123456',
+    'public_ip': '1.2.3.4',
+    'instanceId': 'i-1234567890abcdef0'
+}
+
+TEST_AUTH_DATA = {
+    'email': TEST_CONFIG_DATA['email'],
+    'course_key': TEST_CONFIG_DATA['course_key']
+}
+
 
 class MockedAWSServices:
     """Mock AWS services for testing registration API"""
@@ -192,16 +207,8 @@ def test_registration_api_flow(monkeypatch):
     mock_aws.setup_mocks(monkeypatch)
 
     # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
-
     # Create temporary config file
-    config_path = create_test_config(test_config_data)
+    config_path = create_test_config(TEST_CONFIG_DATA)
 
     try:
         # Set environment variable to use our test config
@@ -228,7 +235,8 @@ def test_registration_api_flow(monkeypatch):
         # Create the registration payload that would be sent by e11 CLI
         registration_payload = {
             'action': 'register',
-            'registration': test_config_data
+            'auth': TEST_AUTH_DATA,
+            'registration': TEST_CONFIG_DATA
         }
 
         # Create the Lambda event
@@ -328,17 +336,15 @@ def test_registration_api_invalid_user(monkeypatch):
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
     # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'nonexistent@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    test_config_data = copy.copy(TEST_CONFIG_DATA)
+    test_config_data['email'] = 'nonexistent@csci-e-11.org'
+    test_auth_data = copy.copy(TEST_AUTH_DATA)
+    test_auth_data['email'] = test_config_data['email']
 
     # Create the registration payload
     registration_payload = {
         'action': 'register',
+        'auth': test_auth_data,
         'registration': test_config_data
     }
 
@@ -356,13 +362,8 @@ def test_registration_api_invalid_user(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.api_register(event, registration_payload)
-
-    # Verify the response indicates user not found
-    assert response['statusCode'] == 403
-    response_body = json.loads(response['body'])
-    assert 'User email not registered' in response_body['message']
-    assert response_body['email'] == 'nonexistent@csci-e-11.org'
+    with pytest.raises(home.APINotAuthenticated, match='User email nonexistent@csci-e-11.org is not registered.*'):
+        home.api_register(event, registration_payload)
 
 
 def test_registration_api_invalid_course_key(monkeypatch):
@@ -386,18 +387,16 @@ def test_registration_api_invalid_course_key(monkeypatch):
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
     # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',  # Different from user's course key
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    test_config_data = copy.copy(TEST_CONFIG_DATA)
+    test_config_data['course_key'] = 'bogus'
+    test_auth_data = copy.copy(TEST_AUTH_DATA)
+    test_auth_data['course_key'] = 'bogus'
 
     # Create the registration payload
     registration_payload = {
         'action': 'register',
-        'registration': test_config_data
+        'registration': test_config_data,
+        'auth': test_auth_data
     }
 
     # Create the Lambda event
@@ -414,13 +413,8 @@ def test_registration_api_invalid_course_key(monkeypatch):
     }
 
     # Call the registration handler
-    response = home.api_register(event, registration_payload)
-
-    # Verify the response indicates invalid course key
-    assert response['statusCode'] == 403
-    response_body = json.loads(response['body'])
-    assert 'course_key does not match' in response_body['message']
-    assert response_body['email'] == 'test@csci-e-11.org'
+    with pytest.raises(home.APINotAuthenticated, match='User course_key does not match registration course_key for email test@csci-e-11.org.*'):
+        home.api_register(event, registration_payload)
 
 
 def test_registration_api_returning_user_flow(monkeypatch):
@@ -430,17 +424,8 @@ def test_registration_api_returning_user_flow(monkeypatch):
     mock_aws = MockedAWSServices()
     mock_aws.setup_mocks(monkeypatch)
 
-    # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
-
     # Create temporary config file
-    config_path = create_test_config(test_config_data)
+    config_path = create_test_config(TEST_CONFIG_DATA)
 
     try:
         # Set environment variable to use our test config
@@ -451,7 +436,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
             return User(**{
                 'user_id': 'existing-user-id',
                 'email': email,
-                'course_key': test_config_data['course_key'],  # Use test config data
+                'course_key': TEST_CONFIG_DATA['course_key'],  # Use test config data
                 'sk': '#',
                 'claims': {'name': 'Test User', 'email': email},
                 'user_registered': 1000000000,
@@ -471,7 +456,8 @@ def test_registration_api_returning_user_flow(monkeypatch):
         # Create the registration payload that would be sent by e11 CLI
         registration_payload = {
             'action': 'register',
-            'registration': test_config_data
+            'auth' : TEST_AUTH_DATA,
+            'registration': TEST_CONFIG_DATA
         }
 
         # Create the Lambda event
