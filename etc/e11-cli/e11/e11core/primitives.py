@@ -1,3 +1,12 @@
+"""
+Primitives for the grading systems.
+Tests must be able to run locally when the user types `e11 check lab1` or remotely (from the server) when the user requests a grading with `e11 grade lab1`
+
+CommandResult - Object that includes exit_code, stdout, stderr, and text (alias for stdout)
+run_command(str, timeout) -> CommandResult - runs either locally or by ssh depending on if called by check or grade.
+"""
+
+
 import io
 import os
 import re

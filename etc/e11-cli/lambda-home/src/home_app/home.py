@@ -384,7 +384,7 @@ def api_register(event,payload):
     LOGGER.info("api_register payload=%s event=%s",payload,event)
     if payload.get('auth',{}).get('email','') != payload.get('registration',{}).get('email',''):
         LOGGER.debug("*** auth.email != registration.email payload=%s",payload)
-        return resp_json(403,{'message':f'API auth.email != registration.email'})
+        return resp_json(403,{'message':'API auth.email != registration.email'})
 
     user = api_auth(payload)
 

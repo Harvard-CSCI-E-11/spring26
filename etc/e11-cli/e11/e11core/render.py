@@ -1,6 +1,10 @@
+import json
 from .constants import CONTEXT_LINES
 
 def print_summary(summary, verbose=False):
+    if verbose:
+        print(json.dumps(summary,default=str,indent=4))
+
     lab = summary.get("lab")
     print(f"=== {lab} Results ===")
     print(f"Score: {summary['score']} / 5.0")
@@ -12,7 +16,7 @@ def print_summary(summary, verbose=False):
         print("\n-- FAILURES --")
         for t in summary["tests"]:
             if t["status"] == "fail":
-                print(f"\n✘ {t['name']}: {t.get('message','')}")
+                print(f"  ✘ {t['name']}: {t.get('message','')}")
                 ctx = t.get("context")
                 if ctx:
                     print("----- context -----")

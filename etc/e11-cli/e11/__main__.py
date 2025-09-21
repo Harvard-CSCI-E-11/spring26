@@ -32,6 +32,7 @@ from .doctor import run_doctor
 
 __version__ = '0.1.0'
 API_ENDPOINT = 'https://csci-e-11.org/api/v1'
+STAGE_ENDPOINT = 'https://stage.csci-e-11.org/api/v1'
 
 logger = get_logger()
 
@@ -51,6 +52,10 @@ git pull
 (cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
+
+def endpoint(args):
+
+    return API_ENDPOINT if args.stage==False else STAGE_ENDPOINT
 
 def do_version(args):
     print("version",__version__)
@@ -148,7 +153,7 @@ def do_register(args):
             'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
             'registration' : dict(cp[STUDENT])}
 
-    r = requests.post(API_ENDPOINT, json=data, timeout=DEFAULT_TIMEOUT)
+    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
@@ -157,15 +162,18 @@ def do_register(args):
 
 
 def do_grade(args):
-    lab = args.grade
-    print(f"Requesting server to grade {lab}...")
+    lab = args.lab
+    ep = endpoint(args)
+    print(f"Requesting {ep} to grade {lab}...")
     cp = get_config()
-    r = requests.post(API_ENDPOINT, json={'action':'grade',
-                                          'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
-                                          'grade': lab},
+    r = requests.post(ep, json={'action':'grade',
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                'lab': lab},
                       timeout = GRADING_TIMEOUT+5 ) # wait for 5 seconds longer than server waits
     result = r.json()
-    print("Response:")
+    if not r.ok:
+        print("Error: ",r.text)
+        sys.exit(1)
     print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     if args.debug:
         print(json.dumps(r.json(),indent=4))
@@ -206,6 +214,7 @@ def do_check(args):
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
+    parser.add_argument("--stage", help='Use stage API', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # primary commands
@@ -228,6 +237,7 @@ def main():
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
+    grade_parser.add_argument('--verbose', help='print all details',action='store_true')
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]

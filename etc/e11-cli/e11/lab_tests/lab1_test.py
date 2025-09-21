@@ -2,7 +2,7 @@
 import os
 import re
 import socket
-#from pathlib import Path
+from pathlib import Path
 
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.primitives import run_command, read_file
@@ -32,6 +32,16 @@ def _tcp_peek_banner(host: str, port: int, timeout_s: float = 2.0, nbytes: int =
     except OSError:
         # Connection refused/timeout => definitely not an SSH banner
         return ""
+
+@timeout(2)
+def test_hostname():
+    """
+    See if the hostname program works
+    """
+    r = run_command("hostname")
+    if r.exit_code !=0:
+        raise TestFail("hostname command does not work")
+    return r.stdout
 
 @retry(times=3, backoff=0.25)
 @timeout(5)
@@ -86,6 +96,6 @@ def test_autograder_key_present():
     try:
         txt = read_file(auth_path)
     except Exception as e:  # pragma: no cover - surfaced to student clearly
-        raise TestFail(f"Cannot read {auth_path}", context=str(e)) from e
+        raise TestFail(f"Cannot read {auth_path}", context=str(e))
     # Require the exact key line (comment is part of it)
     assert_contains(txt, re.escape(AUTO_GRADER_KEY_LINE))
