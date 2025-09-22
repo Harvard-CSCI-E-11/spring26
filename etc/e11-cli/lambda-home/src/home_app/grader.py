@@ -16,7 +16,7 @@ from .common import get_logger,add_user_log,User
 
 LOGGER = get_logger("grader")
 
-def grade_student_vm(*,user:User, lab:str, pkey_pem:str):
+def grade_student_vm(*,user:User, lab:str):
     """Run grading by SSHing into the student's VM and executing tests via shared runner."""
 
     add_user_log(None, user.user_id, 'Grading lab {lab} starts')
@@ -31,7 +31,6 @@ def grade_student_vm(*,user:User, lab:str, pkey_pem:str):
     ctx["public_ip"] = user.public_ip  # ensure provided IP used
 
     LOGGER.info("SSH connect to %s (lab=%s)", ctx.get("public_ip"), lab)
-    e11ssh.configure(host=ctx["public_ip"], username="ubuntu", port=22, pkey_pem=pkey_pem, timeout=10)
     e11ssh.set_working_dir(ctx["labdir"])
 
     try:

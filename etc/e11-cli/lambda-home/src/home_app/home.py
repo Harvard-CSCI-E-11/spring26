@@ -39,7 +39,7 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
-from .e11.e11core import ssh
+from .e11.e11core import ssh as e11ssh
 from .e11.e11core.utils import smash_email
 
 from . import common
@@ -48,9 +48,10 @@ from . import grader
 
 from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
+from .secrets import get_pkey_pem,get_odic_config
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
-from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
+from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
 
 LOGGER = get_logger("home")
@@ -58,8 +59,9 @@ LOGGER = get_logger("home")
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
-
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
+
+CSCIE_BOT = 'cscie-bot'
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -79,14 +81,6 @@ def eastern_filter(value):
 # jinja2
 env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.path.join(common.NESTED,"templates")]))
 env.filters["eastern"] = eastern_filter
-
-# OIDC
-OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
-
-# SSH
-SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID","please define SSH_SECRET_ID")
-
-# Secrets Manager
 
 # Simple Email Service
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
@@ -202,30 +196,6 @@ def _with_request_log_level(payload: Dict[str, Any]):
         def __exit__(self, exc_type, exc, tb):
             LOGGER.setLevel(self.old)
     return _Ctx()
-
-################################################################
-## Secrets management
-def get_odic_config():
-    """Return the config from AWS Secrets"""
-    harvard_secrets = json.loads(secretsmanager_client.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
-    LOGGER.debug("fetched secret %s keys: %s",OIDC_SECRET_ID,list(harvard_secrets.keys()))
-    config = oidc.load_openid_config(harvard_secrets['oidc_discovery_endpoint'],
-                                     client_id=harvard_secrets['client_id'],
-                                     redirect_uri=harvard_secrets['redirect_uri'])
-    return {**config,**harvard_secrets}
-
-def get_pkey_pem(key_name):
-    """Return the PEM key"""
-    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
-    json_key = secret.get("SecretString")
-    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
-    try:
-        return keys[key_name]
-    except KeyError:
-        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
-        raise
-
-
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
@@ -462,12 +432,13 @@ def api_grader(event, context, payload):
     LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
     user = api_auth(payload)
 
-    # Open SSH (fetch key from Secrets Manager)
+    # Configure SSH as in api_check_access
+    e11ssh.configure(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
 
     lab = payload['lab']
     public_ip = user.public_ip
     email = user.email
-    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=get_pkey_pem("cscie-bot"))
+    summary = grader.grade_student_vm(user=user, lab=lab)
 
     # Record grades
     now = datetime.datetime.now().isoformat()
@@ -515,9 +486,9 @@ def api_check_access(_, payload):
     except ValueError as e:
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
 
-    ssh.configure(user.public_ip, pkey_pem=get_pkey_pem("cscie-bot")) # the other key is 'hacker'
+    e11ssh.configure(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT)) # the other key is 'hacker'
     try:
-        rc, out, err = ssh.exec("hostname")
+        rc, out, err = e11ssh.exec("hostname")
         return resp_json(200, {'error':False, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
     except paramiko.ssh_exception.AuthenticationException as e:
         return resp_json(200, {'error':False, 'message':'Access Off', 'e':str(e)})

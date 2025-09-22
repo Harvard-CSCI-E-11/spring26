@@ -3,6 +3,7 @@ import requests
 import logging
 
 import home_app.home as home
+import home_app.secrets as secrets
 import home_app.sessions as sessions
 import home_app.common as common
 import home_app.oidc as oidc
@@ -77,7 +78,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     fake_users = FakeTable()
     fake_sessions = FakeSessionsTable()
 
-    monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(secrets, "secretsmanager_client", FakeSecrets())
     monkeypatch.setattr(home, "users_table", fake_users)
     monkeypatch.setattr(home, "sessions_table", fake_sessions)
 
