@@ -86,9 +86,9 @@ def do_access_off(args):
 def do_access_check(args):
     logger.info("Checking access status for %s:",get_public_ip())
     if bot_access_check():
-        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
+        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance (based on .ssh/authorized_keys file).")
     else:
-        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
+        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance (based on .ssh/authorized_keys file).")
 
 def do_config(args):
     cp = get_config()
@@ -159,6 +159,16 @@ def do_register(args):
     else:
         print("Registered!")
         print("If you do not receive a message in 60 seconds, check your email address and try again.")
+
+
+def do_access_check_dashboard(args):
+    print("Checking dashboard to see if it has access")
+    ep = endpoint(args)
+    cp = get_config()
+    r = requests.post(ep, json={'action':'check-access',
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]}},
+                      timeout = GRADING_TIMEOUT+5 )
+    print("r=",r,r.text)
 
 
 def do_grade(args):
@@ -233,6 +243,7 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
+    access_subparsers.add_parser('check-dashboard', help='Report SSH access').set_defaults(func=do_access_check_dashboard)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
@@ -248,7 +259,6 @@ def main():
     # e11 staff commands
     if staff.enabled():
         staff.add_parsers(parser,subparsers)
-
 
     args = parser.parse_args()
     if not on_ec2() and not staff.enabled():

@@ -9,7 +9,7 @@ def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
 
 def do_check_access(args):
-    print("check ",args.host)
+    print("Checking access to {args.host} from this host (not the lambda server)")
     ssh.configure(args.host, key_filename=args.keyfile)
     rc, out, err = ssh.exec("hostname")
     if rc!=0:

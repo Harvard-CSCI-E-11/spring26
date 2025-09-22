@@ -473,14 +473,7 @@ def api_check_access(_, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
-    email = payload.get('email','')
-    if not email:
-        return resp_json(400, {'error':'user not provided.'})
-    user = get_user_from_email(email)
-    if not user:
-        return resp_json(400, {'error':'user not found.'})
-    if user.course_key != payload.get('course_key',''):
-        return resp_json(400, {'error':'course key not valid.'})
+    user = api_auth(payload)
     try:
         ipaddress.ip_address(str(user.public_ip))
     except ValueError as e:
