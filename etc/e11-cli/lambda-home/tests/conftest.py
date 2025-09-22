@@ -1,3 +1,5 @@
+import os
+import sys
 import json
 import pytest
 import threading
@@ -7,6 +9,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
+
+
 
 def _rsa_keypair():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)

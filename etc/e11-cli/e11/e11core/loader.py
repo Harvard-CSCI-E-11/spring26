@@ -6,15 +6,42 @@ Tests are located in csci-e-11/etc/e11-cli/e11/lab_tests/
 
 import importlib
 import sys
+import os
 from time import monotonic
+import inspect
+from types import FunctionType
+
 from .assertions import TestFail
 from .decorators import TimeoutError
+from .testrunner import TestRunner
+from .utils import get_logger
+from .e11ssh import E11Ssh
+
+LOGGER = get_logger("loader")
+
 
 def _import_tests_module(lab: str):
     """Given a name like 'lab1', imports 'lab1_test" from the file lab1_test.py
     """
     mod_name = f"e11.lab_tests.{lab}_test"
     return importlib.import_module(mod_name)
+
+def _iter_test_functions_in_class(cls):
+    for name, obj in cls.__dict__.items():
+        # unwrap @staticmethod / @classmethod
+        if isinstance(obj, (staticmethod, classmethod)):
+            obj = obj.__func__
+        if isinstance(obj, FunctionType) and name.startswith("test_"):
+            yield f"{cls.__name__}::{name}", obj
+
+def collect_tests_in_definition_order(mod):
+    tests = []
+    for name, obj in mod.__dict__.items():
+        if inspect.isfunction(obj) and name.startswith("test_"):
+            tests.append((name, obj))
+        elif inspect.isclass(obj) and name.startswith("Test") and getattr(obj, "__test__", True):
+            tests.extend(_iter_test_functions_in_class(obj))
+    return tests
 
 def discover_and_run(ctx):
     lab = ctx["lab"]  # 'lab3'
@@ -23,15 +50,24 @@ def discover_and_run(ctx):
     except ModuleNotFoundError as e:
         return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test"}
 
+    # Create the test runner
+    if ctx["pkey_pem"]:
+        LOGGER.info("SSH will connect to %s (lab=%s)", ctx.get("public_ip"), lab)
+        tr = TestRunner( ctx, ssh = E11Ssh( ctx['public_ip'], pkey_pem=ctx['pkey_pem']) )
+    else:
+        LOGGER.info("Tests will run locally")
+        tr = TestRunner( ctx )
+
     # Collect into tests[] all of the functions named test_ in the given module
-    tests = [(name, getattr(mod, name)) for name in dir(mod) if name.startswith("test_") and callable(getattr(mod, name))]
+    # tests = [(name, getattr(mod, name)) for name in dir(mod) if name.startswith("test_") and callable(getattr(mod, name))]
+    tests = collect_tests_in_definition_order(mod)
     passes, fails, results = [], [], []
 
     # Run each of the tests
     for name, fn in tests:
         t0 = monotonic()
         try:
-            message = fn()
+            message = fn( tr )
             if message is None:
                 message = ""
             else:

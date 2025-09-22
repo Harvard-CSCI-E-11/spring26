@@ -54,8 +54,9 @@ git stash apply
 """
 
 def endpoint(args):
-
-    return API_ENDPOINT if args.stage==False else STAGE_ENDPOINT
+    if args.stage is True:
+        return STAGE_ENDPOINT
+    return API_ENDPOINT
 
 def do_version(args):
     print("version",__version__)
@@ -168,7 +169,10 @@ def do_access_check_dashboard(args):
     r = requests.post(ep, json={'action':'check-access',
                                 'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]}},
                       timeout = GRADING_TIMEOUT+5 )
-    print("r=",r,r.text)
+    if r.ok:
+        print(f"Response from dashboard: {r.json()['message']}")
+    else:
+        print(f"dashboard returned error: {r} {r.text}")
 
 
 def do_grade(args):

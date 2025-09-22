@@ -17,13 +17,11 @@ install:
 
 lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
-
-pyright: .venv/pyvenv.cfg
 	.venv/bin/pyright e11/.
+	(cd lambda-home; make lint)
 
 pytest: .venv/pyvenv.cfg
 	make lint
-	make pyright
 	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
 
 check:

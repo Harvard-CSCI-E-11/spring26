@@ -17,7 +17,7 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1
 export PYTHONDONTWRITEBYTECODE=1
 
-.PHONY: install vend-e11 lint pytest
+.PHONY: install vend-e11 lint pytest test
 install:
 	make .venv/pyvenv.cfg
 
@@ -26,13 +26,22 @@ install:
 	.venv/bin/pip install -e .
 	.venv/bin/pip install -e ".[dev]"
 
-vend-e11:
+vend-e11-old:
 	@echo vending e11 module to src/
 	rsync --archive --verbose --delete ../e11 src/home_app/ --exclude '*.pyc'
 
+vend-e11: Makefile
+	@echo "Building src/home_app/e11.whl via pip"
+	( cd .. && .venv/bin/python -m pip wheel --no-deps -w dist . )
+	@echo "Installing wheel into src/home_app/ as e11.whl"
+	install -d src/home_app
+	install -m 444 $$(ls -t ../dist/*.whl | head -1) src/home_app/e11.whl
+	@echo "OK -> src/home_app/e11.whl"
+
 lint: .venv/pyvenv.cfg
+	make vend-e11
 	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
-	.venv/bin/pylint src
+	PYTHONPATH=src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pylint src
 
 pyright:.venv/pyvenv.cfg
 	make vend-e11
@@ -42,7 +51,10 @@ pytest: .venv/pyvenv.cfg
 	make vend-e11
 	make lint
 	make pyright
-	.venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --log-cli-level=DEBUG tests/
+	PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --log-cli-level=DEBUG tests/
+
+test:
+	make pytest
 
 
 # don't specify template in deploy-prod or deploy-stage

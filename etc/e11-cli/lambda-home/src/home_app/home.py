@@ -1,4 +1,6 @@
 """
+Main entry point for AWS Lambda Dashboard
+
 Generate the https://csci-e-11.org/ home page.
 Runs OIDC authentication for Harvard Key.
 Supports logging in and logging out.
@@ -39,8 +41,8 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
-from .e11.e11core import ssh as e11ssh
-from .e11.e11core.utils import smash_email
+from e11.e11core.e11ssh import E11Ssh
+from e11.e11core.utils import smash_email
 
 from . import common
 from . import oidc
@@ -48,7 +50,7 @@ from . import grader
 
 from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
-from .secrets import get_pkey_pem,get_odic_config
+from .secrets import get_pkey_pem,get_odic_config,CSCIE_BOT
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain
@@ -61,7 +63,6 @@ eastern = ZoneInfo("America/New_York")
 
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
 
-CSCIE_BOT = 'cscie-bot'
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -411,7 +412,6 @@ def api_register(event,payload):
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
-
 def api_heartbeat(event, context):
     """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database"""
     LOGGER.info("heartbeat event=%s context=%s",event,context)
@@ -432,8 +432,6 @@ def api_grader(event, context, payload):
     LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
     user = api_auth(payload)
 
-    # Configure SSH as in api_check_access
-    e11ssh.configure(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
 
     lab = payload['lab']
     public_ip = user.public_ip
@@ -462,32 +460,32 @@ def api_grader(event, context, payload):
     return resp_json(200, {'summary':summary})
 
 
-def api_delete_session(payload):
-    """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
-    sid = payload.get('sid','')
-    if sid:
-        return resp_json(200, {'result':delete_session(sid)})
-    return resp_json(400, {'error':'no sid provided'})
-
 def api_check_access(_, payload):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
     user = api_auth(payload)
     try:
-        ipaddress.ip_address(str(user.public_ip))
+        public_ip = str(user.public_ip)
+        ipaddress.ip_address(public_ip)
     except ValueError as e:
         return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
 
-    e11ssh.configure(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT)) # the other key is 'hacker'
+    ssh = E11Ssh(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
+
     try:
-        rc, out, err = e11ssh.exec("hostname")
-        return resp_json(200, {'error':False, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
+        rc, out, err = ssh.exec("hostname")
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
     except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(200, {'error':False, 'message':'Access Off', 'e':str(e)})
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access Off', 'e':str(e)})
 
 
-
+def api_delete_session(payload):
+    """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
+    sid = payload.get('sid','')
+    if sid:
+        return resp_json(200, {'result':delete_session(sid)})
+    return resp_json(400, {'error':'no sid provided'})
 
 
 ################################################################

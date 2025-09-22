@@ -1,13 +1,11 @@
 # e11.lab_tests.lab1_test
-import os
 import re
 import socket
-from pathlib import Path
 
 from e11.e11core.decorators import timeout, retry
-from e11.e11core.primitives import run_command, read_file
+from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
-from e11.e11core.context import build_ctx
+
 
 # The exact line we expect in authorized_keys
 AUTO_GRADER_KEY_LINE = (
@@ -34,41 +32,41 @@ def _tcp_peek_banner(host: str, port: int, timeout_s: float = 2.0, nbytes: int =
         return ""
 
 @timeout(2)
-def test_hostname():
+def test_hostname( tr:TestRunner ):
     """
     See if the hostname program works
     """
-    r = run_command("hostname")
+    r = tr.run_command("hostname")
     if r.exit_code !=0:
         raise TestFail("hostname command does not work")
     return r.stdout
 
+
 @retry(times=3, backoff=0.25)
 @timeout(5)
-def test_no_ssh_on_port_80():
+def test_no_ssh_on_port_80( tr:TestRunner ):
     """
     Ensure port 80 is not an SSH server (no 'SSH-' banner).
     In local 'check' we peek 127.0.0.1:80; in grader we peek the VM's public IP:80.
     """
-    ctx = build_ctx("lab1")
-    host = ctx["public_ip"] if os.getenv("E11_MODE") == "grader" and ctx.get("public_ip") else "127.0.0.1"
+    host = tr.ctx.get("public_ip","127.0.0.1")
     banner = _tcp_peek_banner(host, 80, timeout_s=2.0)
     if banner.startswith("SSH-"):
         raise TestFail(f"SSH banner detected on {host}:80", context=banner[:80])
 
 @timeout(5)
-def test_ssh80_service_inactive_and_disabled():
+def test_ssh80_service_inactive_and_disabled( tr:TestRunner ):
     """
     ssh80.service should not be running and should be disabled (or not present).
     """
     # is-active: expect NOT 'active'
-    r_active = run_command("sudo systemctl is-active ssh80")
+    r_active = tr.run_command("sudo systemctl is-active ssh80")
     status = r_active.stdout.strip()
     if status == "active":
         raise TestFail("ssh80.service is active", context=r_active.stdout or r_active.stderr)
 
     # is-enabled: expect 'disabled' or 'masked'; 'not-found' also acceptable
-    r_enabled = run_command("sudo systemctl is-enabled ssh80")
+    r_enabled = tr.run_command("sudo systemctl is-enabled ssh80")
     enabled_out = (r_enabled.stdout or "").strip()
     enabled_err = (r_enabled.stderr or "").strip()
     ok_states = {"disabled", "masked"}
@@ -79,23 +77,23 @@ def test_ssh80_service_inactive_and_disabled():
         )
 
 @timeout(5)
-def test_hacker_user_deleted():
+def test_hacker_user_deleted( tr:TestRunner ):
     """
     The 'hacker' user should not exist.
     """
-    r = run_command("id -u hacker")
+    r = tr.run_command("id -u hacker")
     if r.exit_code == 0:
         raise TestFail("User 'hacker' still exists", context=r.stdout or r.stderr)
 
 @timeout(5)
-def test_autograder_key_present():
+def test_autograder_key_present( tr:TestRunner ):
     """
     The autograder key must exist in ubuntu's authorized_keys.
     """
     auth_path = "/home/ubuntu/.ssh/authorized_keys"
     try:
-        txt = read_file(auth_path)
+        txt = tr.read_file(auth_path)
     except Exception as e:  # pragma: no cover - surfaced to student clearly
-        raise TestFail(f"Cannot read {auth_path}", context=str(e))
+        raise TestFail(f"Cannot read {auth_path}", context=str(e)) from e
     # Require the exact key line (comment is part of it)
     assert_contains(txt, re.escape(AUTO_GRADER_KEY_LINE))

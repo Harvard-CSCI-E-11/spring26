@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
+from typing import Optional
 from . import constants
 from .config import E11Config
 
-def build_ctx(lab: str):
+def build_ctx(lab: str) -> dict:
     """Creates a ctx that works equally well when run locally (e11 check lab) or from the grader."""
     if not lab.startswith("lab"):
         raise ValueError("lab must be like 'lab3'")
@@ -25,7 +26,7 @@ def build_ctx(lab: str):
         "mode": os.environ.get("E11_MODE", "local"),  # 'local' or 'grader'
         "email": cfg.email,
         "smashedemail": cfg.smashedemail,
-        "public_ip": cfg.public_ip,
+        "public_ip": cfg.public_ip
     }
     return ctx
 

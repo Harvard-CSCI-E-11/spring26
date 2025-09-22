@@ -28,7 +28,8 @@ Globals:
         OIDC_SECRET_ID: !Ref OidcSecretId
         SSH_SECRET_ID: !Ref SshSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
-        SESSIONS_TABLE_NAME: !Ref SessionsTable     # new (optional helper)
+        SESSIONS_TABLE_NAME: !Ref SessionsTable
+        PYTHONPATH: "/var/task/home_app/e11.whl:${PYTHONPATH}"
 
 Parameters:
   UsersTableName:

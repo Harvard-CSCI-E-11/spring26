@@ -49,9 +49,12 @@ include = ["home_app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "tests"]
+pythonpath = [
+ "src",
+ "tests",
+ "../",
+ "src/home_app/e11.whl"]
 addopts = "-ra -q"
-norecursedirs = ["src/home_app/e11"]
 
 [tool.djlint]
 profile = "jinja"
@@ -106,4 +109,4 @@ reportMissingTypeStubs = "warning"
 
 [[tool.pyright.executionEnvironments]]
 root = "."
-extraPaths = ["src", "src/home_app", "src/home_app/e11"]
+extraPaths = ["src", "src/home_app", "src/home_app/e11.whl", "../"]

@@ -6,11 +6,11 @@ import tempfile
 import configparser
 from unittest.mock import Mock, patch, MagicMock
 import requests
+import sys
 
 import home_app.home as home
 import home_app.secrets as secrets
 from home_app.common import User
-
 
 class MockedAWSServices:
     """Mock AWS services for testing registration API"""
