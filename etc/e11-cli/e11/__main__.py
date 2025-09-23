@@ -20,7 +20,7 @@ from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_pat
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
-from .e11core.loader import discover_and_run
+from .e11core.grader import discover_and_run
 from .e11core.render import print_summary
 from .e11core.utils import get_logger
 
@@ -177,6 +177,10 @@ def do_access_check_dashboard(args):
 
 def do_grade(args):
     lab = args.lab
+    if args.direct:
+        print("grade direct")
+        return
+
     ep = endpoint(args)
     print(f"Requesting {ep} to grade {lab}...")
     cp = get_config()
@@ -253,6 +257,7 @@ def main():
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
+    grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]

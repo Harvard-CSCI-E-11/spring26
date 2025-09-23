@@ -59,6 +59,13 @@ class TestRunner:
         self.ssh = ssh
         self.ctx = ctx
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_traceback):
+        if self.ssh:
+            self.ssh.close()
+
     def run_command(self, cmd: str, timeout=DEFAULT_NET_TIMEOUT_S) -> CommandResult:
         if self.ssh:
             rc, out, err = self.ssh.exec(cmd, timeout=timeout)

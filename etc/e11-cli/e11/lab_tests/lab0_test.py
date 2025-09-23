@@ -1,17 +1,15 @@
 #
-# This test is for the pytest self-test
+# This test is for the pytest self-test.
+# It's called lab0_test.py.
 #
 
-#import os
-#import sys
-#import re
 from pathlib import Path
 from e11.e11core.decorators import timeout
 from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail
 from e11.e11core.testrunner import TestRunner
 
 @timeout(5)
-def test_cwd_is_labdir():
+def test_cwd_is_labdir( tr:TestRunner ):
     # Runner auto-chdirs to COURSE_ROOT/lab0 before executing tests
     assert Path.cwd().name.lower() == "lab0", f"cwd not lab0: {Path.cwd()}"
 
@@ -34,3 +32,7 @@ def test_read_file_self( tr ):
     txt = tr.read_file(__file__)
     assert_len_between(txt, min_len=50)
     assert_contains(txt, r"lab0_test\.py")
+
+def test_fails( tr ):
+    # This test should fail
+    assert_contains("This is a test", "fails")

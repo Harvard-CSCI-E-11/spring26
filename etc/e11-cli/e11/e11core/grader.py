@@ -14,8 +14,10 @@ from types import FunctionType
 from .assertions import TestFail
 from .decorators import TimeoutError
 from .testrunner import TestRunner
-from .utils import get_logger
+from .utils import get_logger,smash_email
 from .e11ssh import E11Ssh
+
+from .context import build_ctx
 
 LOGGER = get_logger("loader")
 
@@ -51,7 +53,7 @@ def discover_and_run(ctx):
         return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test"}
 
     # Create the test runner
-    if ctx["pkey_pem"]:
+    if ctx.get("pkey_pem",None):
         LOGGER.info("SSH will connect to %s (lab=%s)", ctx.get("public_ip"), lab)
         tr = TestRunner( ctx, ssh = E11Ssh( ctx['public_ip'], pkey_pem=ctx['pkey_pem']) )
     else:
@@ -91,3 +93,19 @@ def discover_and_run(ctx):
     score = 5.0 * (len(passes) / len(tests)) if tests else 0.0
     # return the summary
     return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx":ctx}
+
+
+def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str):
+    """Run grading by SSHing into the student's VM and executing tests via shared runner."""
+
+    smashed = smash_email(user_email)
+
+    # Build context and mark grader mode
+    ctx = build_ctx(lab)
+    if smashed:
+        ctx["smashedemail"] = smashed
+    ctx["public_ip"] = public_ip  # ensure provided IP used
+    ctx["pkey_pem"]  = pkey_pem
+
+    summary = discover_and_run(ctx)
+    return summary

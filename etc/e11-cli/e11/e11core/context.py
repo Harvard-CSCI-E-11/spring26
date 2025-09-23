@@ -23,7 +23,6 @@ def build_ctx(lab: str) -> dict:
         "labdir": str(labdir),
         "labdns": labdns,
         "course_key": cfg.course_key,
-        "mode": os.environ.get("E11_MODE", "local"),  # 'local' or 'grader'
         "email": cfg.email,
         "smashedemail": cfg.smashedemail,
         "public_ip": cfg.public_ip
