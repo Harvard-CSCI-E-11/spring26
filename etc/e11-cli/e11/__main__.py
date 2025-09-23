@@ -10,6 +10,7 @@ import json
 import dns
 import dns.resolver
 import dns.reversename
+import pathlib
 
 import requests
 
@@ -20,9 +21,9 @@ from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_pat
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
-from .e11core.grader import discover_and_run
 from .e11core.render import print_summary
 from .e11core.utils import get_logger
+from .e11core import grader
 
 from .doctor import run_doctor
 
@@ -178,7 +179,14 @@ def do_access_check_dashboard(args):
 def do_grade(args):
     lab = args.lab
     if args.direct:
-        print("grade direct")
+        if not args.identity:
+            print("--direct requires [-i | --identity | --pkey_pem ]")
+            exit(1)
+        cp = get_config()
+        print(f"Grading Direct: {cp['student']['email']}@{cp['student']['public_ip']} for {lab}")
+        summary = grader.grade_student_vm(cp['student']['email'],cp['student']['public_ip'],lab,pkey_pem=args.identity.read_text())
+        (subject,body) = grader.create_email(summary)
+        print(body)
         return
 
     ep = endpoint(args)
@@ -225,7 +233,7 @@ def do_update(_):
 def do_check(args):
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     chdir_to_lab(ctx)
-    summary = discover_and_run(ctx)
+    summary = grader.discover_and_run(ctx)
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
@@ -258,6 +266,7 @@ def main():
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
     grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
+    grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading',type=pathlib.Path)
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]
@@ -270,8 +279,12 @@ def main():
         staff.add_parsers(parser,subparsers)
 
     args = parser.parse_args()
-    if not on_ec2() and not staff.enabled():
-        if args.force:
+    if not on_ec2():
+        if args.command=='grade' and args.direct:
+            pass
+        elif staff.enabled():
+            pass
+        elif args.force:
             print("WARNING: This should be run on EC2")
         else:
             print("ERROR: This must be run on EC2")

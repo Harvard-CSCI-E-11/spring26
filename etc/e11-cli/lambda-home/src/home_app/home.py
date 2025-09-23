@@ -428,21 +428,6 @@ def api_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
-def create_email(summary):
-    # Create email message for user
-    subject = f"[E11] {summary['lab']} score {summary['score']}/5.0"
-    body_lines = [subject, "", "Passes:"]
-    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
-    if summary["fails"]:
-        body_lines += ["", "Failures:"]
-        for t in summary["tests"]:
-            if t["status"] == "fail":
-                body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
-                if t.get("context"):
-                    body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
-    body = "\n".join(body_lines)
-    return (subject,body)
-
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
     LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
@@ -470,7 +455,7 @@ def api_grader(event, context, payload):
     LOGGER.info("DDB put_item to %s", users_table)
 
     # Send email
-    (subject,body)    = create_email(summary)
+    (subject,body)    = grader.create_email(summary)
     send_email(to_addr = email,
                email_subject=subject,
                email_body = body)
