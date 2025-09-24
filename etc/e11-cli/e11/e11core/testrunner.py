@@ -114,6 +114,7 @@ class TestRunner:
             host = urllib.parse.urlparse(url).hostname
             if host:
                 ctx = ssl.create_default_context()
+                ctx.minimum_version = ssl.TLSVersion.TLSv1_2
                 with socket.create_connection((host, 443), timeout=timeout) as sock:
                     with ctx.wrap_socket(sock, server_hostname=host) as ssock:
                         cert_info = {}
