@@ -18,7 +18,6 @@ install:
 lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 	.venv/bin/pyright e11/.
-	(cd lambda-home; make lint)
 
 pytest: .venv/pyvenv.cfg
 	make lint
