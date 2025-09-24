@@ -22,7 +22,7 @@ install:
 	make .venv/pyvenv.cfg
 
 .venv/pyvenv.cfg: pyproject.toml Makefile
-	python -m venv .venv
+	python3.13 -m venv .venv
 	.venv/bin/pip install -e .
 	.venv/bin/pip install -e ".[dev]"
 
