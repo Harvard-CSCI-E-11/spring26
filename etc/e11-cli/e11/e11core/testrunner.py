@@ -7,8 +7,8 @@ run_command(str, timeout) -> CommandResult - runs either locally or by ssh depen
 """
 
 
-import io
 import os
+import io
 import re
 import ssl
 import socket
@@ -19,9 +19,9 @@ import json
 import shlex
 import importlib.util
 
-from urllib.request import HTTPRedirectHandler, build_opener, Request
+import urllib.parse
+from urllib.request import build_opener, Request
 from urllib.error import HTTPError
-from urllib.parse import urlparse
 
 
 from dataclasses import dataclass
@@ -71,13 +71,14 @@ class TestRunner:
             rc, out, err = self.ssh.exec(cmd, timeout=timeout)
             return CommandResult(rc, out, err, out)
 
-        p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        try:
-            out, err = p.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            p.kill(); out, err = p.communicate()
-            return CommandResult(124, out, err, out)
-        return CommandResult(p.returncode, out, err, out)
+        with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as p:
+            try:
+                out, err = p.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                out, err = p.communicate()
+                return CommandResult(124, out, err, out)
+            return CommandResult(p.returncode, out, err, out)
 
     def read_file(self, path: str) -> str:
         # grader: SFTP first, sudo-catat fallback
@@ -85,15 +86,16 @@ class TestRunner:
             try:
                 data = self.ssh.sftp_read(path)
                 return data.decode("utf-8", "replace")
-            except Exception:
+            except Exception as e:   # pylint: disable=broad-exception-caught
                 rc, out, err = self.ssh.exec(f"sudo -n /bin/cat -- {shlex.quote(path)}", timeout=DEFAULT_NET_TIMEOUT_S)
                 if rc != 0:
-                    raise TestFail(f"cannot read {path} (rc={rc})", context=err)
+                    raise TestFail(f"cannot read {path} (rc={rc})", context=err) from e
                 return out
 
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
 
+    # pylint: disable=too-many-locals
     def http_get(self, url: str, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. THis should work from anywhere
         opener = build_opener()
@@ -109,7 +111,6 @@ class TestRunner:
             text = e.read().decode("utf-8", errors="replace") if e.fp else ""
         cert_info = None
         if tls_info and url.lower().startswith("https://"):
-            import urllib.parse
             host = urllib.parse.urlparse(url).hostname
             if host:
                 ctx = ssl.create_default_context()
@@ -130,6 +131,8 @@ class TestRunner:
             s.settimeout(timeout)
             return s.connect_ex((host, port)) == 0
 
+
+    # pylint: disable=too-many-positional-arguments
     def python_entry(self, file: str, func: str, args=(), kwargs=None, venv=".venv", timeout=DEFAULT_NET_TIMEOUT_S) -> PythonEntryResult:
         kwargs = kwargs or {}
 
@@ -153,7 +156,7 @@ class TestRunner:
             if m:
                 try:
                     value = json.loads(m.group(1))
-                except Exception:
+                except Exception: # pylint: disable=broad-exception-caught
                     pass
             return PythonEntryResult(exit_code=rc, stdout=out, stderr=err, value=value)
 
@@ -161,9 +164,9 @@ class TestRunner:
         old_out, old_err = sys.stdout, sys.stderr
         buf_out, buf_err = io.StringIO(), io.StringIO()
         sys.stdout, sys.stderr = buf_out, buf_err
-        exit_code = 0; value = None
+        exit_code = 0
+        value = None
         try:
-            import os
             if venv and not (os.path.isdir(venv) and os.path.isfile(f"{venv}/bin/python")):
                 raise RuntimeError(f"virtualenv '{venv}' not found (expected {venv}/bin/python)")
             spec = importlib.util.spec_from_file_location("student_entry", file)
@@ -175,11 +178,12 @@ class TestRunner:
             value = fn(*args, **kwargs)
         except SystemExit as e:
             exit_code = int(e.code) if isinstance(e.code, int) else 1
-        except Exception:
+        except Exception:       # pylint: disable=broad-exception-caught
             exit_code = 1
             traceback.print_exc()
         finally:
-            sys.stdout.flush(); sys.stderr.flush()
+            sys.stdout.flush()
+            sys.stderr.flush()
             out, err = buf_out.getvalue(), buf_err.getvalue()
             sys.stdout, sys.stderr = old_out, old_err
         return PythonEntryResult(exit_code=exit_code, stdout=out, stderr=err, value=value)

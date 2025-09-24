@@ -7,10 +7,11 @@ import argparse
 import sys
 import os
 import json
+import pathlib
+
 import dns
 import dns.resolver
 import dns.reversename
-import pathlib
 
 import requests
 
@@ -181,11 +182,11 @@ def do_grade(args):
     if args.direct:
         if not args.identity:
             print("--direct requires [-i | --identity | --pkey_pem ]")
-            exit(1)
+            sys.exit(1)
         cp = get_config()
         print(f"Grading Direct: {cp['student']['email']}@{cp['student']['public_ip']} for {lab}")
         summary = grader.grade_student_vm(cp['student']['email'],cp['student']['public_ip'],lab,pkey_pem=args.identity.read_text())
-        (subject,body) = grader.create_email(summary)
+        (_,body) = grader.create_email(summary)
         print(body)
         return
 

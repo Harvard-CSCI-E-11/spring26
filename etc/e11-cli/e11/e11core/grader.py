@@ -5,14 +5,11 @@ Tests are located in csci-e-11/etc/e11-cli/e11/lab_tests/
 """
 
 import importlib
-import sys
-import os
 from time import monotonic
 import inspect
 from types import FunctionType
 
 from .assertions import TestFail
-from .decorators import TimeoutError
 from .testrunner import TestRunner
 from .utils import get_logger,smash_email
 from .e11ssh import E11Ssh
@@ -49,7 +46,7 @@ def discover_and_run(ctx):
     lab = ctx["lab"]  # 'lab3'
     try:
         mod = _import_tests_module(lab)
-    except ModuleNotFoundError as e:
+    except ModuleNotFoundError:
         return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test"}
 
     # Create the test runner
@@ -85,7 +82,7 @@ def discover_and_run(ctx):
             duration = monotonic() - t0
             results.append({"name": name, "status": "fail", "message": f"Timeout: {e}", "duration": duration})
             fails.append(name)
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001 pylint: disable=broad-exception-caught
             duration = monotonic() - t0
             results.append({"name": name, "status": "fail", "message": f"Error: {e}", "duration": duration})
             fails.append(name)

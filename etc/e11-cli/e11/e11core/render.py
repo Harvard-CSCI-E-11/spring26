@@ -1,5 +1,4 @@
 import json
-from .constants import CONTEXT_LINES
 
 def print_summary(summary, verbose=False):
     if verbose:

@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from typing import Optional
 from . import constants
 from .config import E11Config
 
