@@ -51,11 +51,11 @@ from . import oidc
 
 from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
-from .secrets import get_pkey_pem,get_odic_config,CSCIE_BOT
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
 from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain
 from .common import COURSE_DOMAIN,COOKIE_NAME
+from .secrets import get_pkey_pem,get_odic_config,CSCIE_BOT
 
 LOGGER = get_logger("home")
 
