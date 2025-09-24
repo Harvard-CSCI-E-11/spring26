@@ -21,7 +21,7 @@ lint: .venv/pyvenv.cfg
 
 pytest: .venv/pyvenv.cfg
 	make lint
-	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
+	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
 
 check:
 	make pytest
