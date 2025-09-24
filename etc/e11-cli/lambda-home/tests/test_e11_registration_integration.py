@@ -9,7 +9,7 @@ import requests
 import sys
 
 import home_app.home as home
-import home_app.secrets as secrets
+import home_app.common as common
 from home_app.common import User
 
 class MockedAWSServices:
@@ -121,7 +121,7 @@ class MockedAWSServices:
         monkeypatch.setattr(home, 'users_table', MockDynamoDBTable(self))
         monkeypatch.setattr(home, 'route53_client', MockRoute53(self))
         monkeypatch.setattr(home, 'ses_client', MockSES(self))
-        monkeypatch.setattr(secrets, 'secretsmanager_client', MockSecretsManager(self))
+        monkeypatch.setattr(common, 'secretsmanager_client', MockSecretsManager(self))
 
         # Set environment variables
         monkeypatch.setenv('OIDC_SECRET_ID', 'fake-secret-id')

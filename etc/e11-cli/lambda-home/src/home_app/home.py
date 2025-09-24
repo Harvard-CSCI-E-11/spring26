@@ -2,7 +2,7 @@
 Main entry point for AWS Lambda Dashboard
 
 Generate the https://csci-e-11.org/ home page.
-Runs OIDC authentication for Harvard Key.
+Runs ODIC authentication for Harvard Key.
 Supports logging in and logging out.
 Allows users to see all active sessions and results of running the grader.
 
@@ -53,11 +53,12 @@ from .sessions import new_session,get_session,all_sessions_for_email,delete_sess
 from .sessions import get_user_from_email,delete_session,expire_batch
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
-from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain
+from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain, secretsmanager_client
 from .common import COURSE_DOMAIN,COOKIE_NAME
-from .secrets import get_pkey_pem,get_odic_config,CSCIE_BOT
+
 
 LOGGER = get_logger("home")
+CSCIE_BOT = 'cscie-bot'
 
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
@@ -242,7 +243,7 @@ def do_page(event, status="",extra=""):
         return redirect("/dashboard")
 
     # Build an authentication login
-    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
+    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = oidc.get_oidc_config())
     LOGGER.debug("url=%s issued_at=%s",url,issued_at)
     template = env.get_template("login.html")
     return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
@@ -291,7 +292,7 @@ def oidc_callback(event):
         return { "statusCode": 400,
                  "body": "Missing 'code' in query parameters" }
     try:
-        obj = oidc.handle_oidc_redirect_stateless(openid_config = get_odic_config(),
+        obj = oidc.handle_oidc_redirect_stateless(openid_config = oidc.get_oidc_config(),
                                                   callback_params={'code':code,'state':state})
     except (SignatureExpired,BadSignature):
         return redirect("/expired")
@@ -306,7 +307,7 @@ def do_logout(event):
     """/logout"""
     delete_session_from_event(event)
     del_cookie = make_cookie(COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event))
-    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
+    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = oidc.get_oidc_config())
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
@@ -427,6 +428,18 @@ def api_heartbeat(event, context):
             break
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
+
+def get_pkey_pem(key_name):
+    """Return the PEM key"""
+    ssh_secret_id = os.environ.get("SSH_SECRET_ID","please define SSH_SECRET_ID")
+    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
+    json_key = secret.get("SecretString")
+    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
+    try:
+        return keys[key_name]
+    except KeyError:
+        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
+        raise
 
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
