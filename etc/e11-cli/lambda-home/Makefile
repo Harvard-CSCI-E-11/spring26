@@ -51,7 +51,7 @@ pytest: .venv/pyvenv.cfg
 	make vend-e11
 	make lint
 	make pyright
-	PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --log-cli-level=DEBUG tests/
+	PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/
 
 test:
 	make pytest
