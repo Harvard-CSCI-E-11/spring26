@@ -29,7 +29,7 @@ Globals:
         SSH_SECRET_ID: !Ref SshSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable
-        PYTHONPATH: "/var/task/home_app/e11.whl:${PYTHONPATH}"
+        PYTHONPATH: "/var/task/home_app/e11.whl"
 
 Parameters:
   UsersTableName:
@@ -145,27 +145,6 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
-
-      Events:
-        AnyRoot:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HomeHttpApi
-            Path: /
-            Method: ANY
-            PayloadFormatVersion: "2.0"
-        AnyProxy:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HomeHttpApi
-            Path: /{proxy+}
-            Method: ANY
-            PayloadFormatVersion: "2.0"
-        Heartbeat:
-          Type: Schedule
-          Properties:
-            Schedule: rate(5 minutes)
-            Input: '{"action":"heartbeat"}'
 
       Events:
         AnyRoot:
