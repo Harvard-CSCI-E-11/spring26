@@ -438,7 +438,7 @@ def get_pkey_pem(key_name):
     try:
         return keys[key_name]
     except KeyError:
-        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
+        LOGGER.error("keys  %s not found",key_name)
         raise
 
 def api_grader(event, context, payload):

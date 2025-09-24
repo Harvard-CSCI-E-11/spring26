@@ -31,8 +31,6 @@ class E11Ssh:
     def __init__(self, host, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10): # pylint: disable=too-many-positional-arguments
         """Create one SSH/SFTP session for grader mode."""
         LOGGER.debug("configure host=%s username=%s port=%s key_filename=%s timeout=%s",host,username,port,key_filename,timeout)
-        if pkey_pem:
-            LOGGER.debug("type(pkey_pem)=%s  len(pkey_pem)=%s first 50:%s",type(pkey_pem),len(pkey_pem),str(pkey_pem)[0:50])
         assert isinstance(host,str)
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
