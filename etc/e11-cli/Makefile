@@ -17,13 +17,10 @@ install:
 
 lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
-
-pyright: .venv/pyvenv.cfg
 	.venv/bin/pyright e11/.
 
 pytest: .venv/pyvenv.cfg
 	make lint
-	make pyright
 	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml tests/
 
 check:
@@ -35,3 +32,4 @@ test:
 clean:
 	rm -f .coverage coverage.xml
 	find . -name '__pycache__' -prune -exec rm -rf {} +
+	rm -rf build/ dist/

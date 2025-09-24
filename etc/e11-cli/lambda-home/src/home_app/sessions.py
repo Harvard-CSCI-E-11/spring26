@@ -40,7 +40,7 @@ def parse_cookies(event) -> dict:
     return cookies
 
 def get_user_from_email(email) -> User:
-    """Given an email address, get the user record from the users_table.
+    """Given an email address, get the DynamoDB user record from the users_table.
     Note - when the first session is created, we don't know the user-id.
     """
     LOGGER.debug("get_user_from_email: looking for email=%s", email)
@@ -95,7 +95,8 @@ def new_session(event, claims) -> Session:
     return Session(**session)
 
 def get_session(event) -> Optional[Session]:
-    """Return the session dictionary if the session is valid and not expired."""
+    """Return the session dictionary if the session is valid and not expired.
+    Sessions are determined by having the session cookie"""
     sid = parse_cookies(event).get(COOKIE_NAME)
     LOGGER.debug("get_session sid=%s get_cookie_domain(%s)=%s",sid,event,get_cookie_domain(event))
     if not sid:

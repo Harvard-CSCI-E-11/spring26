@@ -37,11 +37,15 @@ jobs:
           poetry --version
 
       - name: e11 command tests with coverage
-        run: make pytest
+        run: |
+          make lint
+          make pytest
 
-      - name: lambda-home tests with coverage
+      - name: lambda-home tests with coverage require Python 3.13
         if: matrix.python-version == '3.13'
         run: |
+          (cd lambda-home; make install)
+          (cd lambda-home; make lint)
           (cd lambda-home; make pytest)
 
       - name: list coverage files

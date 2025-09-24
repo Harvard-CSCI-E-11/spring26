@@ -47,12 +47,6 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 include = ["home_app"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src", "tests"]
-addopts = "-ra -q"
-norecursedirs = ["src/home_app/e11"]
-
 [tool.djlint]
 profile = "jinja"
 ignore = ["jinja-block","jinja-variable","J004", "J018"]
@@ -106,4 +100,13 @@ reportMissingTypeStubs = "warning"
 
 [[tool.pyright.executionEnvironments]]
 root = "."
-extraPaths = ["src", "src/home_app", "src/home_app/e11"]
+extraPaths = ["src", "src/home_app", "src/home_app/e11.whl", "../"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+ "src",
+ "tests",
+ "../",
+ "src/home_app/e11.whl"]
+addopts = "-ra -q"

@@ -1,9 +1,9 @@
-import configparser, os, re
+import configparser
 from pathlib import Path
 from .constants import CONFIG_FILENAME
 from .utils import smash_email
 
-class E11Config:
+class E11Config:                # pylint: disable=too-few-public-methods
     """Access to variables in the E11 config file,
     automatically resolving HOME at runtime to handle mocking."""
     def __init__(self):

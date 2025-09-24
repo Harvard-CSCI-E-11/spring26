@@ -77,7 +77,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     fake_users = FakeTable()
     fake_sessions = FakeSessionsTable()
 
-    monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(common, "secretsmanager_client", FakeSecrets())
     monkeypatch.setattr(home, "users_table", fake_users)
     monkeypatch.setattr(home, "sessions_table", fake_sessions)
 
@@ -93,7 +93,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     # print(f"After monkeypatch:")
     # print(f"users_table type: {type(home.users_table)}")
     # print(f"sessions_table type: {type(home.sessions_table)}")
-    # print(f"secretsmanager_client type: {type(home.secretsmanager_client)}")
+    print(f"**1 secretsmanager_client type: {type(common.secretsmanager_client)}")
 
     # 1) GET "/" should embed login URL
     resp = home.lambda_handler(_api_event("/"), None)

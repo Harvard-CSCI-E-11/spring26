@@ -7,6 +7,8 @@ import argparse
 import sys
 import os
 import json
+import pathlib
+
 import dns
 import dns.resolver
 import dns.reversename
@@ -20,9 +22,9 @@ from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_pat
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
-from .e11core.loader import discover_and_run
 from .e11core.render import print_summary
 from .e11core.utils import get_logger
+from .e11core import grader
 
 from .doctor import run_doctor
 
@@ -32,6 +34,7 @@ from .doctor import run_doctor
 
 __version__ = '0.1.0'
 API_ENDPOINT = 'https://csci-e-11.org/api/v1'
+STAGE_ENDPOINT = 'https://stage.csci-e-11.org/api/v1'
 
 logger = get_logger()
 
@@ -51,6 +54,11 @@ git pull
 (cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
+
+def endpoint(args):
+    if args.stage is True:
+        return STAGE_ENDPOINT
+    return API_ENDPOINT
 
 def do_version(args):
     print("version",__version__)
@@ -81,9 +89,9 @@ def do_access_off(args):
 def do_access_check(args):
     logger.info("Checking access status for %s:",get_public_ip())
     if bot_access_check():
-        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance.")
+        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance (based on .ssh/authorized_keys file).")
     else:
-        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance.")
+        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance (based on .ssh/authorized_keys file).")
 
 def do_config(args):
     cp = get_config()
@@ -144,9 +152,11 @@ def do_register(args):
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
-    data = {'action':'register', 'registration' : dict(cp[STUDENT])}
+    data = {'action':'register',
+            'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'registration' : dict(cp[STUDENT])}
 
-    r = requests.post(API_ENDPOINT, json=data, timeout=DEFAULT_TIMEOUT)
+    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
@@ -154,14 +164,43 @@ def do_register(args):
         print("If you do not receive a message in 60 seconds, check your email address and try again.")
 
 
-def do_grade(args):
-    print("Requesting server to grade...")
+def do_access_check_dashboard(args):
+    print("Checking dashboard to see if it has access")
+    ep = endpoint(args)
     cp = get_config()
-    r = requests.post(API_ENDPOINT, json={'action':'grade',
-                                          'grade': dict(cp[STUDENT])},
-                      timeout = GRADING_TIMEOUT+1 ) # wait for 1 second longer than server waits
+    r = requests.post(ep, json={'action':'check-access',
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]}},
+                      timeout = GRADING_TIMEOUT+5 )
+    if r.ok:
+        print(f"Response from dashboard: {r.json()['message']}")
+    else:
+        print(f"dashboard returned error: {r} {r.text}")
+
+
+def do_grade(args):
+    lab = args.lab
+    if args.direct:
+        if not args.identity:
+            print("--direct requires [-i | --identity | --pkey_pem ]")
+            sys.exit(1)
+        cp = get_config()
+        print(f"Grading Direct: {cp['student']['email']}@{cp['student']['public_ip']} for {lab}")
+        summary = grader.grade_student_vm(cp['student']['email'],cp['student']['public_ip'],lab,pkey_pem=args.identity.read_text())
+        (_,body) = grader.create_email(summary)
+        print(body)
+        return
+
+    ep = endpoint(args)
+    print(f"Requesting {ep} to grade {lab}...")
+    cp = get_config()
+    r = requests.post(ep, json={'action':'grade',
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                'lab': lab},
+                      timeout = GRADING_TIMEOUT+5 ) # wait for 5 seconds longer than server waits
     result = r.json()
-    print("Response:")
+    if not r.ok:
+        print("Error: ",r.text)
+        sys.exit(1)
     print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     if args.debug:
         print(json.dumps(r.json(),indent=4))
@@ -195,13 +234,14 @@ def do_update(_):
 def do_check(args):
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     chdir_to_lab(ctx)
-    summary = discover_and_run(ctx)
+    summary = grader.discover_and_run(ctx)
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
+    parser.add_argument("--stage", help='Use stage API', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # primary commands
@@ -220,10 +260,14 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
+    access_subparsers.add_parser('check-dashboard', help='Report SSH access').set_defaults(func=do_access_check_dashboard)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
+    grade_parser.add_argument('--verbose', help='print all details',action='store_true')
+    grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
+    grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading',type=pathlib.Path)
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]
@@ -235,10 +279,13 @@ def main():
     if staff.enabled():
         staff.add_parsers(parser,subparsers)
 
-
     args = parser.parse_args()
-    if not on_ec2() and not staff.enabled():
-        if args.force:
+    if not on_ec2():
+        if args.command=='grade' and args.direct:
+            pass
+        elif staff.enabled():
+            pass
+        elif args.force:
             print("WARNING: This should be run on EC2")
         else:
             print("ERROR: This must be run on EC2")
