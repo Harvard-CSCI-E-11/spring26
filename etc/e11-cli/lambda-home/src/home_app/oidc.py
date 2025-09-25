@@ -2,6 +2,8 @@
 oidc implementation
 """
 
+import os
+import json
 import base64
 import hashlib
 import secrets
@@ -13,8 +15,24 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
-from .common import get_logger
-LOGGER = get_logger("grader")
+from . import common
+#from .common import get_logger,secretsmanager_client
+LOGGER = common.get_logger("grader")
+
+
+# Secrets Manager
+################################################################
+## Secrets management
+def get_oidc_config():
+    """Return the config from AWS Secrets"""
+    oidc_secret_id = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
+    LOGGER.debug("fetching secret %s",oidc_secret_id)
+    harvard_secrets = json.loads(common.secretsmanager_client.get_secret_value(SecretId=oidc_secret_id)['SecretString'])
+    config = load_openid_config(harvard_secrets['oidc_discovery_endpoint'],
+                                     client_id=harvard_secrets['client_id'],
+                                     redirect_uri=harvard_secrets['redirect_uri'])
+    return {**config,**harvard_secrets}
+
 
 
 # Helper: stateless state serializer

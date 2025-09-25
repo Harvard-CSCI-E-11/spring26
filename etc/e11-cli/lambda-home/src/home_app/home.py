@@ -1,6 +1,8 @@
 """
+Main entry point for AWS Lambda Dashboard
+
 Generate the https://csci-e-11.org/ home page.
-Runs OIDC authentication for Harvard Key.
+Runs ODIC authentication for Harvard Key.
 Supports logging in and logging out.
 Allows users to see all active sessions and results of running the grader.
 
@@ -39,27 +41,30 @@ import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
-from .e11.e11core import ssh
-from .e11.e11core.utils import smash_email
+from e11.e11core.e11ssh import E11Ssh
+from e11.e11core.utils import smash_email
+from e11.e11core import grader
 
 from . import common
 from . import oidc
-from . import grader
+
 
 from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
-from .common import route53_client,secretsmanager_client, User, convert_dynamodb_item, make_cookie, get_cookie_domain
+from .common import route53_client,User, convert_dynamodb_item, make_cookie, get_cookie_domain, secretsmanager_client
 from .common import COURSE_DOMAIN,COOKIE_NAME
 
+
 LOGGER = get_logger("home")
+CSCIE_BOT = 'cscie-bot'
 
 __version__ = '0.1.0'
 eastern = ZoneInfo("America/New_York")
 
-
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
+
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -79,14 +84,6 @@ def eastern_filter(value):
 # jinja2
 env = Environment(loader=FileSystemLoader(["templates",common.TEMPLATE_DIR,os.path.join(common.NESTED,"templates")]))
 env.filters["eastern"] = eastern_filter
-
-# OIDC
-OIDC_SECRET_ID = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
-
-# SSH
-SSH_SECRET_ID = os.environ.get("SSH_SECRET_ID","please define SSH_SECRET_ID")
-
-# Secrets Manager
 
 # Simple Email Service
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"      # Verified SES email address
@@ -203,16 +200,6 @@ def _with_request_log_level(payload: Dict[str, Any]):
             LOGGER.setLevel(self.old)
     return _Ctx()
 
-################################################################
-def get_odic_config():
-    """Return the config from AWS Secrets"""
-    harvard_secrets = json.loads(secretsmanager_client.get_secret_value(SecretId=OIDC_SECRET_ID)['SecretString'])
-    LOGGER.debug("fetched secret %s keys: %s",OIDC_SECRET_ID,list(harvard_secrets.keys()))
-    config = oidc.load_openid_config(harvard_secrets['oidc_discovery_endpoint'],
-                                     client_id=harvard_secrets['client_id'],
-                                     redirect_uri=harvard_secrets['redirect_uri'])
-    return {**config,**harvard_secrets}
-
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
     key_query = Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)
@@ -256,7 +243,7 @@ def do_page(event, status="",extra=""):
         return redirect("/dashboard")
 
     # Build an authentication login
-    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
+    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = oidc.get_oidc_config())
     LOGGER.debug("url=%s issued_at=%s",url,issued_at)
     template = env.get_template("login.html")
     return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
@@ -305,7 +292,7 @@ def oidc_callback(event):
         return { "statusCode": 400,
                  "body": "Missing 'code' in query parameters" }
     try:
-        obj = oidc.handle_oidc_redirect_stateless(openid_config = get_odic_config(),
+        obj = oidc.handle_oidc_redirect_stateless(openid_config = oidc.get_oidc_config(),
                                                   callback_params={'code':code,'state':state})
     except (SignatureExpired,BadSignature):
         return redirect("/expired")
@@ -320,7 +307,7 @@ def do_logout(event):
     """/logout"""
     delete_session_from_event(event)
     del_cookie = make_cookie(COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event))
-    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = get_odic_config())
+    (url, issued_at) = oidc.build_oidc_authorization_url_stateless(openid_config = oidc.get_oidc_config())
     LOGGER.debug("url=%s issued_at=%s ",url,issued_at)
     return resp_text(200, env.get_template("logout.html").render(harvard_key=url), cookies=[del_cookie])
 
@@ -334,32 +321,54 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     LOGGER.info("send_email to=%s subject=%s SES response: %s",to_addr,email_subject,r)
     return r
 
+################################################################
+## api code.
+## api calls do not use sessions. Authenticated APIs (e.g. api_register, api_grade)
+## authenticate with api_authenticate(payload), which returns the user directory.
+
+class APINotAuthenticated(Exception):
+    def __init__(self, msg):
+        super().__init__(msg)
+
+
+def api_auth(payload):
+    # See if there is an existing user_id for this email address.
+    try:
+        auth = payload['auth']
+    except KeyError as e:
+        raise APINotAuthenticated('payload does not contain auth') from e
+
+    email = auth.get(A.EMAIL,'')
+    try:
+        user = get_user_from_email( email )
+    except EmailNotRegistered as e:
+        raise APINotAuthenticated(f'User email {email} is not registered. Please visit {DASHBOARD} to register.') from e
+
+    # See if the user's course_key matches
+    if user.course_key != auth.get(A.COURSE_KEY,''):
+        raise APINotAuthenticated(f'User course_key does not match registration course_key for email {email}. '
+                                  f'Please visit {DASHBOARD} to find correct course_key.')
+    return user
+
+
 # pylint: disable=too-many-locals
 def api_register(event,payload):
     """Register a VM"""
     LOGGER.info("api_register payload=%s event=%s",payload,event)
+    if payload.get('auth',{}).get('email','') != payload.get('registration',{}).get('email',''):
+        LOGGER.debug("*** auth.email != registration.email payload=%s",payload)
+        return resp_json(403,{'message':'API auth.email != registration.email'})
+
+    user = api_auth(payload)
+
+    # Get the registration information
     registration = payload['registration']
-    email = registration.get(A.EMAIL)
+    email = registration.get('email')
     public_ip = registration.get('public_ip')
     instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
 
-    # See if there is an existing user_id for this email address.
-    try:
-        user = get_user_from_email(email)
-    except EmailNotRegistered:
-        return resp_json(403, {'message':f'User email not registered. Please visit {DASHBOARD} to register.',
-                               A.EMAIL:email})
-
-    # See if the user's course_key matches
-    if user.course_key != registration.get('course_key'):
-        return resp_json(403,
-                         {'message':
-                          'User course_key does not match registration course_key. '
-                          'Please visit {DASHBOARD} to find correct course_key.',
-                          A.EMAIL:email})
-
-    # update the user record
+    # update the user record in table to match registration information
     users_table.update_item( Key={ "user_id": user.user_id,
                                    "sk": user.sk,
                                   },
@@ -405,9 +414,8 @@ def api_register(event,payload):
     return resp_json(200,{'message':'DNS record created and email sent successfully.'})
 
 
-################################################################
 def api_heartbeat(event, context):
-    """Called periodically"""
+    """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database"""
     LOGGER.info("heartbeat event=%s context=%s",event,context)
     t0 = time.time()
     now = int(time.time())
@@ -421,50 +429,32 @@ def api_heartbeat(event, context):
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now":now, "expired": expired, "elapsed" : time.time() - t0})
 
-def pkey_pem(key_name):
+def get_pkey_pem(key_name):
     """Return the PEM key"""
-    secret = secretsmanager_client.get_secret_value(SecretId=SSH_SECRET_ID)
+    ssh_secret_id = os.environ.get("SSH_SECRET_ID","please define SSH_SECRET_ID")
+    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
     json_key = secret.get("SecretString")
     keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
     try:
         return keys[key_name]
     except KeyError:
-        LOGGER.error("keys on file: %s requested key: %s",list(keys.keys()), key_name)
+        LOGGER.error("keys  %s not found",key_name)
         raise
 
 def api_grader(event, context, payload):
     """Get ready for grading, then run the grader."""
-    LOGGER.info("do_grade event=%s context=%s",event,context)
-    ses = get_session(event)
-    if not ses:
-        return resp_json(400, {'message':'No session cookie.','error':True})
+    LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
+    user = api_auth(payload)
 
-    user = get_user_from_email(ses.email)
-
-    # Open SSH (fetch key from Secrets Manager)
 
     lab = payload['lab']
     public_ip = user.public_ip
     email = user.email
-    summary = grader.grade_student_vm(user=user,lab=lab,pkey_pem=pkey_pem("cscie-bot"))
+    add_user_log(None, user.user_id, 'Grading lab {lab} starts')
+    summary = grader.grade_student_vm(user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT))
+    add_user_log(None, user.user_id, 'Grading lab {lab} ends')
 
-    # Create email message for user
-    subject = f"[E11] {lab} score {summary['score']}/5.0"
-    body_lines = [subject, "", "Passes:"]
-    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
-    if summary["fails"]:
-        body_lines += ["", "Failures:"]
-        for t in summary["tests"]:
-            if t["status"] == "fail":
-                body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
-                if t.get("context"):
-                    body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
-    body = "\n".join(body_lines)
-
-    send_email(to_addr = email,
-               email_subject=subject,
-               email_body = body)
-
+    # Record grades
     now = datetime.datetime.now().isoformat()
     item = { A.USER_ID: user.user_id,
              A.SK: f"{A.SK_GRADE_PREFIX}{now}",
@@ -477,7 +467,33 @@ def api_grader(event, context, payload):
     users_table.put_item(Item=item)
     LOGGER.info("DDB put_item to %s", users_table)
 
+    # Send email
+    (subject,body)    = grader.create_email(summary)
+    send_email(to_addr = email,
+               email_subject=subject,
+               email_body = body)
+
     return resp_json(200, {'summary':summary})
+
+
+def api_check_access(_, payload):
+    """Check to see if we can access the user's VM.
+    Authentication requires knowing the user's email and the course_key.
+    """
+    user = api_auth(payload)
+    try:
+        public_ip = str(user.public_ip)
+        ipaddress.ip_address(public_ip)
+    except ValueError as e:
+        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
+
+    ssh = E11Ssh(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
+
+    try:
+        rc, out, err = ssh.exec("hostname")
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
+    except paramiko.ssh_exception.AuthenticationException as e:
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access Off', 'e':str(e)})
 
 
 def api_delete_session(payload):
@@ -486,33 +502,6 @@ def api_delete_session(payload):
     if sid:
         return resp_json(200, {'result':delete_session(sid)})
     return resp_json(400, {'error':'no sid provided'})
-
-def api_check_access(_, payload):
-    """Check to see if we can access the user's VM.
-    Authentication requires knowing the user's email and the course_key.
-    """
-    email = payload.get('email','')
-    if not email:
-        return resp_json(400, {'error':'user not provided.'})
-    user = get_user_from_email(email)
-    if not user:
-        return resp_json(400, {'error':'user not found.'})
-    if user.course_key != payload.get('course_key',''):
-        return resp_json(400, {'error':'course key not valid.'})
-    try:
-        ipaddress.ip_address(str(user.public_ip))
-    except ValueError as e:
-        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
-
-    ssh.configure(user.public_ip, pkey_pem=pkey_pem("cscie-bot")) # the other key is 'hacker'
-    try:
-        rc, out, err = ssh.exec("hostname")
-        return resp_json(200, {'error':False, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
-    except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(200, {'error':False, 'message':'Access Off', 'e':str(e)})
-
-
-
 
 
 ################################################################
@@ -630,6 +619,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # error
                 case (_,_,_):
                     return error_404(path)
+
+        except APINotAuthenticated as e:
+            return resp_json(403, {'message':str(e)})
 
         except EmailNotRegistered as e:
             LOGGER.info("EmailNotRegistered: %s",e)

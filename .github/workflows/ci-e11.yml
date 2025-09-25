@@ -37,11 +37,15 @@ jobs:
           poetry --version
 
       - name: e11 command tests with coverage
-        run: make pytest
+        run: |
+          make lint
+          make pytest
 
-      - name: lambda-home tests with coverage
+      - name: lambda-home tests with coverage require Python 3.13
         if: matrix.python-version == '3.13'
         run: |
+          (cd lambda-home; make install)
+          (cd lambda-home; make lint)
           (cd lambda-home; make pytest)
 
       - name: list coverage files
@@ -50,9 +54,16 @@ jobs:
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.13'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: coverage.xml,lambda-home/coverage.xml
           flags: unittests
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: matrix.python-version == '3.13'
+        uses: codecov/test-results-action@v1
+        with:
+          files: junit1.xml,lambda-home/junit1.xml
           token: ${{ secrets.CODECOV_TOKEN }}

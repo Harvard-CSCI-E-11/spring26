@@ -12,6 +12,7 @@ class TestFail(Exception):
     def __str__(self):
         return self.message
 
+# pylint: disable=too-many-locals
 def _numbered_context(text: str, match_span=None, lines_before=3, lines_after=3):
     lines = text.splitlines()
     if match_span is None:
@@ -19,7 +20,7 @@ def _numbered_context(text: str, match_span=None, lines_before=3, lines_after=3)
         end = min(len(lines), lines_before + lines_after + 1)
         return "\n".join(f"{i+1:5d}  {lines[i]}" for i in range(start, end))
 
-    start_idx, end_idx = match_span
+    start_idx, _ = match_span
     # Find the line number of start_idx
     char_count = 0
     line_no = 0

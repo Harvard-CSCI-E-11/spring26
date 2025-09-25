@@ -1,13 +1,21 @@
 import json
 import pytest
+import copy
 import os
-import tempfile
-import configparser
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 import home_app.home as home
+import home_app.common as common
 from home_app.common import User
 from home_app.home import EmailNotRegistered
+
+from test_utils import (
+    MockedAWSServices, create_test_config_data, create_test_auth_data,
+    create_registration_payload, create_lambda_event, create_test_config_file,
+    assert_dynamodb_updated, assert_route53_called, assert_ses_email_sent,
+    assert_response_success, setup_aws_mocks
+)
+from test_base import BaseRegistrationTest
 
 """
 Registration API Test Coverage:
@@ -37,171 +45,21 @@ Flow 4: Invalid course key (test_registration_api_invalid_course_key)
 - Should return 403 error
 """
 
-class MockedAWSServices:
-    """Mock AWS services for testing registration API"""
 
-    def __init__(self):
-        self.dynamodb_items = {}
-        self.route53_changes = []
-        self.ses_emails = []
-        self.secrets = {}
-
-    def setup_mocks(self, monkeypatch):
-        """Setup all AWS service mocks"""
-
-        # Mock DynamoDB
-        class MockDynamoDBTable:
-            def __init__(self, mock_aws):
-                self.mock_aws = mock_aws
-
-            def put_item(self, Item):
-                key = (Item.get('user_id'), Item.get('sk', '#'))
-                self.mock_aws.dynamodb_items[key] = Item
-                return {'ResponseMetadata': {'HTTPStatusCode': 200}}
-
-            def get_item(self, Key):
-                key = (Key.get('user_id'), Key.get('sk', '#'))
-                item = self.mock_aws.dynamodb_items.get(key)
-                return {'Item': item} if item else {}
-
-            def update_item(self, Key, UpdateExpression, ExpressionAttributeValues):
-                key = (Key.get('user_id'), Key.get('sk', '#'))
-                if key in self.mock_aws.dynamodb_items:
-                    # Simulate the update
-                    item = self.mock_aws.dynamodb_items[key]
-                    # Parse the update expression and apply changes
-                    # This is a simplified version - in real implementation you'd parse the expression
-                    for attr_name, attr_value in ExpressionAttributeValues.items():
-                        if attr_name == ':ip':
-                            item['ip_address'] = attr_value
-                        elif attr_name == ':hn':
-                            item['hostname'] = attr_value
-                        elif attr_name == ':t':
-                            item['host_registered'] = attr_value
-                        elif attr_name == ':name':
-                            item['preferred_name'] = attr_value
-                else:
-                    # Create a new item if it doesn't exist
-                    item = {
-                        'user_id': Key.get('user_id'),
-                        'sk': Key.get('sk', '#'),
-                        'ip_address': ExpressionAttributeValues.get(':ip'),
-                        'hostname': ExpressionAttributeValues.get(':hn'),
-                        'host_registered': ExpressionAttributeValues.get(':t'),
-                        'preferred_name': ExpressionAttributeValues.get(':preferred_name')
-                    }
-                    self.mock_aws.dynamodb_items[key] = item
-                return {'ResponseMetadata': {'HTTPStatusCode': 200}}
-
-            def query(self, **kwargs):
-                # Mock query for GSI_Email index
-                if kwargs.get('IndexName') == 'GSI_Email':
-                    email = kwargs.get('KeyConditionExpression', '').split('=')[-1].strip()
-                    # Find items with matching email
-                    items = []
-                    for item in self.mock_aws.dynamodb_items.values():
-                        if item.get('email') == email:
-                            items.append(item)
-                    return {'Items': items, 'Count': len(items)}
-                return {'Items': [], 'Count': 0}
-
-        # Mock Route53
-        class MockRoute53:
-            def __init__(self, mock_aws):
-                self.mock_aws = mock_aws
-
-            def change_resource_record_sets(self, HostedZoneId, ChangeBatch):
-                self.mock_aws.route53_changes.append({
-                    'HostedZoneId': HostedZoneId,
-                    'ChangeBatch': ChangeBatch
-                })
-                return {
-                    'ChangeInfo': {
-                        'Id': 'test-change-id',
-                        'Status': 'PENDING',
-                        'SubmittedAt': '2024-01-01T00:00:00Z'
-                    }
-                }
-
-        # Mock SES
-        class MockSES:
-            def __init__(self, mock_aws):
-                self.mock_aws = mock_aws
-
-            def send_email(self, Source, Destination, Message):
-                self.mock_aws.ses_emails.append({
-                    'Source': Source,
-                    'Destination': Destination,
-                    'Message': Message
-                })
-                return {
-                    'MessageId': 'test-message-id',
-                    'ResponseMetadata': {'HTTPStatusCode': 200}
-                }
-
-        # Mock Secrets Manager
-        class MockSecretsManager:
-            def __init__(self, mock_aws):
-                self.mock_aws = mock_aws
-
-            def get_secret_value(self, SecretId):
-                secret = self.mock_aws.secrets.get(SecretId, {
-                    "oidc_discovery_endpoint": "https://fake-discovery.example.com",
-                    "client_id": "fake-client-id",
-                    "redirect_uri": "https://fake-app.example.com/auth/callback",
-                    "hmac_secret": "fake-hmac-secret",
-                    "secret_key": "fake-secret-key",
-                })
-                return {'SecretString': json.dumps(secret)}
-
-        # Apply mocks
-        monkeypatch.setattr(home, 'users_table', MockDynamoDBTable(self))
-        monkeypatch.setattr(home, 'route53_client', MockRoute53(self))
-        monkeypatch.setattr(home, 'ses_client', MockSES(self))
-        monkeypatch.setattr(home, 'secretsmanager_client', MockSecretsManager(self))
-
-        # Set environment variables
-        monkeypatch.setenv('OIDC_SECRET_ID', 'fake-secret-id')
-        monkeypatch.setenv('DDB_REGION', 'us-east-1')
-        monkeypatch.setenv('DDB_USERS_TABLE_ARN', 'arn:aws:dynamodb:us-east-1:000000000000:table/fake-users-table')
-        monkeypatch.setenv('SESSIONS_TABLE_NAME', 'fake-sessions-table')
-        monkeypatch.setenv('COOKIE_DOMAIN', 'csci-e-11.org')
-        monkeypatch.setenv('HOSTED_ZONE_ID', 'Z05034072HOMXYCK23BRA')
-
-
-def create_test_config(config_data):
-    """Create a temporary config file with test data"""
-    config = configparser.ConfigParser()
-    config['student'] = config_data
-
-    # Create temporary file
-    fd, path = tempfile.mkstemp(suffix='.ini')
-    os.close(fd)
-
-    with open(path, 'w') as f:
-        config.write(f)
-
-    return path
 
 
 def test_registration_api_flow(monkeypatch):
     """Test that registration parameters flow correctly from e11 CLI to home.py backend"""
 
     # Setup mocked AWS services
-    mock_aws = MockedAWSServices()
-    mock_aws.setup_mocks(monkeypatch)
+    mock_aws = setup_aws_mocks(monkeypatch)
 
-    # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    # Create test data using common utilities
+    config_data = create_test_config_data()
+    auth_data = create_test_auth_data()
 
     # Create temporary config file
-    config_path = create_test_config(test_config_data)
+    config_path = create_test_config_file(config_data)
 
     try:
         # Set environment variable to use our test config
@@ -220,61 +78,29 @@ def test_registration_api_flow(monkeypatch):
 
         # Mock the add_user_log function
         def mock_add_user_log(user_id, message, extra=None):
-            # Just a no-op for testing
             pass
 
         monkeypatch.setattr(home, 'add_user_log', mock_add_user_log)
 
-        # Create the registration payload that would be sent by e11 CLI
-        registration_payload = {
-            'action': 'register',
-            'registration': test_config_data
-        }
+        # Create the registration payload using common utility
+        registration_payload = create_registration_payload(config_data, auth_data)
 
-        # Create the Lambda event
-        event = {
-            'rawPath': '/api/v1/register',
-            'requestContext': {
-                'http': {
-                    'method': 'POST',
-                    'sourceIp': '1.2.3.4'
-                }
-            },
-            'body': json.dumps(registration_payload),
-            'isBase64Encoded': False
-        }
+        # Create the Lambda event using common utility
+        event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
 
         # Call the registration handler
         response = home.api_register(event, registration_payload)
 
-        # Verify the response
-        assert response['statusCode'] == 200
-        response_body = json.loads(response['body'])
-        assert 'message' in response_body
-        assert 'DNS record created and email sent successfully' in response_body['message']
+        # Verify the response using common utility
+        assert_response_success(response, 'DNS record created and email sent successfully')
 
-        # Verify DynamoDB was called with correct data
-        assert len(mock_aws.dynamodb_items) > 0
+        # Verify DynamoDB was called with correct data using common utility
+        assert_dynamodb_updated(mock_aws, 'test-user-id', {
+            'ip_address': '1.2.3.4',
+            'preferred_name': 'Test User'
+        })
 
-        # Find the user update
-        user_update_found = False
-        for key, item in mock_aws.dynamodb_items.items():
-            if key[0] == 'test-user-id' and key[1] == '#':
-                assert item.get('ip_address') == '1.2.3.4'
-                assert item.get('preferred_name') == 'Test User'
-                assert 'host_registered' in item
-                user_update_found = True
-                break
-
-        assert user_update_found, "User record was not updated in DynamoDB"
-
-        # Verify Route53 was called
-        assert len(mock_aws.route53_changes) == 1
-        route53_change = mock_aws.route53_changes[0]
-        assert route53_change['HostedZoneId'] == 'Z05034072HOMXYCK23BRA'
-
-        # Verify DNS records were created for all suffixes
-        changes = route53_change['ChangeBatch']['Changes']
+        # Verify Route53 was called using common utility
         expected_hostnames = [
             'testcsci-e-11.csci-e-11.org',
             'testcsci-e-11-lab1.csci-e-11.org',
@@ -285,29 +111,10 @@ def test_registration_api_flow(monkeypatch):
             'testcsci-e-11-lab6.csci-e-11.org',
             'testcsci-e-11-lab7.csci-e-11.org'
         ]
+        assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
-        assert len(changes) == len(expected_hostnames)
-        for change in changes:
-            assert change['Action'] == 'UPSERT'
-            assert change['ResourceRecordSet']['Type'] == 'A'
-            assert change['ResourceRecordSet']['TTL'] == 300
-            assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == '1.2.3.4'
-            assert change['ResourceRecordSet']['Name'] in expected_hostnames
-
-        # Verify SES email was sent
-        assert len(mock_aws.ses_emails) == 1
-        ses_email = mock_aws.ses_emails[0]
-        assert ses_email['Source'] == 'admin@csci-e-11.org'
-        assert ses_email['Destination']['ToAddresses'] == ['test@csci-e-11.org']
-
-        # Verify email content
-        message = ses_email['Message']
-        assert message['Subject']['Data'] == 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org'
-
-        email_body = message['Body']['Text']['Data']
-        assert '1.2.3.4' in email_body  # IP address
-        assert '123456' in email_body  # course key
-        assert 'Hostname: testcsci-e-11.csci-e-11.org' in email_body  # hostname
+        # Verify SES email was sent using common utility
+        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
 
     finally:
         # Clean up temporary config file
@@ -318,8 +125,7 @@ def test_registration_api_invalid_user(monkeypatch):
     """Test registration API with invalid user (not found in database)"""
 
     # Setup mocked AWS services
-    mock_aws = MockedAWSServices()
-    mock_aws.setup_mocks(monkeypatch)
+    mock_aws = setup_aws_mocks(monkeypatch)
 
     # Mock the user lookup to return None (user not found)
     def mock_get_user_from_email(email):
@@ -327,50 +133,26 @@ def test_registration_api_invalid_user(monkeypatch):
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
-    # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'nonexistent@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    # Create test data using common utilities
+    config_data = create_test_config_data(email='nonexistent@csci-e-11.org')
+    auth_data = create_test_auth_data(email='nonexistent@csci-e-11.org')
 
-    # Create the registration payload
-    registration_payload = {
-        'action': 'register',
-        'registration': test_config_data
-    }
+    # Create the registration payload using common utility
+    registration_payload = create_registration_payload(config_data, auth_data)
 
-    # Create the Lambda event
-    event = {
-        'rawPath': '/api/v1/register',
-        'requestContext': {
-            'http': {
-                'method': 'POST',
-                'sourceIp': '1.2.3.4'
-            }
-        },
-        'body': json.dumps(registration_payload),
-        'isBase64Encoded': False
-    }
+    # Create the Lambda event using common utility
+    event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
 
     # Call the registration handler
-    response = home.api_register(event, registration_payload)
-
-    # Verify the response indicates user not found
-    assert response['statusCode'] == 403
-    response_body = json.loads(response['body'])
-    assert 'User email not registered' in response_body['message']
-    assert response_body['email'] == 'nonexistent@csci-e-11.org'
+    with pytest.raises(home.APINotAuthenticated, match='User email nonexistent@csci-e-11.org is not registered.*'):
+        home.api_register(event, registration_payload)
 
 
 def test_registration_api_invalid_course_key(monkeypatch):
     """Test registration API with invalid course key"""
 
     # Setup mocked AWS services
-    mock_aws = MockedAWSServices()
-    mock_aws.setup_mocks(monkeypatch)
+    mock_aws = setup_aws_mocks(monkeypatch)
 
     # Mock the user lookup to return a user with different course key
     def mock_get_user_from_email(email):
@@ -385,62 +167,33 @@ def test_registration_api_invalid_course_key(monkeypatch):
 
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
-    # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',  # Different from user's course key
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    # Create test data using common utilities
+    config_data = create_test_config_data(course_key='bogus')
+    auth_data = create_test_auth_data(course_key='bogus')
 
-    # Create the registration payload
-    registration_payload = {
-        'action': 'register',
-        'registration': test_config_data
-    }
+    # Create the registration payload using common utility
+    registration_payload = create_registration_payload(config_data, auth_data)
 
-    # Create the Lambda event
-    event = {
-        'rawPath': '/api/v1/register',
-        'requestContext': {
-            'http': {
-                'method': 'POST',
-                'sourceIp': '1.2.3.4'
-            }
-        },
-        'body': json.dumps(registration_payload),
-        'isBase64Encoded': False
-    }
+    # Create the Lambda event using common utility
+    event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
 
     # Call the registration handler
-    response = home.api_register(event, registration_payload)
-
-    # Verify the response indicates invalid course key
-    assert response['statusCode'] == 403
-    response_body = json.loads(response['body'])
-    assert 'course_key does not match' in response_body['message']
-    assert response_body['email'] == 'test@csci-e-11.org'
+    with pytest.raises(home.APINotAuthenticated, match='User course_key does not match registration course_key for email test@csci-e-11.org.*'):
+        home.api_register(event, registration_payload)
 
 
 def test_registration_api_returning_user_flow(monkeypatch):
     """Test registration API with returning user (Flow 2: existing user + new session)"""
 
     # Setup mocked AWS services
-    mock_aws = MockedAWSServices()
-    mock_aws.setup_mocks(monkeypatch)
+    mock_aws = setup_aws_mocks(monkeypatch)
 
-    # Create test config data
-    test_config_data = {
-        'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
-        'course_key': '123456',
-        'public_ip': '1.2.3.4',
-        'instanceId': 'i-1234567890abcdef0'
-    }
+    # Create test data using common utilities
+    config_data = create_test_config_data()
+    auth_data = create_test_auth_data()
 
     # Create temporary config file
-    config_path = create_test_config(test_config_data)
+    config_path = create_test_config_file(config_data)
 
     try:
         # Set environment variable to use our test config
@@ -451,7 +204,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
             return User(**{
                 'user_id': 'existing-user-id',
                 'email': email,
-                'course_key': test_config_data['course_key'],  # Use test config data
+                'course_key': config_data['course_key'],  # Use test config data
                 'sk': '#',
                 'claims': {'name': 'Test User', 'email': email},
                 'user_registered': 1000000000,
@@ -463,64 +216,29 @@ def test_registration_api_returning_user_flow(monkeypatch):
 
         # Mock the add_user_log function
         def mock_add_user_log(user_id, message, extra=None):
-            # Just a no-op for testing
             pass
 
         monkeypatch.setattr(home, 'add_user_log', mock_add_user_log)
 
-        # Create the registration payload that would be sent by e11 CLI
-        registration_payload = {
-            'action': 'register',
-            'registration': test_config_data
-        }
+        # Create the registration payload using common utility
+        registration_payload = create_registration_payload(config_data, auth_data)
 
-        # Create the Lambda event
-        event = {
-            'rawPath': '/api/v1/register',
-            'requestContext': {
-                'http': {
-                    'method': 'POST',
-                    'sourceIp': '1.2.3.4'
-                }
-            },
-            'body': json.dumps(registration_payload),
-            'isBase64Encoded': False
-        }
+        # Create the Lambda event using common utility
+        event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
 
         # Call the registration handler
         response = home.api_register(event, registration_payload)
 
-        # Verify the response
-        assert response['statusCode'] == 200
-        response_body = json.loads(response['body'])
-        assert 'message' in response_body
-        assert 'DNS record created and email sent successfully' in response_body['message']
+        # Verify the response using common utility
+        assert_response_success(response, 'DNS record created and email sent successfully')
 
-        # Verify DynamoDB was called with correct data
-        assert len(mock_aws.dynamodb_items) > 0
+        # Verify DynamoDB was called with correct data using common utility
+        assert_dynamodb_updated(mock_aws, 'existing-user-id', {
+            'ip_address': '1.2.3.4',
+            'preferred_name': 'Test User'
+        })
 
-        # Find the user update - should update existing user, not create new one
-        user_update_found = False
-        for key, item in mock_aws.dynamodb_items.items():
-            if key[0] == 'existing-user-id' and key[1] == '#':
-                # Verify the existing user was updated with new data
-                assert item.get('ip_address') == '1.2.3.4'
-                assert item.get('preferred_name') == 'Test User'
-                assert 'host_registered' in item
-                # Verify it's the same user_id (not a new one)
-                assert item.get('user_id') == 'existing-user-id'
-                user_update_found = True
-                break
-
-        assert user_update_found, "Existing user record was not updated in DynamoDB"
-
-        # Verify Route53 was called
-        assert len(mock_aws.route53_changes) == 1
-        route53_change = mock_aws.route53_changes[0]
-        assert route53_change['HostedZoneId'] == 'Z05034072HOMXYCK23BRA'
-
-        # Verify DNS records were created for all suffixes
-        changes = route53_change['ChangeBatch']['Changes']
+        # Verify Route53 was called using common utility
         expected_hostnames = [
             'testcsci-e-11.csci-e-11.org',
             'testcsci-e-11-lab1.csci-e-11.org',
@@ -531,29 +249,10 @@ def test_registration_api_returning_user_flow(monkeypatch):
             'testcsci-e-11-lab6.csci-e-11.org',
             'testcsci-e-11-lab7.csci-e-11.org'
         ]
+        assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
-        assert len(changes) == len(expected_hostnames)
-        for change in changes:
-            assert change['Action'] == 'UPSERT'
-            assert change['ResourceRecordSet']['Type'] == 'A'
-            assert change['ResourceRecordSet']['TTL'] == 300
-            assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == '1.2.3.4'
-            assert change['ResourceRecordSet']['Name'] in expected_hostnames
-
-        # Verify SES email was sent
-        assert len(mock_aws.ses_emails) == 1
-        ses_email = mock_aws.ses_emails[0]
-        assert ses_email['Source'] == 'admin@csci-e-11.org'
-        assert ses_email['Destination']['ToAddresses'] == ['test@csci-e-11.org']
-
-        # Verify email content
-        message = ses_email['Message']
-        assert message['Subject']['Data'] == 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org'
-
-        email_body = message['Body']['Text']['Data']
-        assert '1.2.3.4' in email_body  # IP address
-        assert '123456' in email_body  # course key
-        assert 'Hostname: testcsci-e-11.csci-e-11.org' in email_body  # hostname
+        # Verify SES email was sent using common utility
+        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
 
     finally:
         # Clean up temporary config file

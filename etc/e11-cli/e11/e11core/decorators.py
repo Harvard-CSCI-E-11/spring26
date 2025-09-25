@@ -1,10 +1,7 @@
 import functools
 import signal
 import time
-from typing import Any, Callable, TypeVar
 
-
-class TimeoutError(RuntimeError): pass
 
 def timeout(seconds: int):
     def deco(f):
@@ -31,7 +28,7 @@ def retry(times: int=3, backoff: float=0.25):
             for i in range(times):
                 try:
                     return f(*a, **k)
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:  # noqa: BLE001  pylint: disable=broad-exception-caught
                     last = e
                     if i < times - 1:
                         time.sleep(backoff * (2**i))

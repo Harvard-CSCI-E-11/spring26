@@ -28,6 +28,7 @@ Globals:
         SSH_SECRET_ID: !Ref SshSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTableName
+        PYTHONPATH: "/var/task/home_app/e11.whl"
 
 Parameters:
   UsersTableName:
