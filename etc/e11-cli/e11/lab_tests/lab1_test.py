@@ -50,11 +50,11 @@ def test_journal_retension( tr:TestRunner):
     try:
         txt = tr.read_file("/etc/systemd/journald.conf")
     except Exception as e:  # pragma: no cover - surfaced to student clearly
-        raise TestFail(f"Cannot read /etc/systemd/journald.conf")
+        raise TestFail("Cannot read /etc/systemd/journald.conf") from e
     for line in txt.split("\n"):
         if line.strip()=="MaxRetentionSec=6month":
             return "MaxRetentionSec set to '6month' in /etc/systemd/journald.conf"
-    raise TestFail(f"MaxRetentionSec not set to '6month' in /etc/systemd/journald.conf")
+    raise TestFail("MaxRetentionSec not set to '6month' in /etc/systemd/journald.conf")
 
 
 @retry(times=3, backoff=0.25)

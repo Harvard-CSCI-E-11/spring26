@@ -208,7 +208,7 @@ def do_grade(args):
         print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     except KeyError:
         print(f"Invalid response from server:\n{json.dumps(result,indent=4)}")
-        exit(1)
+        sys.exit(1)
     sys.exit(0 if not result['summary']["fails"] else 1)
 
 
