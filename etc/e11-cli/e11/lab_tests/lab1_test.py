@@ -42,6 +42,21 @@ def test_hostname( tr:TestRunner ):
     return r.stdout
 
 
+@timeout(2)
+def test_journal_retension( tr:TestRunner):
+    """
+    check if the journal retains for 6 months
+    """
+    try:
+        txt = tr.read_file("/etc/systemd/journald.conf")
+    except Exception as e:  # pragma: no cover - surfaced to student clearly
+        raise TestFail("Cannot read /etc/systemd/journald.conf") from e
+    for line in txt.split("\n"):
+        if line.strip()=="MaxRetentionSec=6month":
+            return "MaxRetentionSec set to '6month' in /etc/systemd/journald.conf"
+    raise TestFail("MaxRetentionSec not set to '6month' in /etc/systemd/journald.conf")
+
+
 @retry(times=3, backoff=0.25)
 @timeout(5)
 def test_no_ssh_on_port_80( tr:TestRunner ):
