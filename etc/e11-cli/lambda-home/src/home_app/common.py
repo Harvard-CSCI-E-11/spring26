@@ -140,6 +140,8 @@ def convert_dynamodb_item(item: dict) -> dict:
     return {k: convert_dynamodb_value(v) for k, v in item.items()}
 
 
+################################################################
+### Logger
 @functools.cache                # singleton
 def _configure_root_once():
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()

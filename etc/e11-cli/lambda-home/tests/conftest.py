@@ -1,3 +1,5 @@
+import os
+import sys
 import json
 import pytest
 import threading
@@ -7,6 +9,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
+
+
 
 def _rsa_keypair():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -53,6 +57,7 @@ def fake_idp_server():
 def fake_aws(monkeypatch):
     """Monkeypatch Secrets Manager + DynamoDB used by home.py."""
     from home_app import home
+    from home_app import common
 
     class FakeSecrets:
         def get_secret_value(self, SecretId):
@@ -200,7 +205,7 @@ def fake_aws(monkeypatch):
     monkeypatch.setenv("SESSIONS_TABLE_NAME", "sessions-table")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
 
-    monkeypatch.setattr(home, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(common, "secretsmanager_client", FakeSecrets())
     monkeypatch.setattr(home, "users_table", FakeTable())
     monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
     yield

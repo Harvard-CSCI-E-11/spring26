@@ -79,3 +79,12 @@ reportMissingTypeStubs = "warning"
 [[tool.pyright.executionEnvironments]]
 root = "."
 extraPaths = ["e11"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+ "e11",
+ "tests"
+ ]
+addopts = "-ra -q"
+python_files = ["test_*.py"]
