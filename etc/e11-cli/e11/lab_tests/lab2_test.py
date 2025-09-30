@@ -1,11 +1,11 @@
 # e11.lab_tests.lab1_test
-import re
-import socket
 import tempfile
 import urllib
+import urllib.request
 
-import crossplane
+import crossplane               # type: ignore
 
+# pylint: disable=unused-import
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
@@ -27,7 +27,7 @@ def get_nginx_servers(tr):
         data =  crossplane.parse(tf.name)
     if data['status'] != 'ok':
         raise TestFail("Crossplane cannot parse /etc/nginx/sites-available/default")
-    for config in data['config']:
+    for config in data['config']: # pylint: disable=too-many-nested-blocks
         if config['status'] != 'ok':
             raise TestFail("nginx sites file config status is not okay")
         for parsed in config['parsed']:
@@ -99,20 +99,6 @@ def test_confidential_no_password( tr:TestRunner ):
         raise TestFail(f"No password protection on {url} status={r.status}")
 
     return f"Received HTTP error 404 attempting to read {url} without a password"
-
-def test_confidential_no_password( tr:TestRunner ):
-    """
-    See if the hostname program works
-    """
-    d = domain(tr)
-    url = f"https://{d}/confidential/confidential.html"
-    r = tr.http_get(url, tls_info=False)
-    if r.status == 200:
-        raise TestFail(f"No password protection on {url}")
-    if r.status != 401:
-        raise TestFail(f"No password protection on {url} status={r.status}")
-
-    return f"Correctly received HTTP error 401 attempting to read {url} without a password"
 
 def test_confidential_password( tr:TestRunner ):
     """
