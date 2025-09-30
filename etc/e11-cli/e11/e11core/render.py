@@ -9,13 +9,14 @@ def print_summary(summary, verbose=False):
     print(f"Score: {summary['score']} / 5.0")
     if summary["passes"]:
         print("\n-- PASSES --")
-        for n in summary["passes"]:
-            print(f"  ✔ {n}")
+        for t in summary["tests"]:
+            if t["status"] == "pass":
+                print(f"  ✔ {t['name']:20}  -- {t.get('message','')}  ")
     if summary["fails"]:
         print("\n-- FAILURES --")
         for t in summary["tests"]:
             if t["status"] == "fail":
-                print(f"  ✘ {t['name']}: {t.get('message','')}")
+                print(f"  ✘ {t['name']:20}: {t.get('message','')}")
                 ctx = t.get("context")
                 if ctx:
                     print("----- context -----")

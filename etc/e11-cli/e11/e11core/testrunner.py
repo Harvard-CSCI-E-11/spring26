@@ -96,9 +96,12 @@ class TestRunner:
             return f.read()
 
     # pylint: disable=too-many-locals
-    def http_get(self, url: str, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
-        # Get from HTTP. THis should work from anywhere
-        opener = build_opener()
+    def http_get(self, url: str, handler=None, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
+        # Get from HTTP. This should work from anywhere
+        if handler:
+            opener = build_opener(handler)
+        else:
+            opener = build_opener()
         req = Request(url, method="GET")
         try:
             with opener.open(req, timeout=timeout) as r:
@@ -175,7 +178,7 @@ class TestRunner:
                 raise RuntimeError(f"cannot import {file}")
             mod = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-            fn = getattr(mod, func)
+            fn = getattr(mod, func)       # call the test function
             value = fn(*args, **kwargs)
         except SystemExit as e:
             exit_code = int(e.code) if isinstance(e.code, int) else 1
