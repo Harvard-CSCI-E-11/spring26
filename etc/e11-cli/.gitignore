@@ -2,4 +2,4 @@
 dist
 *.egg-info/
 .coverage
-junit.xml
+**/junit.xml
