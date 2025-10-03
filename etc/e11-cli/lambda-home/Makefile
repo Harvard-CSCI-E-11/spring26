@@ -43,7 +43,7 @@ lint: .venv/pyvenv.cfg
 	$(PY) -m pylint src
 	$(PY) -m pyright
 
-test: .venv/pyvenv.cfg
+check: .venv/pyvenv.cfg
 	make vend-e11
 	make lint
 	$(PY) -m pytest -q --cov=.   --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/

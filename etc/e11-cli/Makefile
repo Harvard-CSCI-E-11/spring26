@@ -19,15 +19,9 @@ lint: .venv/pyvenv.cfg
 	.venv/bin/pylint e11/.
 	.venv/bin/pyright e11/.
 
-pytest: .venv/pyvenv.cfg
+check: .venv/pyvenv.cfg
 	make lint
 	.venv/bin/pytest -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
-
-check:
-	make pytest
-
-test:
-	make pytest
 
 clean:
 	rm -f .coverage coverage.xml

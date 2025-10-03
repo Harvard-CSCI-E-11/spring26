@@ -114,7 +114,6 @@ def do_access_check_dashboard(args):
 def do_access_check_me(args):
     print("Checking dashboard to see if it has access for this public IP address")
     ep = endpoint(args)
-    cp = get_config()
     r = requests.post(ep, json={'action':'check-me'}, timeout = GRADING_TIMEOUT+5 )
     if r.ok:
         print(f"Message from dashboard: {r.json()['message']}")

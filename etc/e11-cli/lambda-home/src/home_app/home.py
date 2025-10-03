@@ -499,9 +499,9 @@ def api_check_access(event, payload, check_me=False):
 
     try:
         rc, out, err = ssh.exec("hostname")
-        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':f'Access On for IP address {public_ip}', 'rc':rc, 'out':out, 'err':err})
     except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access Off', 'e':str(e)})
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':f'Access Off for IP address {public_ip}', 'e':str(e)})
 
 def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
