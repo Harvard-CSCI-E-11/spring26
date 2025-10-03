@@ -8,8 +8,6 @@ import os
 import tempfile
 import configparser
 from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, patch
-import pytest
 
 
 class MockedAWSServices:

@@ -1,4 +1,10 @@
 #!/bin/bash
+### This script:
+### - createds a new virtual machine in AWS
+### - ssh'es into it
+### - clones the installer
+### - runs the installer
+### - asks the lambda to check it out.
 
 set -euo pipefail
 
