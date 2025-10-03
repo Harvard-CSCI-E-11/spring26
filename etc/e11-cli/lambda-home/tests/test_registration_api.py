@@ -1,21 +1,17 @@
 import json
 import pytest
-import copy
 import os
-from unittest.mock import Mock, patch
 
 import home_app.home as home
-import home_app.common as common
 from home_app.common import User
 from home_app.home import EmailNotRegistered
 
 from test_utils import (
-    MockedAWSServices, create_test_config_data, create_test_auth_data,
+    create_test_config_data, create_test_auth_data,
     create_registration_payload, create_lambda_event, create_test_config_file,
     assert_dynamodb_updated, assert_route53_called, assert_ses_email_sent,
     assert_response_success, setup_aws_mocks
 )
-from test_base import BaseRegistrationTest
 
 """
 Registration API Test Coverage:
@@ -125,7 +121,7 @@ def test_registration_api_invalid_user(monkeypatch):
     """Test registration API with invalid user (not found in database)"""
 
     # Setup mocked AWS services
-    mock_aws = setup_aws_mocks(monkeypatch)
+    _mock_aws = setup_aws_mocks(monkeypatch)
 
     # Mock the user lookup to return None (user not found)
     def mock_get_user_from_email(email):
@@ -152,7 +148,7 @@ def test_registration_api_invalid_course_key(monkeypatch):
     """Test registration API with invalid course key"""
 
     # Setup mocked AWS services
-    mock_aws = setup_aws_mocks(monkeypatch)
+    _mock_aws = setup_aws_mocks(monkeypatch)
 
     # Mock the user lookup to return a user with different course key
     def mock_get_user_from_email(email):

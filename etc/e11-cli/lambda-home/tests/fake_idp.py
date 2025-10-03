@@ -1,7 +1,10 @@
 # Minimal Fake OIDC Provider (discovery, authorize, token, jwks)
 import logging
-import base64, hashlib, json, threading, time, urllib.parse
-from flask import Flask, request, jsonify, redirect, make_response
+import base64
+import hashlib
+import threading
+import time
+from flask import Flask, request, jsonify, redirect
 
 
 def create_app(issuer, private_key_pem, jwk):

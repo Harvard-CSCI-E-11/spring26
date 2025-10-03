@@ -3,7 +3,6 @@ Test staging environment detection and cookie domain handling
 """
 
 import pytest
-from unittest.mock import Mock
 
 import home_app.home as home
 import home_app.common as common

@@ -27,7 +27,7 @@ def authorized_keys_path():
     return home() / ".ssh" / "authorized_keys"
 
 def bot_pubkey_path():
-    """Find the bot public key"""
+    """Find the full path of the bot public key"""
     for path in [ home() / REPO_YEAR / "etc" / CSCIE_BOT_KEYFILE,
                   home() / "gits" / "csci-e-11" / "etc" / CSCIE_BOT_KEYFILE]:
         if path.exists():
@@ -35,6 +35,7 @@ def bot_pubkey_path():
     raise FileNotFoundError(CSCIE_BOT_KEYFILE)
 
 def bot_pubkey():
+    ":return: the text public key for the bot (1 line) from CSCI_BOT_KEYFILE"
     key = bot_pubkey_path().read_text()
     assert key.count("\n")==1 and key.endswith("\n")
     return key
@@ -46,7 +47,6 @@ def bot_access_check():
             if line == key:
                 return True
     return False
-
 
 def get_config():
     """Return the config file"""

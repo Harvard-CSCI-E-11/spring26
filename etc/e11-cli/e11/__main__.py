@@ -63,6 +63,8 @@ def endpoint(args):
 def do_version(args):
     print("version",__version__)
 
+################################################################
+
 def do_access_on(args):
     if bot_access_check():
         logger.info("Course admins already has access...")
@@ -96,6 +98,32 @@ def do_access_check(args):
         logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance (based on .ssh/authorized_keys file).")
     else:
         logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance (based on .ssh/authorized_keys file).")
+
+def do_access_check_dashboard(args):
+    print("Checking dashboard to see if it has access for an authenticated user.")
+    ep = endpoint(args)
+    cp = get_config()
+    r = requests.post(ep, json={'action':'check-access',
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]}},
+                      timeout = GRADING_TIMEOUT+5 )
+    if r.ok:
+        print(f"Response from dashboard: {r.json()['message']}")
+    else:
+        print(f"dashboard returned error: {r} {r.text}")
+
+def do_access_check_me(args):
+    print("Checking dashboard to see if it has access for this public IP address")
+    ep = endpoint(args)
+    cp = get_config()
+    r = requests.post(ep, json={'action':'check-me'}, timeout = GRADING_TIMEOUT+5 )
+    if r.ok:
+        print(f"Message from dashboard: {r.json()['message']}")
+        print("Full response:\n",json.dumps(r.json(),indent=4))
+    else:
+        print(f"dashboard returned error: {r} {r.text}")
+
+
+################################################################
 
 def do_config(args):
     cp = get_config()
@@ -166,19 +194,6 @@ def do_register(args):
     else:
         print("Registered!")
         print("If you do not receive a message in 60 seconds, check your email address and try again.")
-
-
-def do_access_check_dashboard(args):
-    print("Checking dashboard to see if it has access")
-    ep = endpoint(args)
-    cp = get_config()
-    r = requests.post(ep, json={'action':'check-access',
-                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]}},
-                      timeout = GRADING_TIMEOUT+5 )
-    if r.ok:
-        print(f"Response from dashboard: {r.json()['message']}")
-    else:
-        print(f"dashboard returned error: {r} {r.text}")
 
 
 def do_grade(args):
@@ -269,7 +284,8 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
-    access_subparsers.add_parser('check-dashboard', help='Report SSH access').set_defaults(func=do_access_check_dashboard)
+    access_subparsers.add_parser('check-dashboard', help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
+    access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')

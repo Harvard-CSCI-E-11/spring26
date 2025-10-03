@@ -33,6 +33,7 @@ dev = [
     "pytest",
     "pip-tools",
     "pytest-cov",
+    "ruff",
     "flask"
 ]
 

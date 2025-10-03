@@ -1,6 +1,5 @@
 import urllib.parse
 import requests
-import pytest
 
 import home_app.oidc as oidc
 

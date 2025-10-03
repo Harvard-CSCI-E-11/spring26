@@ -476,25 +476,32 @@ def api_grader(event, context, payload):
     return resp_json(200, {'summary':summary})
 
 
-def api_check_access(_, payload):
+def api_check_access(event, payload, check_me=False):
     """Check to see if we can access the user's VM.
     Authentication requires knowing the user's email and the course_key.
     """
-    user = api_auth(payload)
-    try:
+    if check_me is False:
+        user = api_auth(payload)
         public_ip = str(user.public_ip)
-        ipaddress.ip_address(public_ip)
-    except ValueError as e:
-        return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':user.public_ip})
+        try:
+            ipaddress.ip_address(public_ip)
+        except ValueError as e:
+            return resp_json(400, {'error':'user.ipaddress is not valid','e':e,'public_ip':public_ip})
+        LOGGER.info("api_check_access user=%s public_ip=%s",user,public_ip)
+    else:
+        # Try to get the source IP
+        public_ip = event.get('requestContext',{}).get('identity',{}).get('sourceIp',None)
+        if public_ip is None:
+            public_ip = event.get('headers',{}).get('x-forwarded-for',",").split(",")[0]
+        LOGGER.info("api_check_access check_me=True public_ip=%s",public_ip)
 
-    ssh = E11Ssh(user.public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
+    ssh = E11Ssh(public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
 
     try:
         rc, out, err = ssh.exec("hostname")
         return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
     except paramiko.ssh_exception.AuthenticationException as e:
         return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access Off', 'e':str(e)})
-
 
 def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
@@ -581,7 +588,10 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                     return api_delete_session(payload)
 
                 case ("POST", '/api/v1', 'check-access'):
-                    return api_check_access(event, payload)
+                    return api_check_access(event, payload, check_me=False)
+
+                case ("POST", '/api/v1', 'check-me'):
+                    return api_check_access(event, payload, check_me=True)
 
                 case ("POST", '/api/v1', 'heartbeat'):
                     return api_heartbeat(event, context)
