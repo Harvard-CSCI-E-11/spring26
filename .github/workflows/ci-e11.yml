@@ -39,7 +39,7 @@ jobs:
       - name: e11 command tests with coverage
         run: |
           make lint
-          make pytest
+          make check
 
       - name: lambda-home tests with coverage require Python 3.13
         if: matrix.python-version == '3.13'
