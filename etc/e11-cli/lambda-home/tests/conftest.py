@@ -1,16 +1,11 @@
-import os
-import sys
 import json
 import pytest
-import threading
 import base64
 import logging
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
-
-
 
 def _rsa_keypair():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -21,7 +16,6 @@ def _rsa_keypair():
     )
     pub = key.public_key()
     nums = pub.public_numbers()
-    import base64
     def b64u(i): return base64.urlsafe_b64encode(i.to_bytes((i.bit_length()+7)//8, 'big')).decode().rstrip("=")
     jwk = {
         "kty": "RSA",
@@ -130,18 +124,19 @@ def fake_aws(monkeypatch):
 
             # Handle GSI queries
             if kwargs.get("IndexName") == "GSI_Email":
-                key_condition = kwargs.get("KeyConditionExpression")
+                _key_condition = kwargs.get("KeyConditionExpression")
+
                 # For GSI queries, we need to extract the email from the Key condition
                 # The condition will be something like Key("email").eq(email)
                 # We'll look for items with matching email
-                for (email, sk), item in self.db.items():
+                for (_email, _sk), item in self.db.items():
                     if "email" in item:
                         items.append(item)
                         break  # GSI should only return one item per email
 
             # Handle regular queries
             else:
-                key_condition = kwargs.get("KeyConditionExpression")
+                _key_condition = kwargs.get("KeyConditionExpression")
 
                 # Handle Key(USER_ID).eq(user_id) case
                 # We'll look for items with matching user_id

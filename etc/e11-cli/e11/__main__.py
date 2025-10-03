@@ -70,6 +70,10 @@ def do_access_on(args):
         logger.info("Granting access to course admins...")
         with authorized_keys_path().open('a') as f:
             f.write( bot_pubkey() )
+    # Be sure permissions are set properly
+    authorized_keys_path().chmod(0o600)
+    authorized_keys_path().parent.chmod(0o700)
+    authorized_keys_path().home().chmod(0o750)
 
 def do_access_off(args):
     if not bot_access_check():

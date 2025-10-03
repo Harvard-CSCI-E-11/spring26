@@ -10,6 +10,8 @@ PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --pytho
 DJLINT_FLAGS ?= --profile=jinja --lint --quiet --ignore J004,J018
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
+PY    := PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/python
+
 
 TEMPLATE_DIR := src/home_app/templates
 
@@ -26,10 +28,6 @@ install:
 	.venv/bin/pip install -e .
 	.venv/bin/pip install -e ".[dev]"
 
-vend-e11-old:
-	@echo vending e11 module to src/
-	rsync --archive --verbose --delete ../e11 src/home_app/ --exclude '*.pyc'
-
 vend-e11: Makefile
 	@echo "Building src/home_app/e11.whl via pip"
 	( cd .. && .venv/bin/python -m pip wheel --no-deps -w dist . )
@@ -41,23 +39,17 @@ vend-e11: Makefile
 lint: .venv/pyvenv.cfg
 	make vend-e11
 	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
-	PYTHONPATH=src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pylint src
+	$(PY) -m ruff check --fix
+	$(PY) -m pylint src
+	$(PY) -m pyright
 
-pyright:.venv/pyvenv.cfg
-	make vend-e11
-	.venv/bin/pyright
-
-pytest: .venv/pyvenv.cfg
+test: .venv/pyvenv.cfg
 	make vend-e11
 	make lint
-	make pyright
-	PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/pytest -q --cov=.   --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/
-
-test:
-	make pytest
+	$(PY) -m pytest -q --cov=.   --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/
 
 
-# don't specify template in deploy-prod or deploy-stage
+# AWS Lambda Vend, Build and Deploy (VBD)
 prod-vbd: template.yaml samconfig.toml src/requirements.txt
 	make vend-e11
 	sam validate --config-file samconfig.toml -t template.yaml --lint
@@ -96,7 +88,6 @@ functions:
 	@echo "Stage function:"
 	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
-
 
 # Tail logs
 prod-tail:

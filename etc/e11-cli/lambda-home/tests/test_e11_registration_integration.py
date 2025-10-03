@@ -1,23 +1,15 @@
 import json
 import pytest
 import os
-import subprocess
-import tempfile
-import configparser
-from unittest.mock import Mock, patch, MagicMock
-import requests
-import sys
+from unittest.mock import Mock, patch
 
 import home_app.home as home
-import home_app.common as common
 from home_app.common import User
 
 from test_utils import (
-    MockedAWSServices, create_test_config_data, create_test_auth_data,
-    create_test_config_file, setup_aws_mocks, assert_dynamodb_updated,
+    create_test_config_data, create_test_config_file, setup_aws_mocks, assert_dynamodb_updated,
     assert_route53_called, assert_ses_email_sent
 )
-from test_base import BaseIntegrationTest
 
 
 def test_e11_registration_with_test_config(monkeypatch):

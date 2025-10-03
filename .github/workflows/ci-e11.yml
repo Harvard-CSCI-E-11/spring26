@@ -46,7 +46,7 @@ jobs:
         run: |
           (cd lambda-home; make install)
           (cd lambda-home; make lint)
-          (cd lambda-home; make pytest)
+          (cd lambda-home; make test)
 
       - name: list coverage files
         run: |
