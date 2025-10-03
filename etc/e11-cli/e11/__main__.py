@@ -73,7 +73,7 @@ def do_access_on(args):
     # Be sure permissions are set properly
     authorized_keys_path().chmod(0o600)
     authorized_keys_path().parent.chmod(0o700)
-    pathlib.Path.home.chmod(0o750)
+    authorized_keys_path().home().chmod(0o750)
 
 def do_access_off(args):
     if not bot_access_check():
