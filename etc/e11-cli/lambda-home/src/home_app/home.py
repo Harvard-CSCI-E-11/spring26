@@ -48,8 +48,7 @@ from e11.e11core import grader
 from . import common
 from . import oidc
 
-
-from .sessions import new_session,get_session,all_sessions_for_email,delete_session_from_event
+from .sessions import new_session,get_session_from_event,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
 from .common import get_logger,add_user_log,EmailNotRegistered
 from .common import users_table,sessions_table,SESSION_TTL_SECS,A
@@ -65,7 +64,6 @@ eastern = ZoneInfo("America/New_York")
 
 LastEvaluatedKey = 'LastEvaluatedKey' # pylint: disable=invalid-name
 
-
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
     if value in (None, jinja2.Undefined):  # catch both
@@ -76,7 +74,6 @@ def eastern_filter(value):
         LOGGER.debug("value=%s type(value)=%s e=%s",value,type(value),e)
         return "n/a"
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-
 
 
 # ---------- Setup AWS Services  ----------
@@ -225,8 +222,8 @@ def do_page(event, status="",extra=""):
     qs = event.get("queryStringParameters") or {}
     page = qs.get("page")   # will be "foo" if URL is /?page=foo
 
-    # If there is an active session, redirect to the dashboard
-    ses = get_session(event)
+    # Check for an active session. If it does not exist, redirect to the dashboard
+    ses = get_session_from_event(event)
 
     if page:
         try:
@@ -253,7 +250,7 @@ def do_dashboard(event):
     If the session exists, then the user was created in new_session().
     """
     client_ip = event["requestContext"]["http"]["sourceIp"]
-    ses = get_session(event)
+    ses = get_session_from_event(event)
     if not ses:
         return redirect("/")
     try:
@@ -329,7 +326,6 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
 class APINotAuthenticated(Exception):
     def __init__(self, msg):
         super().__init__(msg)
-
 
 def api_auth(payload):
     # See if there is an existing user_id for this email address.
@@ -499,9 +495,9 @@ def api_check_access(event, payload, check_me=False):
 
     try:
         rc, out, err = ssh.exec("hostname")
-        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access On', 'rc':rc, 'out':out, 'err':err})
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':f'Access On for IP address {public_ip}', 'rc':rc, 'out':out, 'err':err})
     except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':'Access Off', 'e':str(e)})
+        return resp_json(200, {'error':False, 'public_ip':public_ip, 'message':f'Access Off for IP address {public_ip}', 'e':str(e)})
 
 def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
@@ -561,7 +557,9 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # JSON API Actions
                 #
                 case ("POST", "/api/v1", "ping"):
-                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path,
+                    return resp_json(200, {"error": False,
+                                           "message": "ok",
+                                           "path":sys.path,
                                            'context':dict(context),
                                            'environ':dict(os.environ)
                                            })

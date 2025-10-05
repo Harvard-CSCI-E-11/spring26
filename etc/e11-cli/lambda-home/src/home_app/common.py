@@ -61,7 +61,8 @@ class DatabaseInconsistency(RuntimeError):
 class EmailNotRegistered(RuntimeError):
     pass
 
-
+class InvalidCookie(RuntimeError):
+    pass
 
 # attributes
 

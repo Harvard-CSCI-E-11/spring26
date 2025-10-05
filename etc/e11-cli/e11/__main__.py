@@ -65,6 +65,11 @@ def do_version(args):
 
 ################################################################
 
+def fix_access_permissions():
+    authorized_keys_path().chmod(0o600)
+    authorized_keys_path().parent.chmod(0o700)
+    authorized_keys_path().home().chmod(0o750)
+
 def do_access_on(args):
     if bot_access_check():
         logger.info("Course admins already has access...")
@@ -72,10 +77,7 @@ def do_access_on(args):
         logger.info("Granting access to course admins...")
         with authorized_keys_path().open('a') as f:
             f.write( bot_pubkey() )
-    # Be sure permissions are set properly
-    authorized_keys_path().chmod(0o600)
-    authorized_keys_path().parent.chmod(0o700)
-    authorized_keys_path().home().chmod(0o750)
+    fix_access_permissions()
 
 def do_access_off(args):
     if not bot_access_check():
@@ -91,15 +93,18 @@ def do_access_off(args):
                         continue
                     outfile.write(line)
         newpath.replace(authorized_keys_path())
+    fix_access_permissions()
 
 def do_access_check(args):
     logger.info("Checking access status for %s:",get_public_ip())
+    fix_access_permissions()
     if bot_access_check():
         logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance (based on .ssh/authorized_keys file).")
     else:
         logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance (based on .ssh/authorized_keys file).")
 
 def do_access_check_dashboard(args):
+    fix_access_permissions()
     print("Checking dashboard to see if it has access for an authenticated user.")
     ep = endpoint(args)
     cp = get_config()
@@ -112,6 +117,7 @@ def do_access_check_dashboard(args):
         print(f"dashboard returned error: {r} {r.text}")
 
 def do_access_check_me(args):
+    fix_access_permissions()
     print("Checking dashboard to see if it has access for this public IP address")
     ep = endpoint(args)
     r = requests.post(ep, json={'action':'check-me'}, timeout = GRADING_TIMEOUT+5 )

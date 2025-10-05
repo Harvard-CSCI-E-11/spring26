@@ -94,7 +94,7 @@ def new_session(event, claims) -> Session:
     add_user_log(event, user_id, f"Session {sid} created")
     return Session(**session)
 
-def get_session(event) -> Optional[Session]:
+def get_session_from_event(event) -> Optional[Session]:
     """Return the session dictionary if the session is valid and not expired.
     Sessions are determined by having the session cookie"""
     sid = parse_cookies(event).get(COOKIE_NAME)
