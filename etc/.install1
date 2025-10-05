@@ -3,7 +3,7 @@
 # install a backdoor on the student instance
 # If you are reading this, you should have enough information to close it!
 
-if [ -z ${WIZPASS+x} ]; then
+if [ -z "${WIZPASS+x}" ]; then
    echo -e '\nWelcome Wizard\n'
    exit 0
 fi
