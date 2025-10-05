@@ -95,7 +95,12 @@ document.addEventListener("DOMContentLoaded", () => {
          const resp = await fetch("/api/v1", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ action: "check-access", email: "{{ user.email }}", course_key: "{{ user.course_key }}" })
+           body: JSON.stringify({
+             action: "check-access",
+             auth: {
+               email: "{{ user.email }}",
+               course_key: "{{ user.course_key }}" }
+           })
          });
 
          if (resp.ok) {           // Remove the row containing the clicked button
