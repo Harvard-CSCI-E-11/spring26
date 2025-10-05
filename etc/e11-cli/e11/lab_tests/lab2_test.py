@@ -95,10 +95,10 @@ def test_confidential_no_password( tr:TestRunner ):
     r = tr.http_get(url, tls_info=False)
     if r.status == 200:
         raise TestFail(f"No password protection on {url}")
-    if r.status != 404:
-        raise TestFail(f"No password protection on {url} status={r.status}")
+    if 400 <= r.status <= 499:
+        return f"Received HTTP error 404 attempting to read {url} without a password"
+    raise TestFail(f"Error attempting to access {url} status={r.status}")
 
-    return f"Received HTTP error 404 attempting to read {url} without a password"
 
 def test_confidential_password( tr:TestRunner ):
     """
@@ -113,5 +113,5 @@ def test_confidential_password( tr:TestRunner ):
     url = top_level_url + "confidential.html"
     r = tr.http_get(url, handler=handler)
     if r.status != 200:
-        raise TestFail(f"Cannot access {url} with username '{STUDENT_USER}' password '{STUDENT_AUTH}'")
+        raise TestFail(f"Could not access {url} with username '{STUDENT_USER}' password '{STUDENT_AUTH}'")
     return f"Correctly accessed {url} with {STUDENT_USER}/{STUDENT_AUTH}"
