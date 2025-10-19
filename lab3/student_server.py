@@ -1,5 +1,5 @@
 """
-CSCI E-11 Lab 2:
+CSCI E-11 Lab 3:
 Run a simple web server with an SQL injection vulnerability.
 """
 
@@ -19,7 +19,7 @@ HTML_TEMPLATE = '''
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Search Student Database</title>
+    <title>Search Student Database (lab3)</title>
     <style>
         table {
             border-collapse: collapse;
@@ -57,7 +57,6 @@ HTML_TEMPLATE = '''
   </body>
 </html>
 '''
-
 
 # Create the database (if it doesnt exist) and Get the database connection
 # Do not rename this function or change its inputs or outputs - it is used by the grader
