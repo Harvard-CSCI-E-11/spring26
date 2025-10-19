@@ -2,8 +2,7 @@ import json
 import re
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
-from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail
-from e11.e11core.context import build_ctx
+from e11.e11core.assertions import assert_contains, TestFail
 
 @timeout(5)
 def test_venv_present( tr:TestRunner):

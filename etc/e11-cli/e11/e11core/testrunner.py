@@ -7,17 +7,10 @@ run_command(str, timeout) -> CommandResult - runs either locally or by ssh depen
 """
 
 
-import os
-import io
-import re
 import ssl
 import socket
 import subprocess
-import sys
-import traceback
-import json
 import shlex
-import importlib.util
 
 import urllib.parse
 from urllib.request import build_opener, Request
