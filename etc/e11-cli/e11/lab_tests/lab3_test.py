@@ -93,11 +93,10 @@ def test_database_search( tr:TestRunner):
 @timeout(5)
 def test_database_sql_injection_fixed( tr:TestRunner):
     url = f"https://{tr.ctx['labdns']}/"
-    s0 = tr.ctx['s0']
     inject = 'asdf" or "a"="a'
     r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': inject }).encode("utf-8"))
     if r.status != 200:
-        raise TestFail(f"could http POST to {url} for SQL Injection {student_id}")
+        raise TestFail(f"could http POST to {url} for SQL Injection {inject}")
     count = r.text.count("<tr>")
     if count>0:
         raise TestFail(f"SQL injection returned {count} records; it should have returned 0.")
