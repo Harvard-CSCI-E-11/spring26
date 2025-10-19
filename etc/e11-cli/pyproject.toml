@@ -73,6 +73,7 @@ exclude = [
   "**/.mypy_cache",
   "**/.pytest_cache",
   "**/__pycache__",
+  "**/conftest.py"
 ]
 typeCheckingMode = "basic"
 reportMissingTypeStubs = "warning"
