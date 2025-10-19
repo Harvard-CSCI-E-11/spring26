@@ -41,7 +41,12 @@ def test_https_root_ok( tr:TestRunner):
     r = tr.http_get(url, tls_info=True)
     if r.status != 200:
         raise TestFail(f"Expected 200 at {url}, got {r.status}", context=r.headers)
+    if "Hello from Flask" in r.text:
+        raise TestFail("lab3.service appears to be serving server:app and not student_server:app. "
+                       "You need to edit /etc/systemd/system/lab3.service as root to fix this. "
+                       "Then run systemctl daemon-reload followed by systemctl restart lab3")
     assert_contains(r.text, re.compile(r"lab3", re.I), context=3)
+    return f"Correct webserver running on {url}"
 
 @timeout(5)
 def test_database_created( tr:TestRunner):
@@ -68,4 +73,15 @@ def test_database_loaded( tr:TestRunner):
         raise TestFail(f"could not select * from studnets for {fname}")
     students = json.loads(r.stdout)
     s0 = students[0]
+    tr.ctx['s0'] = s0
     return f"Successfully found {len(students)} students in the database. First student is {s0}"
+
+
+@timeout(5)
+def test_database_search( tr:TestRunner):
+    s0 = tr.ctx['s0']
+    return f"search for {s0} not implemented yet"
+
+@timeout(5)
+def test_database_sql_injection_fixed( tr:TestRunner):
+    return "not implemented yet"
