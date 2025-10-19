@@ -1,5 +1,6 @@
 import json
 import re
+import urllib.parse
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail
@@ -58,6 +59,8 @@ def test_database_created( tr:TestRunner):
     if "CREATE TABLE students" not in r.stdout:
         raise TestFail(f"{fname} schema does not have a 'CREATE TABLE students' statement")
 
+    return "database created"
+
 @timeout(5)
 def test_database_loaded( tr:TestRunner):
     fname = tr.ctx['labdir'] + "/students.db"
@@ -79,9 +82,24 @@ def test_database_loaded( tr:TestRunner):
 
 @timeout(5)
 def test_database_search( tr:TestRunner):
+    url = f"https://{tr.ctx['labdns']}/"
     s0 = tr.ctx['s0']
-    return f"search for {s0} not implemented yet"
+    student_id = s0.get('student_id','n/a')
+    r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': student_id }).encode("utf-8"))
+    if r.status != 200:
+        raise TestFail(f"could http POST to {url} for {student_id}")
+    assert_contains(r.text, student_id)
+    return f"Search for {student_id} found the student"
 
 @timeout(5)
 def test_database_sql_injection_fixed( tr:TestRunner):
-    return "not implemented yet"
+    url = f"https://{tr.ctx['labdns']}/"
+    s0 = tr.ctx['s0']
+    inject = 'asdf" or "a"="a'
+    r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': inject }).encode("utf-8"))
+    if r.status != 200:
+        raise TestFail(f"could http POST to {url} for SQL Injection {student_id}")
+    count = r.text.count("<tr>")
+    if count>0:
+        raise TestFail(f"SQL injection returned {count} records; it should have returned 0.")
+    return "SQL Injection bug fixed"

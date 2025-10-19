@@ -96,13 +96,13 @@ class TestRunner:
             return f.read()
 
     # pylint: disable=too-many-locals
-    def http_get(self, url: str, handler=None, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
+    def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. This should work from anywhere
         if handler:
             opener = build_opener(handler)
         else:
             opener = build_opener()
-        req = Request(url, method="GET")
+        req = Request(url, method=method, data=data)
         try:
             with opener.open(req, timeout=timeout) as r:
                 status = r.getcode()
