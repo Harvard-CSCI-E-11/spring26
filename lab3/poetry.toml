@@ -1,0 +1,4 @@
+# Note - this is a poetry config, not a poetry project config, so it must be in poetry.toml
+
+[virtualenvs]
+in-project = true

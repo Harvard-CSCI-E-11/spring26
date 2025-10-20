@@ -1,6 +1,9 @@
-# simple_flask_application.py
-#
+"""
+simple_flask_application.py
+"""
 from flask import Flask
+
+# pylint: disable=missing-function-docstring
 
 app = Flask(__name__)
 
@@ -10,6 +13,3 @@ def index():
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000)
-
-################
-

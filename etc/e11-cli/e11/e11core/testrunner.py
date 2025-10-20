@@ -7,17 +7,10 @@ run_command(str, timeout) -> CommandResult - runs either locally or by ssh depen
 """
 
 
-import os
-import io
-import re
 import ssl
 import socket
 import subprocess
-import sys
-import traceback
-import json
 import shlex
-import importlib.util
 
 import urllib.parse
 from urllib.request import build_opener, Request
@@ -95,14 +88,14 @@ class TestRunner:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
 
-    # pylint: disable=too-many-locals
-    def http_get(self, url: str, handler=None, tls_info=True, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
+    # pylint: disable=too-many-locals, disable=too-many-positional-arguments
+    def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. This should work from anywhere
         if handler:
             opener = build_opener(handler)
         else:
             opener = build_opener()
-        req = Request(url, method="GET")
+        req = Request(url, method=method, data=data)
         try:
             with opener.open(req, timeout=timeout) as r:
                 status = r.getcode()
@@ -134,60 +127,3 @@ class TestRunner:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(timeout)
             return s.connect_ex((host, port)) == 0
-
-
-    # pylint: disable=too-many-positional-arguments
-    def python_entry(self, file: str, func: str, args=(), kwargs=None, venv=".venv", timeout=DEFAULT_NET_TIMEOUT_S) -> PythonEntryResult:
-        kwargs = kwargs or {}
-
-        if self.ssh:
-            # grader: run remotely using the student's Python; print JSON sentinel
-            py = ".venv/bin/python" if venv else "python3"
-            args_js = json.dumps(list(args))
-            kwargs_js = json.dumps(kwargs)
-            script = f"""
-        import importlib.util, json, sys
-        spec = importlib.util.spec_from_file_location("student_entry", {repr(file)})
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        fn = getattr(mod, {repr(func)})
-        val = fn(*json.loads({repr(args_js)}), **json.loads({repr(kwargs_js)}))
-        print("__E11_VALUE__="+json.dumps(val))
-        """
-            rc, out, err = self.ssh.exec(f"{py} - <<'PY'\n{script}\nPY", timeout=timeout)
-            value = None
-            m = re.search(r"__E11_VALUE__=(.*)", out)
-            if m:
-                try:
-                    value = json.loads(m.group(1))
-                except Exception: # pylint: disable=broad-exception-caught
-                    pass
-            return PythonEntryResult(exit_code=rc, stdout=out, stderr=err, value=value)
-
-        # local: import and call directly, capturing stdout/err
-        old_out, old_err = sys.stdout, sys.stderr
-        buf_out, buf_err = io.StringIO(), io.StringIO()
-        sys.stdout, sys.stderr = buf_out, buf_err
-        exit_code = 0
-        value = None
-        try:
-            if venv and not (os.path.isdir(venv) and os.path.isfile(f"{venv}/bin/python")):
-                raise RuntimeError(f"virtualenv '{venv}' not found (expected {venv}/bin/python)")
-            spec = importlib.util.spec_from_file_location("student_entry", file)
-            if not spec or not spec.loader:
-                raise RuntimeError(f"cannot import {file}")
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)  # type: ignore[attr-defined]
-            fn = getattr(mod, func)       # call the test function
-            value = fn(*args, **kwargs)
-        except SystemExit as e:
-            exit_code = int(e.code) if isinstance(e.code, int) else 1
-        except Exception:       # pylint: disable=broad-exception-caught
-            exit_code = 1
-            traceback.print_exc()
-        finally:
-            sys.stdout.flush()
-            sys.stderr.flush()
-            out, err = buf_out.getvalue(), buf_err.getvalue()
-            sys.stdout, sys.stderr = old_out, old_err
-        return PythonEntryResult(exit_code=exit_code, stdout=out, stderr=err, value=value)

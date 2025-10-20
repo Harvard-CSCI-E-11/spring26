@@ -533,8 +533,8 @@ def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
 ################################################################
 ## main entry point from lambda system
 
-# pylint: disable=too-many-return-statements
-def lambda_handler(event, context): # pylint: disable=unused-argument
+# pylint: disable=too-many-return-statements, disable=too-many-branches, disable=unused-argument
+def lambda_handler(event, context):
     """called by lambda"""
     method, path, payload = parse_event(event)
 
@@ -557,13 +557,8 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 # JSON API Actions
                 #
                 case ("POST", "/api/v1", "ping"):
-                    return resp_json(200, {"error": False,
-                                           "message": "ok",
-                                           "path":sys.path,
-                                           'context':dict(context),
-                                           'environ':dict(os.environ)
-                                           })
-
+                    return resp_json(200, {"error": False, "message": "ok", "path":sys.path,
+                                           'context':dict(context), 'environ':dict(os.environ) })
                 case ("POST", "/api/v1", "ping-mail"):
                     hostnames = ['first']
                     public_ip = '<address>'
@@ -594,7 +589,7 @@ def lambda_handler(event, context): # pylint: disable=unused-argument
                 case ("POST", '/api/v1', 'heartbeat'):
                     return api_heartbeat(event, context)
 
-                # Must be last API call
+                # Must be last API call - match all actions
                 case ("POST", "/api/v1", _):
                     return resp_json(400, {'error': True,
                                             'message': "unknown or missing action.",
