@@ -88,7 +88,7 @@ class TestRunner:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
 
-    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals, disable=too-many-positional-arguments
     def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. This should work from anywhere
         if handler:
