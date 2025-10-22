@@ -10,3 +10,4 @@ venv
 *secrets*
 coverage.xml
 build/
+**/*client_secret*

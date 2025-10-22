@@ -609,10 +609,12 @@ def lambda_handler(event, context):
                 case ("GET","/logout",_):
                     return do_logout(event)
 
+                # note that / handles all pages. Specify html template with page= option
                 case ("GET","/", _):
                     return do_page(event)
 
                 # This must be last - catch all GETs, check for /static
+                # used for serving css and javascript
                 case ("GET", p, _):
                     if p.startswith("/static"):
                         return static_file(p.removeprefix("/static/"))
