@@ -289,6 +289,7 @@ def main():
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
+    access_parser.set_defaults(func=lambda args: (access_parser.print_help(), sys.exit(2)))
     access_subparsers = access_parser.add_subparsers(dest='action')
 
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
@@ -326,6 +327,8 @@ def main():
             print("ERROR: This must be run on EC2")
             sys.exit(1)
     args.func(args)
+
+
 
 
 if __name__ == "__main__":

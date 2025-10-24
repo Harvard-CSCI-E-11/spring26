@@ -1,0 +1,15 @@
+# /etc/systemd/system/e11-register.service
+[Unit]
+Description=E11 register script on reboot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/home/ubuntu/.local/bin/e11 register --quiet
+# Optional: ensure environment variables are loaded
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+[Install]
+WantedBy=multi-user.target
