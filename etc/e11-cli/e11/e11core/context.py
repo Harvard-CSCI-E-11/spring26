@@ -16,15 +16,15 @@ def build_ctx(lab: str) -> dict:
 
     ctx = {
         "version": constants.VERSION,
-        "lab": lab,
-        "labnum": labnum,
+        "lab": lab,             # "lab3"
+        "labnum": labnum,       # 3
         "course_root": str(constants.COURSE_ROOT),
-        "labdir": str(labdir),
-        "labdns": labdns,
-        "course_key": cfg.course_key,
-        "email": cfg.email,
-        "smashedemail": cfg.smashedemail,
-        "public_ip": cfg.public_ip
+        "labdir": str(labdir),  # "/home/ubuntu/spring26/lab3"
+        "labdns": labdns,       # "smashedemail-lab3.csci-e-11.org"
+        "course_key": cfg.course_key, # per-student
+        "email": cfg.email,           # per-student
+        "smashedemail": cfg.smashedemail, # per-student
+        "public_ip": cfg.public_ip        # per vm
     }
     return ctx
 

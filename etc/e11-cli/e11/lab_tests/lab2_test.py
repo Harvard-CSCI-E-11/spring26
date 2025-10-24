@@ -1,4 +1,7 @@
-# e11.lab_tests.lab1_test
+"""
+lab2 tester
+"""
+
 import tempfile
 import urllib
 import urllib.request

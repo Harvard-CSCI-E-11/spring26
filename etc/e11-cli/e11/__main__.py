@@ -132,13 +132,30 @@ def do_access_check_me(args):
 
 def do_config(args):
     cp = get_config()
-    for attrib in STUDENT_ATTRIBS:
+    if args.lab4:
+        print("Configure [lab4] parameters:")
+        if 'lab4' not in cp:
+            cp.add_section('lab4')
+        section = cp['lab4']
+        attribs = ['api_key','api_secret_key']
+    if args.lab5:
+        print("Configure [lab5] parameters:")
+        if 'lab5' not in cp:
+            cp.add_section('lab5')
+        section = cp['lab5']
+        attribs = ['api_key','api_secret_key']
+    else:
+        section = cp[STUDENT]
+        attribs = STUDENT_ATTRIBS
+
+    for attrib in attribs:
         while True:
-            buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
+            buf = input(f"{attrib}: [{section.get(attrib,'')}] ")
             if buf:
-                cp[STUDENT][attrib] = buf
-            if cp[STUDENT].get(attrib,'') != '':
+                section[attrib] = buf
+            if section.get(attrib,'') != '':
                 break
+
     with config_path().open('w') as f:
         print(f"Writing configuration to {config_path()}:")
         cp.write(sys.stdout)
@@ -147,6 +164,7 @@ def do_config(args):
 
 def do_register(args):
     errors = 0
+    verbose = not args.quiet
     cp = get_config()
     for at in STUDENT_ATTRIBS:
         if at not in cp[STUDENT]:
@@ -191,14 +209,17 @@ def do_register(args):
     # write to the S3 storage with the email address as the key
     data = {'action':'register',
             'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'verbose':verbose,
             'registration' : dict(cp[STUDENT])}
 
     r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
-        print("Registered!")
-        print("If you do not receive a message in 60 seconds, check your email address and try again.")
+        if verbose:
+            print("Registered!")
+            print("Message: ",r.json()['message'])
+            print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
 
 
 def do_grade(args):
@@ -271,19 +292,19 @@ def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
+    parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
+    parser.add_argument('--quiet', help='Run quietly', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    # primary commands
-    subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
-    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
-    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
-    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
-    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
-    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
-    parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
+    # e11 config
+    config_parser = subparsers.add_parser('config', help='Config E11 student variables')
+    config_parser.add_argument('--lab4', help='Configure for Lab 4', action='store_true')
+    config_parser.add_argument('--lab5', help='Configure for Lab 5', action='store_true')
+    config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
+    access_parser.set_defaults(func=lambda _: access_parser.print_help())
     access_subparsers = access_parser.add_subparsers(dest='action')
 
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
@@ -291,6 +312,13 @@ def main():
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
     access_subparsers.add_parser('check-dashboard', help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
     access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
+
+    # Other primary commands
+    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
+    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
+    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
+    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
+    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
