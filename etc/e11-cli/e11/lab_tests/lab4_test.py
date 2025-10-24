@@ -8,6 +8,7 @@ import json
 import re
 import urllib.parse
 import configparser
+import random
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
@@ -120,13 +121,40 @@ def test_database_keys( tr:TestRunner):
 
 @timeout(5)
 def test_post_message( tr:TestRunner):
+    fname = tr.ctx['labdir'] + "/instance/message_board.db"
+    magic = random.randint(0,10000)
+    msg = f'hello from the automatic grader magic number {magic}'
     url = f"https://{tr.ctx['labdns']}/api/post-message"
     r = tr.http_get(url,
                     method='POST',
                     data=urllib.parse.urlencode({ 'api_key': tr.ctx['api_key'],
                                                   'api_secret_key' : tr.ctx['api_secret_key'],
-                                                  'message': 'hello from the automatic grader'
+                                                  'message': msg
                                                  }).encode("utf-8"))
     if r.status != 200:
         raise TestFail(f"could http POST to {url} error={r.status} {r.text}")
-    return f"Post message to {url} is successful"
+
+    # Now see if it is in the databsae
+    r = tr.run_command(f"sqlite3 {fname} -json 'select * from messages'")
+    rows = json.loads(r.stdout)
+    count = 0
+    for row in rows:
+        if row['message']==msg:
+            count += 1
+    if count==0:
+        raise TestFail(f"posted message did not get entered into the database")
+
+    # make sure the api works
+    url2 = f"https://{tr.ctx['labdns']}/api/get-messages"
+    r = tr.http_get(url2)
+    if r.status != 200:
+        raise TestFail(f"could http POST to {url2} error={r.status} {r.text}")
+    rows = json.loads(r.text)
+    for row in rows:
+        if row['message']==msg:
+            count += 1
+
+    if count==0:
+        raise TestFail(f"posted message in database but not returned by {url2}")
+
+    return f"Post message to {url} is successful, and validated to be in the database, and returned by {url2}"
