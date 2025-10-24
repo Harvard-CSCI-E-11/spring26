@@ -1,22 +1,18 @@
 #
-# This is a Unix Makefile for Lab 4
+# lab4
 #
-# The best Makefile tutorial we have found is here:
-# https://opensource.com/article/18/8/what-how-makefile
-#
-# For background, see:
-# https://en.wikipedia.org/wiki/Make_(software)
 
 ################################################################
 # Installation targets
 #
 # Create the virtual environment
-.venv/pyvenv.cfg:
+FLASK=.venv/bin/flask
+$(FLASK):
 	poetry install
 
 #
 # Install the lab4.services file
-install-lab4-service: .venv/pyvenv.cfg
+install-lab4-service: $(FLASK)
 	poetry install
 	poetry sync
 	sudo install lab4.service /etc/systemd/system/
@@ -31,32 +27,37 @@ install-lab4-service: .venv/pyvenv.cfg
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app run --debug --port 8004 --reload
+local-app: $(FLASK)
+	$(FLASK) --app server.main:app run --debug --port 8004 --reload
 
 # Print help for the application
-help: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app --help
+help: $(FLASK)
+	$(FLASK) --app server.main:app --help
 
 # Create a new database
-init-db: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app init-db
+init-db: $(FLASK)
+	$(FLASK) --app server.main:app init-db
+
+# Wipe the database and start over
+wipe-db:
+	$(FLASK) --app server.main:app wipe-db
+	make init-db
 
 # Generate a new api-key
-new-apikey: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app new-apikey
+new-apikey: $(FLASK)
+	$(FLASK) --app server.main:app new-apikey
 
 # Dump the database
-dump-db: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app dump-db
+dump-db: $(FLASK)
+	$(FLASK) --app server.main:app dump-db
 
 #
 # Software engineering targets
 
-pylint: .venv/pyvenv.cfg
+lint: $(FLASK)
 	.venv/bin/python3 -m pylint app
 
 
-
 # make venv always run, even if it exists
-.PHONY: install-lab4-service local-app help init-db new-apikey dump-db
+.PHONY: local-app help init-db new-apikey dump-db lint wipe-db
+.PHONY: install-lab4-service

@@ -4,10 +4,7 @@ Also maintains the API_KEY database.
 """
 
 import os
-import os.path
 from hashlib import pbkdf2_hmac
-import flask
-from flask import request, abort, redirect
 
 import click
 from .db import get_db
@@ -67,23 +64,6 @@ def validate_api_key(api_key, api_secret_key):
         flask.abort(401, description='Invalid API_SECRET_KEY')
     return rows[0]['api_key_id']
 
-
-def validate_api_key_request():
-    """Validate the API_KEY and API_SECRET_KEY for the current Flask request.
-    Abort if invalid. Return the api_key_id if valid
-    :returns: api_key_id of the api_key if the api_key and api_secret_key are valid.
-
-    """
-    api_key         = request.values.get('api_key', type=str, default="")
-    if not api_key:
-        abort(401, description='api_key not provided')
-
-    api_secret_key  = request.values.get('api_secret_key', type=str, default="")
-    if not api_secret_key:
-        abort(401, description='api_secret_key not provided')
-
-    # Verify api_key and api_secret_key
-    return validate_api_key(api_key, api_secret_key)
 
 
 

@@ -1,4 +1,11 @@
-# lab3
+#
+# This is a Unix Makefile for lab3
+#
+# The best Makefile tutorial we have found is here:
+# https://opensource.com/article/18/8/what-how-makefile
+#
+# For background, see:
+# https://en.wikipedia.org/wiki/Make_(software)
 
 install: .venv/bin/python3
 

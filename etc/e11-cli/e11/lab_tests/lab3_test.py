@@ -1,3 +1,7 @@
+"""
+lab3 tester
+"""
+
 import json
 import re
 import urllib.parse
@@ -23,29 +27,31 @@ def test_nginx_config_syntax_ok( tr:TestRunner):
 
 @timeout(5)
 def test_gunicorn_running( tr:TestRunner ):
+    lab = tr.ctx['lab']
     r = tr.run_command("ps auxww")
     if r.exit_code != 0:
         raise TestFail("could not run ps auxww")
     count = 0
     for line in r.stdout.split("\n"):
-        if "lab3/.venv/bin/gunicorn" in line:
+        if f"{lab}/.venv/bin/gunicorn" in line:
             count += 1
     if count==0:
-        raise TestFail("Could not find lab3 gunicorn running")
+        raise TestFail(f"Could not find {lab} gunicorn running")
     return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
 
 @retry(times=3, backoff=0.25)
 @timeout(10)
 def test_https_root_ok( tr:TestRunner):
+    lab = tr.ctx['lab']
     url = f"https://{tr.ctx['labdns']}/"
     r = tr.http_get(url, tls_info=True)
     if r.status != 200:
         raise TestFail(f"Expected 200 at {url}, got {r.status}", context=r.headers)
     if "Hello from Flask" in r.text:
-        raise TestFail("lab3.service appears to be serving server:app and not student_server:app. "
-                       "You need to edit /etc/systemd/system/lab3.service as root to fix this. "
-                       "Then run systemctl daemon-reload followed by systemctl restart lab3")
-    assert_contains(r.text, re.compile(r"lab3", re.I), context=3)
+        raise TestFail(f"{lab}.service appears to be serving server:app and not student_server:app. "
+                       f"You need to edit /etc/systemd/system/{lab}.service as root to fix this. "
+                       f"Then run systemctl daemon-reload followed by systemctl restart {lab}")
+    assert_contains(r.text, re.compile(lab, re.I), context=3)
     return f"Correct webserver running on {url}"
 
 @timeout(5)

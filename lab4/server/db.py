@@ -7,11 +7,18 @@ use MySQL or DynamoDB instead.
 import os
 import sqlite3
 from datetime import datetime
+from os.path import join,dirname
 
 import tabulate
 import click
 from flask import current_app, g
 
+DBFILE_NAME = 'message_board.db'
+
+#
+# This allows sqlite3 to directly handle Python datetime object
+# It runs when db.py is imported
+#
 sqlite3.register_converter(
     "timestamp", lambda v: datetime.fromisoformat(v.decode())
 )
@@ -52,7 +59,7 @@ def init_db_command():
     click.echo('Initialized the database.')
 
 
-@click.command("dump-db")
+@click.command('dump-db')
 def dump_db_command():
     """Dump the contents of the database"""
     db = get_db()
@@ -73,6 +80,15 @@ def dump_db_command():
             click.echo(tabulate.tabulate(rows,header))
         print("")
 
+@click.command('wipe-db')
+def wipe_db_command():
+    """Delete the database file. Note that we have to guess where the 'instance' is"""
+    dbfile_path = join(dirname(__file__),"../instance/",DBFILE_NAME)
+    try:
+        os.unlink(dbfile_path)
+    except FileNotFoundError:
+        pass
+
 def init_app(app):
     """Initialize"""
     # always call close_db when connection is finished.
@@ -81,3 +97,4 @@ def init_app(app):
     # Register CLI commands
     app.cli.add_command(init_db_command)
     app.cli.add_command(dump_db_command)
+    app.cli.add_command(wipe_db_command)
