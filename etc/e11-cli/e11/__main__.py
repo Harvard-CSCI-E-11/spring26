@@ -132,13 +132,30 @@ def do_access_check_me(args):
 
 def do_config(args):
     cp = get_config()
-    for attrib in STUDENT_ATTRIBS:
+    if args.lab4:
+        print("Configure [lab4] parameters:")
+        if 'lab4' not in cp:
+            cp.add_section('lab4')
+        section = cp['lab4']
+        attribs = ['api_key','api_secret_key']
+    if args.lab5:
+        print("Configure [lab5] parameters:")
+        if 'lab5' not in cp:
+            cp.add_section('lab5')
+        section = cp['lab5']
+        attribs = ['api_key','api_secret_key']
+    else:
+        section = cp[STUDENT]
+        attribs = STUDENT_ATTRIBS
+
+    for attrib in attribs:
         while True:
-            buf = input(f"{attrib}: [{cp[STUDENT].get(attrib,'')}] ")
+            buf = input(f"{attrib}: [{section.get(attrib,'')}] ")
             if buf:
-                cp[STUDENT][attrib] = buf
-            if cp[STUDENT].get(attrib,'') != '':
+                section[attrib] = buf
+            if section.get(attrib,'') != '':
                 break
+
     with config_path().open('w') as f:
         print(f"Writing configuration to {config_path()}:")
         cp.write(sys.stdout)
@@ -279,13 +296,11 @@ def main():
     parser.add_argument('--quiet', help='Run quietly', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
-    # primary commands
-    subparsers.add_parser('config', help='Config E11 student variables').set_defaults(func=do_config)
-    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
-    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
-    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
-    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
-    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
+    # e11 config
+    config_parser = subparsers.add_parser('config', help='Config E11 student variables')
+    config_parser.add_argument('--lab4', help='Configure for Lab 4', action='store_true')
+    config_parser.add_argument('--lab5', help='Configure for Lab 5', action='store_true')
+    config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
@@ -297,6 +312,13 @@ def main():
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
     access_subparsers.add_parser('check-dashboard', help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
     access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
+
+    # Other primary commands
+    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
+    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
+    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
+    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
+    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
@@ -327,8 +349,6 @@ def main():
             print("ERROR: This must be run on EC2")
             sys.exit(1)
     args.func(args)
-
-
 
 
 if __name__ == "__main__":
