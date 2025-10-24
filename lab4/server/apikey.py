@@ -7,6 +7,7 @@ import os
 from hashlib import pbkdf2_hmac
 
 import click
+import flask
 from .db import get_db
 
 # APIKEY Management Tools

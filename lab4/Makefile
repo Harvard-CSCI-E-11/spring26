@@ -55,7 +55,7 @@ dump-db: $(FLASK)
 # Software engineering targets
 
 lint: $(FLASK)
-	.venv/bin/python3 -m pylint app
+	.venv/bin/python3 -m pylint server
 
 
 # make venv always run, even if it exists

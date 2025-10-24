@@ -10,10 +10,8 @@ https://github.com/blep/flaskr
 
 import os
 import logging
-import json
 import re
 
-import boto3
 from flask import Flask, render_template, send_from_directory
 
 from . import db
@@ -34,6 +32,7 @@ except ImportError as e:
 
 LOG_LEVEL   = logging.DEBUG
 
+# pylint: disable=redefined-outer-name
 def create_app(test_config=None):
     """create and configure the app."""
     app = Flask(__name__, instance_relative_config=True)

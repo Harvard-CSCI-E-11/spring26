@@ -2,6 +2,7 @@
 lab3 tester
 """
 
+# pylint: disable=duplicate-code
 import json
 import re
 import urllib.parse
@@ -11,7 +12,7 @@ from e11.e11core.assertions import assert_contains, TestFail
 
 @timeout(5)
 def test_venv_present( tr:TestRunner):
-    # Require .venv exists (python_entry enforces; we also check explicitly)
+    # Require lab4 .venv
     labdir = tr.ctx['labdir']
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:

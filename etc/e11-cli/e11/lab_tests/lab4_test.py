@@ -1,6 +1,7 @@
 """
 lab4 tester
 """
+# pylint: disable=duplicate-code
 
 import os.path
 import json
@@ -15,7 +16,7 @@ CONFIG_FILE = "/home/ubuntu/e11-config.ini"
 
 @timeout(5)
 def test_venv_present( tr:TestRunner):
-    # Require .venv exists (python_entry enforces; we also check explicitly)
+    # Require lab3 .venv
     labdir = tr.ctx['labdir']
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:
