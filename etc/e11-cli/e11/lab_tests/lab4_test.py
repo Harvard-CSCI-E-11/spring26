@@ -142,7 +142,7 @@ def test_post_message( tr:TestRunner):
         if row['message']==msg:
             count += 1
     if count==0:
-        raise TestFail(f"posted message did not get entered into the database")
+        raise TestFail("posted message did not get entered into the database")
 
     # make sure the api works
     url2 = f"https://{tr.ctx['labdns']}/api/get-messages"

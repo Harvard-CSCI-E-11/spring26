@@ -147,6 +147,7 @@ def do_config(args):
 
 def do_register(args):
     errors = 0
+    verbose = not args.quiet
     cp = get_config()
     for at in STUDENT_ATTRIBS:
         if at not in cp[STUDENT]:
@@ -191,14 +192,17 @@ def do_register(args):
     # write to the S3 storage with the email address as the key
     data = {'action':'register',
             'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'verbose':verbose,
             'registration' : dict(cp[STUDENT])}
 
     r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
     if not r.ok:
         print("Registration failed: ",r.text)
     else:
-        print("Registered!")
-        print("If you do not receive a message in 60 seconds, check your email address and try again.")
+        if verbose:
+            print("Registered!")
+            print("Message: ",r.json()['message'])
+            print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
 
 
 def do_grade(args):
@@ -271,6 +275,8 @@ def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
+    parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
+    parser.add_argument('--quiet', help='Run quietly', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # primary commands
@@ -280,7 +286,6 @@ def main():
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
     subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
-    parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
 
     # e11 access [on|off|check]
     access_parser = subparsers.add_parser('access', help='Enable or disable access')
