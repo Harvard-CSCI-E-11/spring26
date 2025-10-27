@@ -1,5 +1,5 @@
 # CSCI E-11 git repo
-[![CI (pip)](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci.yml/badge.svg)]([https://github.com/Plant-Tracer/webapp/actions/workflows/continuous-integration-pip.yml](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci.yml))
+[![CI (pip)](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci-e11.yml/badge.svg)]([https://github.com/Plant-Tracer/webapp/actions/workflows/continuous-integration-pip.yml](https://github.com/Harvard-CSCI-E-11/spring26/actions/workflows/ci.yml))
 [![codecov](https://codecov.io/github/Harvard-CSCI-E-11/spring26/graph/badge.svg?token=GI7Z8W3YC5)](https://codecov.io/github/Harvard-CSCI-E-11/spring26)
 
 This is the CSCI E-11 git repo for the Spring of 2026. It contains sample code, templates, and the text of the labs themselves.
@@ -17,15 +17,16 @@ $ spring26/etc/install-e11
 
 The student labs are identified:
 
-|Lab |Due |Content  |Security Topcics|
-|----|----|---------|----------------|
-| [lab1](lab1/) | | Create an instance and monitor for attacks | Basic command line, SSH,  and Log analysis|
-| [lab2](lab2/) | | Stand up a web server that serves three static pages | TLS certificates|
-| [lab3](lab3/) | | Add a database-driven message board to your website. | SQL injection attacks|
-| [lab4](lab4/) | | Add images to your message board. | AWS signed HTTP POSTs and URLs.|
-| [lab5](lab5/) | | AI image analysis with AWS Rekognition| Face detection and matching |
-| [lab6](lab6/) | | Accessing the leaderboard from a microcontroler | Introduction to CircuitPython.|
-| [lab7](lab7/) | | Uploading images from the edge | AI, Internet of Things, and Cybersecurity|
+|Lab |Due |Description | Security Topics  |
+|----|----|---------|------------|
+| [lab0](lab0/) | | [Order your microcontroller for lab6 and lab 7](https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?tab=t.0) | Preparation |
+| [lab1](lab1/) | | [Create an instance and monitor for attacks](https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?tab=t.0) |  Basic command line, SSH,  and Log analysis|
+| [lab2](lab2/) | | [Stand up a web server that serves three static pages](https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?tab=t.0) |  TLS certificates and username/password access  |
+| [lab3](lab3/) | | [Add a database-driven message board to your website](https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?tab=t.0) |  SQL injection attacks|
+| [lab4](lab4/) | | [Add images to your message board](https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_web&ouid=114142951656037982317) | AWS signed HTTP POSTs and URLs.|
+| [lab5](lab5/) | | [AI image analysis with AWS Rekognition](https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?tab=t.0) | Face detection and face matching  |
+| [lab6](lab6/) | | [Accessing the leaderboard from a microcontroler](https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?tab=t.0) |  Introduction to IoT CircuitPython.|
+| [lab7](lab7/) | | [Uploading images from the edge](https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?tab=t.0) |  AI, Internet of Things, and Cybersecurity|
 
 
 The staff/ directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.
