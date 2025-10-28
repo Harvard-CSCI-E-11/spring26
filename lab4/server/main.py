@@ -26,7 +26,7 @@ from . import message_controller
 # named 'plugin*.py' or '*controller.py' and dynamically load each.
 
 try:
-    from . import image_controller
+    from . import image_controller   # pyright: ignore
 except ImportError as e:
     image_controller = None
 

@@ -20,5 +20,4 @@ distclean:
 
 .PHONY: lint
 lint: $(PYTHON)
-	poetry run student_data.py
-	poetry run simple_flask_application.py
+	poetry run pylint student_data.py simple_flask_application.py

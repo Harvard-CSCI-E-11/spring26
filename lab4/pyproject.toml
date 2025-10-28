@@ -21,6 +21,7 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.8"
+pyright = "*"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
