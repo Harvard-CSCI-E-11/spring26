@@ -30,6 +30,18 @@ The student labs are identified:
 | [lab8](lab8/) | | [Uploading images from the edge](https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?tab=t.0) |  AI, Internet of Things, and Cybersecurity|
 
 
+This table describes each lab and the services used:
+
+| Lab | DNS domain                      | Web Server | Application Server | API Key Prefix | AI Server |
+|-----|---------------------------------|------------|--------------------|----------------|-----------|
+|lab1 | smashedemail.csci-e-11.org      | --         | -- | --| --|
+|lab2 | smashedemail.csci-e-11.org      | nginx      | -- | --| --|
+|lab3 | smashedemail-lab3.csci-e-11.org | nginx      | flask | `lab3:` | -- |
+|lab4 | smashedemail-lab4.csci-e-11.org | nginx      | flask | `lab4:` | -- |
+|lab5 | smashedemail-lab5.csci-e-11.org | nginx      | flask | `lab5:` | -- |
+|lab6 | smashedemail-lab6.csci-e-11.org | nginx      | flask | `lab6:` | Rekognition |
+
+
 The staff/ directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.
 
 # Python quick-start
