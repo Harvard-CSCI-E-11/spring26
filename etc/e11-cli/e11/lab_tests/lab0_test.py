@@ -3,8 +3,6 @@ This test is for the pytest self-test.
 It's called lab0_test.py.
 """
 
-
-
 from pathlib import Path
 from e11.e11core.decorators import timeout
 from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail

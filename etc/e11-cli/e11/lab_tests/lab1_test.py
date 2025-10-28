@@ -6,7 +6,6 @@ from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
 
-
 # The exact line we expect in authorized_keys
 AUTO_GRADER_KEY_LINE = (
     "ssh-ed25519 "

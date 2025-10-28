@@ -17,16 +17,17 @@ $ spring26/etc/install-e11
 
 The student labs are identified:
 
-|Lab |Due |Description | Security Topics  |
+|Lab |Due |Description | E-11 Topics  |
 |----|----|---------|------------|
-| [lab0](lab0/) | | [Order your microcontroller for lab6 and lab 7](https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?tab=t.0) | Preparation |
-| [lab1](lab1/) | | [Create an instance and monitor for attacks](https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?tab=t.0) |  Basic command line, SSH,  and Log analysis|
-| [lab2](lab2/) | | [Stand up a web server that serves three static pages](https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?tab=t.0) |  TLS certificates and username/password access  |
-| [lab3](lab3/) | | [Add a database-driven message board to your website](https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?tab=t.0) |  SQL injection attacks|
-| [lab4](lab4/) | | [Add images to your message board](https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_web&ouid=114142951656037982317) | AWS signed HTTP POSTs and URLs.|
-| [lab5](lab5/) | | [AI image analysis with AWS Rekognition](https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?tab=t.0) | Face detection and face matching  |
-| [lab6](lab6/) | | [Accessing the leaderboard from a microcontroler](https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?tab=t.0) |  Introduction to IoT CircuitPython.|
-| [lab7](lab7/) | | [Uploading images from the edge](https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?tab=t.0) |  AI, Internet of Things, and Cybersecurity|
+| [lab0](lab0/) | | [Order your microcontroller for lab7 and lab 8](https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?tab=t.0) | Preparation |
+| [lab1](lab1/) | | [Create an AWS EC2 instance and monitor for attacks](https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?tab=t.0) |  Basic command line, SSH,  and Log analysis |
+| [lab2](lab2/) | | [A web server with password-based access control](https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?tab=t.0) |  TLS certificates and username/password access  |
+| [lab3](lab3/) | | [A simple database-driven web app written in python](https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?tab=t.0) |  gunicorn, flask, and SQL injection attacks|
+| [lab4](lab4/) | | [An API server with password hashing](https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?tab=t.0) |  password hashing|
+| [lab5](lab5/) | | [Add images to your message board](https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_web&ouid=114142951656037982317) | AWS signed HTTP POSTs and URLs.|
+| [lab6](lab6/) | | [AI image analysis with AWS Rekognition](https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?tab=t.0) | Face detection and face matching  |
+| [lab7](lab7/) | | [Calling APIs from a microcontroler](https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?tab=t.0) |  Introduction to IoT CircuitPython.|
+| [lab8](lab8/) | | [Uploading images from the edge](https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?tab=t.0) |  AI, Internet of Things, and Cybersecurity|
 
 
 The staff/ directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.

@@ -50,7 +50,6 @@ def get_cert_organization(cert):
                 return v
     return None
 
-
 def domain(tr):
     return f"{tr.ctx['smashedemail']}.csci-e-11.org"
 
@@ -101,7 +100,6 @@ def test_confidential_no_password( tr:TestRunner ):
     if 400 <= r.status <= 499:
         return f"Received HTTP error 404 attempting to read {url} without a password"
     raise TestFail(f"Error attempting to access {url} status={r.status}")
-
 
 def test_confidential_password( tr:TestRunner ):
     """

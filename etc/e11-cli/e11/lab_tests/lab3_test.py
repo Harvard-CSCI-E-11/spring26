@@ -9,36 +9,16 @@ import urllib.parse
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
+from e11.lab_tests import lab_common
 
-@timeout(5)
 def test_venv_present( tr:TestRunner):
-    # Require lab4 .venv
-    labdir = tr.ctx['labdir']
-    r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
-    if r.exit_code != 0:
-        raise TestFail("lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
-    return f"virtual environment configured in {labdir}"
+    return lab_common.test_venv_present(tr)
 
-@timeout(5)
 def test_nginx_config_syntax_ok( tr:TestRunner):
-    r = tr.run_command("sudo nginx -t")
-    if r.exit_code != 0:
-        raise TestFail("nginx -t failed", context=r.stderr)
-    return "nginx configuration validates"
+    return lab_common.test_nginx_config_syntax_okay( tr )
 
-@timeout(5)
 def test_gunicorn_running( tr:TestRunner ):
-    lab = tr.ctx['lab']
-    r = tr.run_command("ps auxww")
-    if r.exit_code != 0:
-        raise TestFail("could not run ps auxww")
-    count = 0
-    for line in r.stdout.split("\n"):
-        if f"{lab}/.venv/bin/gunicorn" in line:
-            count += 1
-    if count==0:
-        raise TestFail(f"Could not find {lab} gunicorn running")
-    return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
+    return lab_common.test_gunicorn_running(tr)
 
 @retry(times=3, backoff=0.25)
 @timeout(10)
