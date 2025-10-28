@@ -32,14 +32,20 @@ The student labs are identified:
 
 This table describes each lab and the services used:
 
-| Lab | DNS domain                      | Web Server | Application Server | API Key Prefix | AI Server |
+| Lab | DNS domain                      | Web Server | Application Server | API Key Prefix | AWS Technologies |
 |-----|---------------------------------|------------|--------------------|----------------|-----------|
-|lab1 | smashedemail.csci-e-11.org      | --         | -- | --| --|
-|lab2 | smashedemail.csci-e-11.org      | nginx      | -- | --| --|
-|lab3 | smashedemail-lab3.csci-e-11.org | nginx      | flask | `lab3:` | -- |
-|lab4 | smashedemail-lab4.csci-e-11.org | nginx      | flask | `lab4:` | -- |
-|lab5 | smashedemail-lab5.csci-e-11.org | nginx      | flask | `lab5:` | -- |
-|lab6 | smashedemail-lab6.csci-e-11.org | nginx      | flask | `lab6:` | Rekognition |
+|lab1 | smashedemail.csci-e-11.org      | --         | --                 | --             | EC2|
+|lab2 | smashedemail.csci-e-11.org      | nginx      | --                 | --             | EC2|
+|lab3 | smashedemail-lab3.csci-e-11.org | nginx      | flask              | `lab3:`        | EC2|
+|lab4 | smashedemail-lab4.csci-e-11.org | nginx      | flask              | `lab4:`        | EC2|
+|lab5 | smashedemail-lab5.csci-e-11.org | nginx      | flask              | `lab5:`        | EC2, S3|
+|lab6 | smashedemail-lab6.csci-e-11.org | nginx      | flask              | `lab6:`        | EC2, S3, Rekognition|
+|lab7 | --                              | --         | --                 | --             | DynamoDB, Lambda _(see Note1)_ |
+|lab8 | smashedemail-lab6.csci-e-11.org | nginx      | flask              | `lab6:` _(See Note2)_       | EC2, S3, Rekognition|
+
+_Note1: on the backend, we implement lab7 with AWS DynamoDB and Lambda._
+
+_Note2: lab8 uses the unmodified lab6 server._
 
 
 The staff/ directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.
