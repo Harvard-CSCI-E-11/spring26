@@ -8,6 +8,7 @@ import sys
 import os
 import json
 import pathlib
+import re
 
 import dns
 import dns.resolver
@@ -47,6 +48,11 @@ INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
 COURSE_KEY_LEN=6
 STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_PUBLIC_IP,INSTANCE_ID]
+ANSWERS = {"lab1":['e11-attacker'],
+           "lab4":['api_key','api_secret_key'],
+           "lab5":['api_key','api_secret_key'],
+           "lab6":['api_key','api_secret_key']}
+
 
 UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
 git stash
@@ -130,24 +136,8 @@ def do_access_check_me(args):
 
 ################################################################
 
-def do_config(args):
-    cp = get_config()
-    if args.lab4:
-        print("Configure [lab4] parameters:")
-        if 'lab4' not in cp:
-            cp.add_section('lab4')
-        section = cp['lab4']
-        attribs = ['api_key','api_secret_key']
-    if args.lab5:
-        print("Configure [lab5] parameters:")
-        if 'lab5' not in cp:
-            cp.add_section('lab5')
-        section = cp['lab5']
-        attribs = ['api_key','api_secret_key']
-    else:
-        section = cp[STUDENT]
-        attribs = STUDENT_ATTRIBS
-
+def get_answers_and_write_config(cp,section_name,attribs):
+    section = cp[section_name]
     for attrib in attribs:
         while True:
             buf = input(f"{attrib}: [{section.get(attrib,'')}] ")
@@ -161,6 +151,26 @@ def do_config(args):
         cp.write(sys.stdout)
         cp.write(f)
         print("\nDone!")
+
+def do_config(args):
+    cp = get_config()
+    section = cp[STUDENT]
+    attribs = STUDENT_ATTRIBS
+    get_answers_and_write_config(cp,STUDENT,STUDENT_ATTRIBS)
+
+def do_answer(args):
+    cp = get_config()
+    m = re.search("^lab[0-9]$",args.lab)
+    if not m:
+        print("usage: e11 answer <labn>")
+        exit(1)
+    if args.lab not in ANSWERS:
+        print(f"There are no additional answers required for lab {args.lab}")
+        return
+    if args.lab not in cp:
+        cp.add_section(args.lab)
+    get_answers_and_write_config(cp, args.lab, ANSWERS[args.lab])
+
 
 def do_register(args):
     errors = 0
@@ -298,8 +308,6 @@ def main():
 
     # e11 config
     config_parser = subparsers.add_parser('config', help='Config E11 student variables')
-    config_parser.add_argument('--lab4', help='Configure for Lab 4', action='store_true')
-    config_parser.add_argument('--lab5', help='Configure for Lab 5', action='store_true')
     config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
@@ -319,6 +327,11 @@ def main():
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
     subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
+
+    # e11 answer [lab] - answer solutions
+    answer_parser = subparsers.add_parser('answer', help='Answer additional questions for a particular lab prior to grading')
+    answer_parser.add_argument(dest='lab', help='Lab for answers')
+    answer_parser.set_defaults(func=do_answer)
 
     # e11 grade [lab]
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
