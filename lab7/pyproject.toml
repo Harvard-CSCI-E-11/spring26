@@ -1,7 +1,7 @@
 [project]
-name = "lab7"
+name = "lab6"
 version = "1.0.0"
-description = "Lab 7 server"
+description = "Lab 6 Circuit Python and ESP32 tools"
 authors = [
     {name = "Simson Garfinkel",email = "simsong@acm.org"}
 ]

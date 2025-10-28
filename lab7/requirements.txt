@@ -1,6 +1,4 @@
-tabulate
-click
-flask
-boto3
-gunicorn
+circup
+adafruit-ampy
 pylint
+adafruit-blinka
