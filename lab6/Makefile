@@ -1,61 +1,58 @@
+# This is a Unix Makefile for lab6
 #
-# lab5
-#
+# It is different from lab5, in that:
+# -
+# -
 
 ################################################################
 # Installation targets
 #
 # Create the virtual environment
 .venv/pyvenv.cfg:
+	poetry config virtualenvs.in-project true
 	poetry install
 
 #
 # Install the lab4.services file
-install-lab5-service: .venv/pyvenv.cfg
+install-lab6-service: .venv/pyvenv.cfg
 	poetry install
 	poetry sync
-	sudo install lab5.service /etc/systemd/system/
+	sudo install lab6.service /etc/systemd/system/
 	sudo systemctl daemon-reload
-	sudo systemctl enable lab5
-	sudo systemctl start lab5
-	@echo
-	@echo Do not forget to edit /etc/nginx/sites-available/default
-	@echo and restart the web server
+	sudo systemctl enable lab6
+	sudo systemctl start lab6
+
+install-lab6-nginx:
+	@echo TODO - install the new site and run lets encrypt
+
 
 ################################################################
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
 local-app:
-	.venv/bin/flask --app server.main:app run --debug --port 8005 --reload
+	poetry run flask --app server.main:app run --debug --port 8006 --reload
 
 # Print help for the application
 help:
-	.venv/bin/flask --app server.main:app --help
+	poetry run flask --app server.main:app --help
 
 # Create a new database
-instance/server_db.sqlite:
-	.venv/bin/flask --app server.main:app init-db
-
-# Create the s3 bucket and establish the CORS policy
-init-s3:
-	.venv/bin/flask --app server.main:app init-s3
-
 init-db:
-	.venv/bin/flask --app server.main:app init-db
+	poetry run flask --app server.main:app init-db
 
 # Wipe the database and start over
 wipe-db:
-	.venv/bin/flask --app server.main:app wipe-db
+	poetry run flask --app server.main:app wipe-db
 	make init-db
 
 # Generate a new api-key
 new-apikey: instance/server_db.sqlite
-	.venv/bin/flask --app server.main:app new-apikey
+	poetry run flask --app server.main:app new-apikey
 
 # Dump the database
 dump-db: instance/server_db.sqlite
-	.venv/bin/flask --app server.main:app dump-db
+	poetry run flask  --app server.main:app dump-db
 
 
 #
@@ -64,17 +61,12 @@ dump-db: instance/server_db.sqlite
 lint:
 	.venv/bin/python3 -m pylint app
 
-
-################################################################
-## Healthcheck - before you start lab3
-
-.PHONY: healthcheck
-healthcheck:
-	python3 -m healthcheck.main
-
-pylint-healthcheck:
-	.venv/bin/python3 -m pylint  --rcfile=healthcheck/.pylintrc healthcheck
-
 # make .venv always run, even if it exists
-.PHONY: local-app help init-db wipe-db new-apikey dump-db lint
-.PHONY: install-lab5-service init-s3
+.PHONY: local-app help init-db new-apikey dump-db lint wipe-db
+.PHONY: install-lab6-service init-s3
+
+#### lab5 additions follow
+
+# Create the s3 bucket and establish the CORS policy
+init-s3:
+	poetry run flask --app server.main:app init-s3

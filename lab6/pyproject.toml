@@ -1,7 +1,7 @@
 [project]
-name = "lab5"
+name = "lab6"
 version = "1.0.0"
-description = "Lab 5 server"
+description = "Lab 6 server"
 authors = [
     {name = "Simson Garfinkel",email = "simsong@acm.org"}
 ]

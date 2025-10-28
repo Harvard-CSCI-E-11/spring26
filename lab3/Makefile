@@ -7,17 +7,18 @@
 # For background, see:
 # https://en.wikipedia.org/wiki/Make_(software)
 
-install: .venv/bin/python3
+PYTHON:=.venv/bin/python3
+install: $(PYTHON)
 
-.venv/bin/python3:
+$(PYTHON):
 	poetry config virtualenvs.in-project true
-	poetry install
+	poetry install		# installs the current poetry.lock, do not update
 
 distclean:
 	/bin/rm -rf .venv
 	/bin/rm -f students.db
 
 .PHONY: lint
-lint: .venv/bin/python3
-	.venv/bin/python3 -m pylint student_data.py
-	.venv/bin/python3 -m pylint simple_flask_application.py
+lint: $(PYTHON)
+	poetry run student_data.py
+	poetry run simple_flask_application.py

@@ -107,7 +107,7 @@ EMAIL_BODY="""
 
 ################################################################
 # Class constants
-DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7']
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
 DASHBOARD=f'https://{COURSE_DOMAIN}'
 
 
