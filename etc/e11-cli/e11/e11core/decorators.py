@@ -2,7 +2,6 @@ import functools
 import signal
 import time
 
-
 def timeout(seconds: int):
     def deco(f):
         @functools.wraps(f)

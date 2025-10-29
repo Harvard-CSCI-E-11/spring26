@@ -4,12 +4,11 @@ Also maintains the API_KEY database.
 """
 
 import os
-import os.path
+import re
 from hashlib import pbkdf2_hmac
-import flask
-from flask import request, abort, redirect
 
 import click
+import flask
 from .db import get_db
 
 # APIKEY Management Tools
@@ -17,9 +16,20 @@ from .db import get_db
 ALGORITHM  = 'sha256'
 ITERATIONS = 10000
 
+def lab_number():
+    """Figures out the lab we are in from the directory name"""
+    path = os.path.abspath(__file__)
+    m = re.search("(lab[0-9]+)",path)
+    if m:
+        return m.group(1)
+    raise RuntimeError(f"Cannot determine lab number from '{path}'")
+
 def new_apikey():
-    """Create a new API key, insert the hashed key in the database, and return the key"""
-    api_key        = os.urandom(8).hex()
+    """
+    Create a new API key, insert the hashed key in the database, and return the key.
+    Note that api keys automatically include the lab prefix.
+    """
+    api_key        = lab_number() + ":" + os.urandom(8).hex()
     api_secret_key = os.urandom(16).hex()
 
     # The random salt is used for storing the hashed secret key (which we treat as a password)
@@ -67,23 +77,6 @@ def validate_api_key(api_key, api_secret_key):
         flask.abort(401, description='Invalid API_SECRET_KEY')
     return rows[0]['api_key_id']
 
-
-def validate_api_key_request():
-    """Validate the API_KEY and API_SECRET_KEY for the current Flask request.
-    Abort if invalid. Return the api_key_id if valid
-    :returns: api_key_id of the api_key if the api_key and api_secret_key are valid.
-
-    """
-    api_key         = request.values.get('api_key', type=str, default="")
-    if not api_key:
-        abort(401, description='api_key not provided')
-
-    api_secret_key  = request.values.get('api_secret_key', type=str, default="")
-    if not api_secret_key:
-        abort(401, description='api_secret_key not provided')
-
-    # Verify api_key and api_secret_key
-    return validate_api_key(api_key, api_secret_key)
 
 
 
