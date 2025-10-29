@@ -1,0 +1,16 @@
+### /etc/systemd/system/$LAB.service ###
+[Unit]
+Description=Gunicorn instance to serve Flask application for $LAB
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/spring26/$LAB
+Environment="PATH=/home/ubuntu/spring26/$LAB/.venv/bin"
+ExecStart=/home/ubuntu/spring26/$LAB/.venv/bin/gunicorn -w 2 -b 127.0.0.1:$PORT --reload $MODULE:app
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+[MASTER]
+max-line-length=120
+ignore=venv
+
+[MESSAGES CONTROL]
+disable=
+    missing-function-docstring,
+    missing-module-docstring,
+    import-outside-toplevel,
+    raise-missing-from,
+    protected-access
+
+
+[FORMAT]
+max-line-length=120
+
+[TYPECHECK]
+# Avoid false positives for optional imports (like cryptography)
+ignored-modules=cryptography,cryptography.x509,cryptography.hazmat.backends
+
+[DESIGN]
+max-args=5

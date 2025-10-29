@@ -1,7 +1,7 @@
-#
-# This test is for the pytest self-test.
-# It's called lab0_test.py.
-#
+"""
+This test is for the pytest self-test.
+It's called lab0_test.py.
+"""
 
 from pathlib import Path
 from e11.e11core.decorators import timeout

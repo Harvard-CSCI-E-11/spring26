@@ -1,0 +1,1 @@
+../../lab5/server/schema_lab5.sql

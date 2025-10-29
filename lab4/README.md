@@ -1,22 +1,10 @@
-## Web application for Lab4: The chat server
+CSCI E-11 Lab #4 - An API server with password hashing
+------------------------------------------------------
 
-To run this lab, log into your EC2 instance at Amazon and type:
-```
-cd /home/ec2-user
-git clone https://github.com/Harvard-CSCI-E-11/spring25
-```
+This lab requires students to:
 
-Then do these steps:
-
-1. Install and start up the lab4 service.
-   (Note that we now run gunicorn on port 5004 to avoid conflicting with the gunicorn set up for lab2)
-
-   command to type:
-   ```
-   cp lab4/lab4.service /etc/systemd/system/
-   ```
-
-2. Add the -lab4 virtual host to your httpd configuration file (see the lab).
-   Be sure to specify port 5004 for `mod_proxy`!
-
-3. Tell the Let's Encrypt certbot to add a TLS certificate for the new virtual host.
+- [ ] Set up nginx so that requests to smashedemail-lab4.csci-e-11.org are proxied to 127.0.0.1:8004
+- [ ] Create a Let's Encrypt TLS certificate
+- [ ] Set up lab4.service so that gunicorn runs the flask application `server.main:app`
+- [ ] Generate a lab4 `ACCESS_KEY` and `ACCESS_SECRET_KEY`
+- [ ] Record the `ACCESS_KEY` and `ACCESS_SECRET_KEY` with the `e11 answer lab4` command

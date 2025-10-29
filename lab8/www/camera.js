@@ -3,6 +3,8 @@ const UPLOAD_INTERVAL_SECONDS = 5;
 const UPLOAD_TIMEOUT_SECONDS = 60;
 var  frames_uploaded = 0;
 
+console.log("TODO - compute the correct URL")
+
 function post_image(image) {
     console.log("post_image",image);
     let formData = new FormData();
