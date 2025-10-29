@@ -2,9 +2,12 @@
 lab_commnon.py: common things for the lab tester.
 """
 import json
-from e11.e11core.decorators import timeout, retry
+import os.path
+import configparser
+
+from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
-from e11.e11core.assertions import assert_contains, TestFail
+from e11.e11core.assertions import TestFail
 
 CONFIG_FILE = "/home/ubuntu/e11-config.ini"
 
@@ -19,7 +22,7 @@ def test_venv_present( tr:TestRunner):
     return f"virtual environment configured in {labdir}"
 
 @timeout(5)
-def test_nginx_config_syntax_ok( tr:TestRunner):
+def test_nginx_config_syntax_okay( tr:TestRunner):
     r = tr.run_command("sudo nginx -t")
     if r.exit_code != 0:
         raise TestFail("nginx -t failed", context=r.stderr)
@@ -84,7 +87,7 @@ def get_lab_config( tr:TestRunner ):
 
 @timeout(5)
 def test_database_keys( tr:TestRunner):
-    (api_key, api_secret_key) = get_lab_config( tr )
+    (api_key, _) = get_lab_config( tr )
 
     fname = tr.ctx['labdir'] + "/instance/message_board.db"
     r = tr.run_command(f"sqlite3 {fname} .schema")

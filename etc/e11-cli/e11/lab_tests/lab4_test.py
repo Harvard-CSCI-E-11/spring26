@@ -3,16 +3,15 @@ lab4 tester
 """
 # pylint: disable=duplicate-code
 
-import os.path
 import json
 import re
 import urllib.parse
-import configparser
 import random
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
-from e11.lab_tests import lab_common
+
+from . import lab_common
 
 def test_venv_present( tr:TestRunner):
     return lab_common.test_venv_present(tr)

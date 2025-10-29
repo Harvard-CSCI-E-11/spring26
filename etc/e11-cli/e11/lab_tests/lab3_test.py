@@ -14,7 +14,7 @@ from e11.lab_tests import lab_common
 def test_venv_present( tr:TestRunner):
     return lab_common.test_venv_present(tr)
 
-def test_nginx_config_syntax_ok( tr:TestRunner):
+def test_nginx_config_syntax_okay( tr:TestRunner):
     return lab_common.test_nginx_config_syntax_okay( tr )
 
 def test_gunicorn_running( tr:TestRunner ):

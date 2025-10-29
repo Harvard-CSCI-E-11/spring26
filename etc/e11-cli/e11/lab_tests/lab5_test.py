@@ -3,12 +3,7 @@ lab5 tester
 """
 # pylint: disable=duplicate-code
 
-import os.path
-import json
 import re
-import urllib.parse
-import configparser
-import random
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
@@ -46,3 +41,4 @@ def test_post_image( tr:TestRunner):
     # Use the API to get the signed S3 bucket info
     # Upload an image to S3
     # Get the image
+    return f"Not yet implemented {tr}"

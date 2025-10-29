@@ -154,8 +154,6 @@ def get_answers_and_write_config(cp,section_name,attribs):
 
 def do_config(args):
     cp = get_config()
-    section = cp[STUDENT]
-    attribs = STUDENT_ATTRIBS
     get_answers_and_write_config(cp,STUDENT,STUDENT_ATTRIBS)
 
 def do_answer(args):
@@ -163,7 +161,7 @@ def do_answer(args):
     m = re.search("^lab[0-9]$",args.lab)
     if not m:
         print("usage: e11 answer <labn>")
-        exit(1)
+        sys.exit(1)
     if args.lab not in ANSWERS:
         print(f"There are no additional answers required for lab {args.lab}")
         return
