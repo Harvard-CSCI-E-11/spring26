@@ -1,25 +1,20 @@
 [project]
 name = "lab7"
 version = "1.0.0"
-description = "Lab 7 server"
+description = "Lab 8 static web page checker"
 authors = [
     {name = "Simson Garfinkel",email = "simsong@acm.org"}
 ]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "flask (>=3.1.1,<4.0.0)",
-    "gunicorn (>=23.0.0,<24.0.0)",
-    "tabulate (>=0.9.0,<0.10.0)",
-    "click (>=8.2.1,<9.0.0)",
-    "boto3 (>=1.40.11,<2.0.0)"
 ]
 
 [tool.poetry]
 package-mode = false
 
 [tool.poetry.group.dev.dependencies]
-pylint = "^3.3.8"
+djlint = "^1.36.4"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

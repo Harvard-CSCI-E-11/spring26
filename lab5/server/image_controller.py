@@ -9,6 +9,11 @@ listing, and processing JPEG images.
 # from being written into the logfile
 ##
 
+# Neither pyright nor pylint understanding flask route decorators.
+# We fix this in pyproject.toml for pylint. The coarser fix for pyright is below:
+# pyright: reportUnusedFunction=false
+# pyright: reportUnusedVariable=false
+
 import os
 import json
 import socket
@@ -167,7 +172,7 @@ def init_app(app):
             return {'error':error_message}
 
         # Validate the API key and post the message
-        api_key_id = apikey.validate_api_key_request()
+        api_key_id = message_controller.validate_api_key_request()
         message    = request.values.get('message')
         message_id = message_controller.post_message(api_key_id, message)
         logging.info("Message %s posted. message_id=%s",message,message_id)
@@ -248,7 +253,7 @@ def init_app(app):
                                (json.dumps(celeb),row['s3key']))
                     db.commit()
                 except rekognition.exceptions.InvalidS3ObjectException as e:
-                    current_app.logger.error("InvalidS3ObjectException: s3key=%s. e=%s",row['s3key'],str(e))
+                    current_app.logger.error("InvalidS3ObjectException: s3key=%s. e=%s",row['s3key'],str(e)) # pylint: ignore=line-too-long
                     continue
             row['celeb'] = celeb
             ret.append(row)

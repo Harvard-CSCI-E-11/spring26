@@ -61,8 +61,12 @@ dump-db: instance/server_db.sqlite
 lint:
 	.venv/bin/python3 -m pylint app
 
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db
+
 # make .venv always run, even if it exists
-.PHONY: local-app help init-db new-apikey dump-db lint wipe-db
+.PHONY: local-app help init-db wipe-db new-apikey dump-db lint distclean
 .PHONY: install-lab6-service init-s3
 
 #### lab5 additions follow

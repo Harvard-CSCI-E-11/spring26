@@ -14,10 +14,11 @@ $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# installs the current poetry.lock, do not update
 
+lint: $(PYTHON)
+	poetry run pylint student_data.py simple_flask_application.py
+
 distclean:
 	/bin/rm -rf .venv
 	/bin/rm -f students.db
 
-.PHONY: lint
-lint: $(PYTHON)
-	poetry run pylint student_data.py simple_flask_application.py
+.PHONY: distclean lint

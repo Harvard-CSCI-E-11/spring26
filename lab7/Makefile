@@ -2,8 +2,13 @@
 # Installation targets
 #
 # Create the virtual environment
-venv:
-	make venv/pyvenv.cfg
+
+PYTHON:=.venv/bin/python3
+install: $(PYTHON)
+
+$(PYTHON):
+	poetry config virtualenvs.in-project true
+	poetry install		# installs the current poetry.lock, do not update
 
 venv/pyvenv.cfg:
 	echo create the virtual environment and install the requirements

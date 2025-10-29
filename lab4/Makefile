@@ -43,7 +43,7 @@ init-db: $(FLASK)
 	poetry run flask  --app server.main:app init-db
 
 # Wipe the database and start over
-wipe-db:
+wipe-db: $(FLASK)
 	poetry run flask  --app server.main:app wipe-db
 	make init-db
 
@@ -60,7 +60,12 @@ dump-db: $(FLASK)
 
 lint: $(FLASK)
 	poetry run pylint server
+	poetry run djlint www/index.html server/static/* server/templates/*
+
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db
 
 # make venv always run, even if it exists
-.PHONY: local-app help init-db new-apikey dump-db lint wipe-db
+.PHONY: local-app help init-db wipe-db new-apikey dump-db lint distclean
 .PHONY: install-lab4-service
