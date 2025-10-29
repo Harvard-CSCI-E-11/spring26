@@ -55,7 +55,7 @@ def create_new_user(event, claims):
         A.USER_REGISTERED: now,
         A.CLAIMS: claims,
     }
-    ret = users_table.put_item(Item=user)  # USER CREATION POINT
+    users_table.put_item(Item=user)  # USER CREATION POINT
     add_user_log(event, user_id, f"User {claims['email']} created", claims=claims)
     return user_id
 
@@ -119,7 +119,7 @@ def new_session(event, claims) -> Session:
     return Session(**session)
 
 
-def get_session_from_sid(event, sid: str) -> Optional[Session]:
+def get_session_from_sid(event, sid) -> Optional[Session]:
     LOGGER.debug(
         "get_session_from_sid sid=%s get_cookie_domain(%s)=%s",
         sid,
