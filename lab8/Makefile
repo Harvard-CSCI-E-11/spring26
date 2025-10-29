@@ -3,6 +3,8 @@
 # We use python to install djlint which is used to check the HTML files
 
 export LAB=lab8
+export PORT=8008
+
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

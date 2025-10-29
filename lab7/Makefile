@@ -1,9 +1,10 @@
 ################################################################
 # Installation targets
 #
-# Create the virtual environment
+# Create the virtual environment for running circuitpython tools
 
-export LAB=lab5
+export LAB=lab7
+
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

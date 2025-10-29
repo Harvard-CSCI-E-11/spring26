@@ -9,6 +9,8 @@
 #
 # Create the virtual environment
 export LAB=lab6
+export PORT=8006
+
 FLASK=.venv/bin/flask
 $(FLASK):
 	poetry config virtualenvs.in-project true

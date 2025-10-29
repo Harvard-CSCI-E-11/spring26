@@ -8,6 +8,8 @@
 # https://en.wikipedia.org/wiki/Make_(software)
 
 export LAB=lab3
+export PORT=8003
+
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

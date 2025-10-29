@@ -1,9 +1,12 @@
 #
 # This is a Unix Makefile for Lab 2
 # We use python to install djlint which is used to check the HTML files
+# THe variables LAB and PORT are set, but they aren't used.
 
 
 export LAB=lab2
+export PORT=8002
+
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

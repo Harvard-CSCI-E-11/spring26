@@ -10,6 +10,8 @@
 #
 # Create the virtual environment
 export LAB=lab4
+export PORT=8004
+
 FLASK=.venv/bin/flask
 
 $(FLASK):
