@@ -83,7 +83,7 @@ def dump_db_command():
 @click.command('wipe-db')
 def wipe_db_command():
     """Delete the database file. Note that we have to guess where the 'instance' is"""
-    dbfile_path = join(dirname(__file__),"../instance/",DBFILE_NAME)
+    dbfile_path = join(current_app.instance_path, DBFILE_NAME)
     try:
         os.unlink(dbfile_path)
     except FileNotFoundError:
