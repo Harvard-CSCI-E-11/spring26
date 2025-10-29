@@ -438,7 +438,10 @@ def get_pkey_pem(key_name):
         raise
 
 def api_grader(event, context, payload):
-    """Get ready for grading, then run the grader."""
+    """
+    Get ready for grading, run the grader, store the results in the users table.
+    sk format: "grade#lab2#time"
+    """
     LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
     user = api_auth(payload)
 
@@ -453,7 +456,7 @@ def api_grader(event, context, payload):
     # Record grades
     now = datetime.datetime.now().isoformat()
     item = { A.USER_ID: user.user_id,
-             A.SK: f"{A.SK_GRADE_PREFIX}{now}",
+             A.SK: f"{A.SK_GRADE_PREFIX}#{lab}#{now}",
              A.LAB: lab,
              A.PUBLIC_IP: public_ip,
              "score": str(summary["score"]),
