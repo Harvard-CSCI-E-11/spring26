@@ -3,6 +3,7 @@
 #
 # Create the virtual environment
 
+export LAB=lab5
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

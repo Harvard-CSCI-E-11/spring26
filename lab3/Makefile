@@ -7,6 +7,7 @@
 # For background, see:
 # https://en.wikipedia.org/wiki/Make_(software)
 
+export LAB=lab3
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

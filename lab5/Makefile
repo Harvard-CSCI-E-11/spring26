@@ -9,6 +9,7 @@
 # Installation targets
 #
 # Create the virtual environment
+export LAB=lab5
 FLASK=.venv/bin/flask
 $(FLASK):
 	poetry config virtualenvs.in-project true
@@ -16,8 +17,7 @@ $(FLASK):
 
 #
 # Install the lab4.services file
-install-lab5-service: .venv/pyvenv.cfg
-	poetry install
+install-lab5-service:
 	sudo install lab5.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab5

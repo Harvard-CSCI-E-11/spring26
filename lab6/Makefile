@@ -8,15 +8,15 @@
 # Installation targets
 #
 # Create the virtual environment
-.venv/pyvenv.cfg:
+export LAB=lab6
+FLASK=.venv/bin/flask
+$(FLASK):
 	poetry config virtualenvs.in-project true
 	poetry install
 
 #
 # Install the lab4.services file
-install-lab6-service: .venv/pyvenv.cfg
-	poetry install
-	poetry sync
+install-lab6-service:
 	sudo install lab6.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab6
@@ -30,36 +30,35 @@ install-lab6-nginx:
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app:
+local-app: $(FLASK)
 	poetry run flask --app server.main:app run --debug --port 8006 --reload
 
 # Print help for the application
-help:
+help: $(FLASK)
 	poetry run flask --app server.main:app --help
 
 # Create a new database
-init-db:
+init-db: $(FLASK)
 	poetry run flask --app server.main:app init-db
 
 # Wipe the database and start over
-wipe-db:
+wipe-db: $(FLASK)
 	poetry run flask --app server.main:app wipe-db
 	make init-db
 
 # Generate a new api-key
-new-apikey: instance/server_db.sqlite
+new-apikey: $(FLASK)
 	poetry run flask --app server.main:app new-apikey
 
 # Dump the database
-dump-db: instance/server_db.sqlite
+dump-db: $(FLASK)
 	poetry run flask  --app server.main:app dump-db
-
 
 #
 # Software engineering targets
 
 lint:
-	.venv/bin/python3 -m pylint app
+	poetry run pylint server
 
 distclean:
 	/bin/rm -rf .venv

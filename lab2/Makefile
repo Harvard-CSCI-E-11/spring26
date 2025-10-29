@@ -3,6 +3,7 @@
 # We use python to install djlint which is used to check the HTML files
 
 
+export LAB=lab2
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 

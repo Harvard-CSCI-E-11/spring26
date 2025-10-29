@@ -9,6 +9,7 @@
 # Installation targets
 #
 # Create the virtual environment
+export LAB=lab4
 FLASK=.venv/bin/flask
 
 $(FLASK):

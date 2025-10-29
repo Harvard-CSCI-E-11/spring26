@@ -2,6 +2,7 @@
 # This is a Unix Makefile for Lab 2
 # We use python to install djlint which is used to check the HTML files
 
+export LAB=lab8
 PYTHON:=.venv/bin/python3
 install: $(PYTHON)
 
