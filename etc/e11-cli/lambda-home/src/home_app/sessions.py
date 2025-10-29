@@ -94,11 +94,8 @@ def new_session(event, claims) -> Session:
     add_user_log(event, user_id, f"Session {sid} created")
     return Session(**session)
 
-def get_session_from_event(event) -> Optional[Session]:
-    """Return the session dictionary if the session is valid and not expired.
-    Sessions are determined by having the session cookie"""
-    sid = parse_cookies(event).get(COOKIE_NAME)
-    LOGGER.debug("get_session sid=%s get_cookie_domain(%s)=%s",sid,event,get_cookie_domain(event))
+def get_session_from_sid(event, sid:str) -> Optional[Session]
+    LOGGER.debug("get_session_from_sid sid=%s get_cookie_domain(%s)=%s",sid,event,get_cookie_domain(event))
     if not sid:
         return None
     resp = sessions_table.get_item(Key={"sid":sid})
@@ -119,6 +116,11 @@ def get_session_from_event(event) -> Optional[Session]:
         return None
     LOGGER.debug("get_session session=%s",ses)
     return ses
+
+def get_session_from_event(event) -> Optional[Session]:
+    """Return the session dictionary if the session is valid and not expired.
+    Sessions are determined by having the session cookie"""
+    return get_session_from_sid(event, parse_cookies(event).get(COOKIE_NAME))
 
 def all_sessions_for_email(email):
     """Return all of the sessions for an email address"""

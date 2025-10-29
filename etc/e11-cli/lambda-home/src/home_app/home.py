@@ -47,6 +47,7 @@ from e11.e11core import grader
 
 from . import common
 from . import oidc
+from . import sessions
 
 from .sessions import new_session,get_session_from_event,all_sessions_for_email,delete_session_from_event
 from .sessions import get_user_from_email,delete_session,expire_batch
@@ -298,6 +299,14 @@ def oidc_callback(event):
     ses = new_session(event,obj['claims'])
     sid_cookie = make_cookie(COOKIE_NAME, ses.sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
     LOGGER.debug("new_session sid=%s",ses.sid)
+    return redirect("/dashboard", cookies=[sid_cookie])
+
+def do_login(event):
+    """/login?sid=<sid> - login and set the cookie"""
+    qs = event.get("queryStringParameters") or {}
+    ses = sessions.get_session_from_sid(event, qs.get("sid"))
+    sid_cookie = make_cookie(COOKIE_NAME, ses.sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event))
+    LOGGER.debug("creating cookie for /login link sid=%s",ses.sid)
     return redirect("/dashboard", cookies=[sid_cookie])
 
 def do_logout(event):
