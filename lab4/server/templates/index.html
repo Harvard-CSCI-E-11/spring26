@@ -64,13 +64,14 @@
         <iframe name="hidden-iframe" style="display: none;"></iframe>
         <div id='status-message'></div>
     </div>
+    {% if lab_number == "4" %}
+        <div id='lab5'></div>
+        <script src="static/lab4_imageboard.js"></script>
+    {% endif %}
     <!-- If we are in lab5, lab6 or lab8, bring in the image interaction -->
     {% if lab_number >= "5" %}
         <div id='lab5'></div>
         <script src="static/lab5_imageboard.js"></script>
     {% endif %}
-    <!-- bring in the messageboard -->
-    <script src="static/messageboard.js"> </script>
-    <script src="static/startup.js"></script>
 {% endblock %}
 <!-- index end -->

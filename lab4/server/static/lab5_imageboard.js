@@ -5,6 +5,7 @@ console.log("start");
  * Code for uploading and displaying images.
  */
 
+const REFRESH_RATE = 5000;
 const UPLOAD_TIMEOUT_SECONDS = 20;
 const MAX_FILE_UPLOAD = 10 * 1000 * 1000; // 10 MB
 
@@ -225,4 +226,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Initial table load
     show_images();
+});
+
+/* lab5 startup
+ * See https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout
+ * We use setTimeout() rather than setInterval() so we don't need to deal with overlapping calls.
+ */
+function loop() {
+    show_messages();
+    setTimeout(loop, REFRESH_RATE);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loop();
 });

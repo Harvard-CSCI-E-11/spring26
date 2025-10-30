@@ -26,11 +26,12 @@ from . import message_controller
 # named 'plugin*.py' or '*controller.py' and dynamically load each.
 
 try:
-    from . import image_controller   # pyright: ignore
+    from . import image_controller  # pyright: ignore
 except ImportError as e:
     image_controller = None
 
-LOG_LEVEL   = logging.DEBUG
+LOG_LEVEL = logging.DEBUG
+
 
 # pylint: disable=redefined-outer-name
 def create_app(test_config=None):
@@ -38,28 +39,27 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.logger.setLevel(LOG_LEVEL)
 
-    m = re.search(r"lab(\d)",__file__)
+    m = re.search(r"lab(\d)", __file__)
     if m:
         lab_number = m.group(1)
     else:
-        lab_number = '?'
+        lab_number = "?"
 
     # See https://flask.palletsprojects.com/en/stable/config/
     app.config.from_mapping(
         # Flask configuration variables:
-        SECRET_KEY='dev',
+        SECRET_KEY="dev",
         # For development, disable caching in Flask and browser:
         TEMPLATES_AUTO_RELOAD=True,
         SEND_FILE_MAX_AGE_DEFAULT=0,
-
         # Additional config for lab:
         DATABASE=os.path.join(app.instance_path, db.DBFILE_NAME),
-        LAB_NUMBER = lab_number
+        LAB_NUMBER=lab_number,
     )
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
-        app.config.from_pyfile('config.py', silent=True)
+        app.config.from_pyfile("config.py", silent=True)
     else:
         # load the test config if passed in
         app.config.from_mapping(test_config)
@@ -71,40 +71,43 @@ def create_app(test_config=None):
         pass
 
     # a simple page that says hello - for testing
-    @app.route('/hello')
+    @app.route("/hello")
     def hello():
-        return f'Hello, World!. __file__={__file__} app.instance_path={app.instance_path}'
+        return (
+            f"Hello, World!. __file__={__file__} app.instance_path={app.instance_path}"
+        )
 
     # Static files
-    @app.route('/favicon.ico')
+    @app.route("/favicon.ico")
     def favicon():
-        return send_from_directory('static', 'favicon.ico')
+        return send_from_directory("static", "favicon.ico")
 
     # Route templates
-    @app.route('/')
+    @app.route("/")
     def index():
-        return render_template('index.html',lab_number=app.config['LAB_NUMBER'])
+        return render_template("index.html", lab_number=app.config["LAB_NUMBER"])
 
-    @app.route('/about')
+    @app.route("/about")
     def about():
-        return render_template('about.html')
+        return render_template("about.html")
 
     # This is for lab7
-    @app.route('/camera')
+    @app.route("/camera")
     def camera():
-        return render_template('camera.html')
+        return render_template("camera.html")
 
     # Initialize all of the plug-ins
     db.init_app(app)
     apikey.init_app(app)
     message_controller.init_app(app)
 
-    # If we loaded the image_controler (lab5), initialize it:
+    # If we loaded the image_controler (lab5 and lab6), initialize it and its routes:
     if image_controller is not None:
         image_controller.init_app(app)
 
     # Return the application object
     return app
+
 
 #
 # Finally, create the app object. This will be referenced by gunicorn

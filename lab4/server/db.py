@@ -22,34 +22,34 @@ DBFILE_NAME = "message_board.db"
 sqlite3.register_converter("timestamp", lambda v: datetime.fromisoformat(v.decode()))
 
 
-def get_db():
+def get_db_conn():
     """Return a database connection."""
     if "db" not in g:
-        g.db = sqlite3.connect(
+        g.conn = sqlite3.connect(
             current_app.config["DATABASE"], detect_types=sqlite3.PARSE_DECLTYPES
         )
-        g.db.row_factory = sqlite3.Row
-    return g.db
+        g.conn.row_factory = sqlite3.Row
+    return g.conn
 
 
 # pylint: disable=unused-argument
 def close_db(e=None):
     """Close the database connection if one was set through g.db=<foo>"""
-    db = g.pop("db", None)
-    if db is not None:
-        db.close()
+    conn = g.pop("db", None)
+    if conn is not None:
+        conn.close()
 
 
 def init_db():
     """Initialize the database by loading every file that begins 'schema' and ends '.sql'
     current_app is set by click CLI.
     """
-    db = get_db()
+    conn = get_db_conn()
     app_directory = current_app.root_path
     for fname in os.listdir(app_directory):
         if fname.startswith("schema") and fname.endswith(".sql"):
             with current_app.open_resource(fname) as f:
-                db.executescript(f.read().decode("utf8"))
+                conn.executescript(f.read().decode("utf8"))
 
 
 @click.command("init-db")
@@ -62,8 +62,8 @@ def init_db_command():
 @click.command("dump-db")
 def dump_db_command():
     """Dump the contents of the database"""
-    db = get_db()
-    cur = db.cursor()
+    conn = get_db_conn()
+    cur = conn.cursor()
     # Get a list of tables
     tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
 

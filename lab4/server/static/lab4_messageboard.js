@@ -1,6 +1,7 @@
 /** lab4 show_messages() function.
  * This version shows all uploaded movies and requires no authentication.
  */
+const REFRESH_RATE = 5000;
 function show_messages() {
     console.log("lab4 show_messages");
     const container = document.querySelector("#message-container");
@@ -40,3 +41,16 @@ function show_messages() {
             console.error(error);
         });
 }
+
+/* lab4 startup
+ * See https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout
+ * We use setTimeout() rather than setInterval() so we don't need to deal with overlapping calls.
+ */
+function loop() {
+    show_messages();
+    setTimeout(loop, REFRESH_RATE);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    loop();
+});
