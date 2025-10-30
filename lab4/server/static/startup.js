@@ -8,7 +8,6 @@ function loop() {
     setTimeout(loop, DELAY);
 }
 
-
-$( document ).ready( function() {
+document.addEventListener("DOMContentLoaded", () => {
     loop();
 });

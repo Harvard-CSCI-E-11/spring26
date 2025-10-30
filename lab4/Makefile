@@ -63,7 +63,8 @@ dump-db: $(FLASK)
 
 lint: $(FLASK)
 	poetry run pylint server
-	poetry run djlint www/index.html server/static/* server/templates/*
+	poetry run djlint --profile=jinja --reformat server/templates/*html
+	npx eslint -c tools/eslint.config.js server/static
 
 distclean:
 	/bin/rm -rf .venv

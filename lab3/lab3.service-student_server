@@ -1,4 +1,9 @@
-### /etc/systemd/system/lab3.service ###
+### install in /etc/systemd/system/lab3.service
+### then run:
+###  sudo systemctl daemon-reload
+###  sudo systemctl enable lab3
+###  sudo systemctl start lab3
+
 [Unit]
 Description=Gunicorn instance to serve Flask application for Lab 3
 After=network.target
