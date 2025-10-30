@@ -17,6 +17,7 @@ FLASK=.venv/bin/flask
 $(FLASK):
 	poetry config virtualenvs.in-project true
 	poetry install		# includes flask in pyproject.toml
+	npm install --save-dev globals
 
 #
 # Install the lab4.services file
@@ -64,7 +65,7 @@ dump-db: $(FLASK)
 lint: $(FLASK)
 	poetry run pylint server
 	poetry run djlint --profile=jinja --reformat server/templates/*html
-	npx eslint -c tools/eslint.config.js server/static
+	npx eslint -c tools/eslint.config.mjs server/static
 
 distclean:
 	/bin/rm -rf .venv
