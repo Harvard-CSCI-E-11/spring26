@@ -1,1 +1,1 @@
-../../lab4/server/apikey.py
+../../lab_common/apikey.py

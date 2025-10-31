@@ -6,6 +6,8 @@ https://flask.palletsprojects.com/en/stable/tutorial/factory/
 Github:
 https://github.com/blep/flaskr
 
+STUDENTS - You do not need to modify this file.
+
 """
 
 import os

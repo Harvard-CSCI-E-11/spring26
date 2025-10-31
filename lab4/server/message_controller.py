@@ -2,6 +2,8 @@
 message_controller: implements a simple message server where new
 messages must be authenticated but anyone can view.
 
+STUDENTS - You do not need to modify this file.
+
 """
 
 from flask import request, abort

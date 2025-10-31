@@ -1,6 +1,9 @@
 """
 image_controller: Controlls all aspects of uploading, downloading,
 listing, and processing JPEG images.
+
+STUDENTS - You do not need to modify this file.
+
 """
 
 ################################################################
