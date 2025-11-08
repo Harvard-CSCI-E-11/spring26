@@ -28,6 +28,9 @@ install:
 	.venv/bin/pip install -e .
 	.venv/bin/pip install -e ".[dev]"
 
+distclean:
+	/bin/rm -rf .venv
+
 vend-e11: Makefile
 	@echo "Building src/home_app/e11.whl via pip"
 	( cd .. && .venv/bin/python -m pip wheel --no-deps -w dist . )

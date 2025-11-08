@@ -7,6 +7,10 @@ lint:
 
 distclean:
 	for dir in lab? ; do (cd $$dir && pwd && make distclean) ; done
+	(cd etc/e11-cli && make distclean)
+	(cd etc/e11-cli/lambda-home && make distclean)
+	(cd etc/e11-cli/lambda-users-db && make distclean)
+	(cd staff/leaderboard && make distclean)
 
 update:
 	@echo Checking for post recent compatiable version of each python module

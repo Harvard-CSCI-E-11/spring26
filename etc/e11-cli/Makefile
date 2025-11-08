@@ -27,3 +27,7 @@ clean:
 	rm -f .coverage coverage.xml
 	find . -name '__pycache__' -prune -exec rm -rf {} +
 	rm -rf build/ dist/
+
+distclean:
+	make clean
+	/bin/rm -rf .venv
