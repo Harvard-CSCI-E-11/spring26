@@ -1,16 +1,27 @@
-# lab3
+#
+# This is a Unix Makefile for lab3
+#
+# The best Makefile tutorial we have found is here:
+# https://opensource.com/article/18/8/what-how-makefile
+#
+# For background, see:
+# https://en.wikipedia.org/wiki/Make_(software)
 
-install: .venv/bin/python3
+export LAB=lab3
+export PORT=8003
 
-.venv/bin/python3:
+PYTHON:=.venv/bin/python3
+install: $(PYTHON)
+
+$(PYTHON):
 	poetry config virtualenvs.in-project true
-	poetry install
+	poetry install		# installs the current poetry.lock, do not update
+
+lint: $(PYTHON)
+	poetry run pylint student_data.py simple_flask_application.py
 
 distclean:
 	/bin/rm -rf .venv
 	/bin/rm -f students.db
 
-.PHONY: lint
-lint: .venv/bin/python3
-	.venv/bin/python3 -m pylint student_data.py
-	.venv/bin/python3 -m pylint simple_flask_application.py
+.PHONY: distclean lint

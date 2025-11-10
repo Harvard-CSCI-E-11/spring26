@@ -1,0 +1,17 @@
+[project]
+name = "lab2"
+version = "0.1.0"
+description = "Lab 2 template files"
+authors = [
+    {name = "Simson Garfinkel",email = "simsong@acm.org"}
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "djlint (>=1.36.4,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"

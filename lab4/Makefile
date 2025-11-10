@@ -1,62 +1,74 @@
 #
-# This is a Unix Makefile for Lab 4
+# This is a Unix Makefile for lab4
 #
-# The best Makefile tutorial we have found is here:
-# https://opensource.com/article/18/8/what-how-makefile
-#
-# For background, see:
-# https://en.wikipedia.org/wiki/Make_(software)
+# It is different from lab3, in that:
+# - we now provide targets for automatically installing the lab4 service the lab4 nginx site
+# -
 
 ################################################################
 # Installation targets
 #
 # Create the virtual environment
-.venv/pyvenv.cfg:
-	poetry install
+export LAB=lab4
+export PORT=8004
+
+FLASK=.venv/bin/flask
+
+$(FLASK):
+	poetry config virtualenvs.in-project true
+	poetry install		# includes flask in pyproject.toml
 
 #
 # Install the lab4.services file
-install-lab4-service: .venv/pyvenv.cfg
+install-lab4-service: $(FLASK)
 	poetry install
-	poetry sync
 	sudo install lab4.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab4
 	sudo systemctl start lab4
-	@echo
-	@echo Do not forget to edit /etc/nginx/sites-available/default
-	@echo and restart the web server
+
+install-lab4-nginx:
+	@echo TODO - install the new site and run lets encrypt
 
 ################################################################
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app run --debug --port 8004 --reload
+local-app: $(FLASK)
+	poetry run flask  --app server.main:app run --debug --port 8004 --reload
 
 # Print help for the application
-help: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app --help
+help: $(FLASK)
+	poetry run flask  --app server.main:app --help
 
 # Create a new database
-init-db: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app init-db
+init-db: $(FLASK)
+	poetry run flask  --app server.main:app init-db
+
+# Wipe the database and start over
+wipe-db: $(FLASK)
+	poetry run flask  --app server.main:app wipe-db
+	make init-db
 
 # Generate a new api-key
-new-apikey: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app new-apikey
+new-apikey: $(FLASK)
+	poetry run flask  --app server.main:app new-apikey
 
 # Dump the database
-dump-db: .venv/pyvenv.cfg
-	.venv/bin/flask --app server:app dump-db
+dump-db: $(FLASK)
+	poetry run flask  --app server.main:app dump-db
 
 #
 # Software engineering targets
 
-pylint: .venv/pyvenv.cfg
-	.venv/bin/python3 -m pylint app
+lint: $(FLASK)
+	poetry run pylint server
+	poetry run djlint www/index.html server/static/* server/templates/*
 
-
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db
 
 # make venv always run, even if it exists
-.PHONY: install-lab4-service local-app help init-db new-apikey dump-db
+.PHONY: local-app help init-db wipe-db new-apikey dump-db lint distclean
+.PHONY: install-lab4-service

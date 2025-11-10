@@ -123,10 +123,8 @@ EMAIL_BODY = """
     CSCIE-11 Team
 """
 
-################################################################
-# Class constants
-DOMAIN_SUFFIXES = ["", "-lab1", "-lab2", "-lab3", "-lab4", "-lab5", "-lab6", "-lab7"]
-DASHBOARD = f"https://{COURSE_DOMAIN}"
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
+DASHBOARD=f'https://{COURSE_DOMAIN}'
 
 
 def resp_json(
@@ -457,10 +455,18 @@ def api_register(event, payload):
     user = api_auth(payload)
 
     # Get the registration information
+<<<<<<< HEAD
     registration = payload["registration"]
     email = registration.get("email")
     public_ip = registration.get("public_ip")
     instanceId = registration.get("instanceId")  # pylint: disable=invalid-name
+=======
+    verbose = payload.get('verbose',True)
+    registration = payload['registration']
+    email = registration.get('email')
+    public_ip = registration.get('public_ip')
+    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
+>>>>>>> main
     hostname = smash_email(email)
 
     # update the user record in table to match registration information
@@ -483,8 +489,9 @@ def api_register(event, payload):
         f"User registered instanceId={instanceId} public_ip={public_ip}",
     )
 
-    # Create DNS records in Route53
+    # Hosts that need to be created
     hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
+<<<<<<< HEAD
     changes: list[ChangeTypeDef] = [
         ChangeTypeDef(
             Action="UPSERT",
@@ -494,9 +501,36 @@ def api_register(event, payload):
                 "TTL": 300,
                 "ResourceRecords": [{"Value": public_ip}],
             },
+=======
+
+    # See if hosts will change
+    changed_records = 0
+    new_records = 0
+    for fqdn in hostnames:
+        resp = route53_client.list_resource_record_sets(
+            HostedZoneId=HOSTED_ZONE_ID,
+            StartRecordName=fqdn,
+            StartRecordType="A",
+            MaxItems="1",
+>>>>>>> main
         )
-        for hostname in hostnames
-    ]
+        rrs = resp.get("ResourceRecordSets", [])
+        match = next((r for r in rrs if r.get("Name", "").rstrip(".") == fqdn and r.get("Type") == "A"), None)
+        if match:
+            existing_vals = sorted(v["Value"] for v in match.get("ResourceRecords", []))
+            if existing_vals != [public_ip]:
+                changed_records += 1
+        else:
+            new_records += 1
+
+    # Create DNS records in Route53
+    changes: list[ChangeTypeDef] = [
+        ChangeTypeDef( Action="UPSERT",
+                       ResourceRecordSet={ "Name": hostname,
+                                           "Type": "A",
+                                           "TTL": 300, "ResourceRecords": [{"Value": public_ip}]
+                                          }
+                      ) for hostname in hostnames ]
 
     change_batch = ChangeBatchTypeDef(Changes=changes)
     route53_response = route53_client.change_resource_record_sets(
@@ -506,6 +540,7 @@ def api_register(event, payload):
     for h in hostnames:
         add_user_log(event, user.user_id, f"DNS updated for {h}.{COURSE_DOMAIN}")
 
+<<<<<<< HEAD
     # Send email notification using SES
     send_email(
         to_addr=email,
@@ -521,6 +556,15 @@ def api_register(event, payload):
     return resp_json(
         200, {"message": "DNS record created and email sent successfully."}
     )
+=======
+    # Send email notification using SES if there is a new record or a changed record
+    if new_records>0 or changed_records>0 or verbose:
+        send_email(to_addr=email,
+                   email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
+                   email_body = EMAIL_BODY.format(hostname=hostnames[0], public_ip=public_ip, course_key=user.course_key, preferred_name=user.preferred_name))
+        add_user_log(event, user.user_id, f'Registration email sent to {email}')
+    return resp_json(200,{'message':f'DNS record created and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+>>>>>>> main
 
 
 def api_heartbeat(event, context):
@@ -553,8 +597,11 @@ def get_pkey_pem(key_name):
 
 
 def api_grader(event, context, payload):
-    """Get ready for grading, then run the grader."""
-    LOGGER.info("do_grade event=%s context=%s payload=%s", event, context, payload)
+    """
+    Get ready for grading, run the grader, store the results in the users table.
+    sk format: "grade#lab2#time"
+    """
+    LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
     user = api_auth(payload)
 
     lab = payload["lab"]
@@ -568,16 +615,14 @@ def api_grader(event, context, payload):
 
     # Record grades
     now = datetime.datetime.now().isoformat()
-    item = {
-        A.USER_ID: user.user_id,
-        A.SK: f"{A.SK_GRADE_PREFIX}{now}",
-        A.LAB: lab,
-        A.PUBLIC_IP: public_ip,
-        "score": str(summary["score"]),
-        "pass_names": summary["passes"],
-        "fail_names": summary["fails"],
-        "raw": json.dumps(summary)[:35000],
-    }
+    item = { A.USER_ID: user.user_id,
+             A.SK: f"{A.SK_GRADE_PREFIX}#{lab}#{now}",
+             A.LAB: lab,
+             A.PUBLIC_IP: public_ip,
+             "score": str(summary["score"]),
+             "pass_names": summary["passes"],
+             "fail_names": summary["fails"],
+             "raw": json.dumps(summary)[:35000]}
     users_table.put_item(Item=item)
     LOGGER.info("DDB put_item to %s", users_table)
 

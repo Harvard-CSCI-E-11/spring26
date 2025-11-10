@@ -1,7 +1,7 @@
 [project]
 name = "lab6"
 version = "1.0.0"
-description = "Lab 6 Circuit Python and ESP32 tools"
+description = "Lab 6 server"
 authors = [
     {name = "Simson Garfinkel",email = "simsong@acm.org"}
 ]
@@ -20,6 +20,11 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.8"
+djlint = "^1.36.4"
+
+[tool.pylint.variables]
+# Allow variable names that start with 'api_' or 'route_' to be unused
+dummy-variables-rgx = "^(api_|route_).*"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

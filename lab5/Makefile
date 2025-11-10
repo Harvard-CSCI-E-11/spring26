@@ -1,97 +1,77 @@
 #
-# This is a Unix Makefile for Lab 5
+# This is a Unix Makefile for lab5
 #
+# It is different from lab4, in that:
+# -
+# -
 
 ################################################################
 # Installation targets
 #
 # Create the virtual environment
-venv:
-	make venv/pyvenv.cfg
+export LAB=lab5
+export PORT=8005
 
-venv/pyvenv.cfg:
-	echo create the virtual environment and install the requirements
-	python3 -m venv venv
-	venv/bin/python3 -m pip install --upgrade pip
-	venv/bin/python3 -m pip install -r requirements.txt
+FLASK=.venv/bin/flask
+$(FLASK):
+	poetry config virtualenvs.in-project true
+	poetry install
 
 #
-# Install the lab5.services file
-install-lab5-service: venv/pyvenv.cfg
+# Install the lab4.services file
+install-lab5-service:
 	sudo install lab5.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable lab5
 	sudo systemctl start lab5
-	@# Do not overwrite lab5 as it may have been customized
-	@if [ ! -r /etc/httpd/conf.d/lab5.conf ]; \
-		then echo installing /etc/httpd/conf.d/lab5.conf ; \
-		sudo install lab5.conf /etc/httpd/conf.d/ ; \
-		else echo /etc/httpd/conf.d/lab5.conf already installed ; \
-	fi
-	@echo
-	@echo Do not forget to edit ServerName in /etc/httpd/conf.d/lab5.conf, restart apache, and run certbot, and restart apache again
-	@echo You may also need to restart your web browser.
+
+install-lab5-nginx:
+	@echo TODO - install the new site and run lets encrypt
 
 ################################################################
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-.PHONY: local-app
-local-app:
-	venv/bin/flask --app app run --debug
+local-app: $(FLASK)
+	poetry run flask --app server.main:app run --debug --port 8005 --reload
 
 # Print help for the application
-.PHONY: help
-help:
-	venv/bin/flask --app app --help
+help: $(FLASK)
+	poetry run flask --app server.main:app --help
 
 # Create a new database
-instance/server_db.sqlite:
-	venv/bin/flask --app app init-db
-
-# Create the s3 bucket and establish the CORS policy
-.PHONY: init-s3
-init-s3:
-	venv/bin/flask --app app init-s3
-
-.PHONY: init-db
-init-db:
-	venv/bin/flask --app app init-db
+init-db: $(FLASK)
+	poetry run flask --app server.main:app init-db
 
 # Wipe the database and start over
-.PHONY: wipe-db
-wipe-db:
-	/bin/rm -f instance/server_db.sqlite
+wipe-db: $(FLASK)
+	poetry run flask --app server.main:app wipe-db
 	make init-db
 
 # Generate a new api-key
-.PHONY: new-apikey
-new-apikey: instance/server_db.sqlite
-	venv/bin/flask --app app new-apikey
+new-apikey: $(FLASK)
+	poetry run flask --app server.main:app new-apikey
 
 # Dump the database
-.PHONY: dump-db
-dump-db: instance/server_db.sqlite
-	venv/bin/flask --app app dump-db
-
+dump-db: $(FLASK)
+	poetry run flask --app server.main:app dump-db
 
 #
 # Software engineering targets
 
-pylint:
-	venv/bin/python3 -m pylint app
+lint: $(FLASK)
+	poetry run pylint server
 
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db
 
-################################################################
-## Healthcheck - before you start lab3
+# make .venv always run, even if it exists
+.PHONY: local-app help init-db new-apikey dump-db lint wipe-db
+.PHONY: install-lab5-service init-s3
 
-.PHONY: healthcheck
-healthcheck:
-	python3 -m healthcheck.main
+#### lab5 additions follow
 
-pylint-healthcheck:
-	venv/bin/python3 -m pylint  --rcfile=healthcheck/.pylintrc healthcheck
-
-# make venv always run, even if it exists
-.PHONY: venv
-.PHONY: install-lab5-service
+# Create the s3 bucket and establish the CORS policy
+init-s3:
+	poetry run flask --app server.main:app init-s3
