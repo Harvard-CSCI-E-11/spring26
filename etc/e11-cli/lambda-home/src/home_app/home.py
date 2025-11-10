@@ -123,9 +123,7 @@ EMAIL_BODY = """
     CSCIE-11 Team
 """
 
-################################################################
-# Class constants
-DOMAIN_SUFFIXES = ["", "-lab1", "-lab2", "-lab3", "-lab4", "-lab5", "-lab6", "-lab7"]
+DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
 DASHBOARD = f"https://{COURSE_DOMAIN}"
 
 
@@ -457,11 +455,11 @@ def api_register(event, payload):
     user = api_auth(payload)
 
     # Get the registration information
-    registration = payload["registration"]
-    email = registration.get("email")
-    public_ip = registration.get("public_ip")
-    verbose = registration.get("verbose")
-    instanceId = registration.get("instanceId")  # pylint: disable=invalid-name
+    verbose = payload.get('verbose',True)
+    registration = payload['registration']
+    email = registration.get('email')
+    public_ip = registration.get('public_ip')
+    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
     hostname = smash_email(email)
 
     # update the user record in table to match registration information
@@ -527,20 +525,22 @@ def api_register(event, payload):
 
     # Send email notification using SES
     if new_records>0 or changed_records>0 or verbose:
-        send_email(
-        to_addr=email,
-        email_subject=f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
-        email_body=EMAIL_BODY.format(
-            hostname=hostnames[0],
-            public_ip=public_ip,
-            course_key=user.course_key,
-            preferred_name=user.preferred_name,
-        ),
-    )
+        send_email( to_addr=email,
+                    email_subject=f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
+                    email_body=EMAIL_BODY.format(
+                        hostname=hostnames[0],
+                        public_ip=public_ip,
+                        course_key=user.course_key,
+                    preferred_name=user.preferred_name, ), )
         add_user_log(event, user.user_id, f"Registration email sent to {email}")
-    return resp_json(
-        200, {"message": "DNS record created and email sent successfully."}
-    )
+
+    # Send email notification using SES if there is a new record or a changed record
+    if new_records>0 or changed_records>0 or verbose:
+        send_email(to_addr=email,
+                   email_subject = f"AWS Instance Registered. New DNS Record Created: {hostnames[0]}",
+                   email_body = EMAIL_BODY.format(hostname=hostnames[0], public_ip=public_ip, course_key=user.course_key, preferred_name=user.preferred_name))
+        add_user_log(event, user.user_id, f'Registration email sent to {email}')
+    return resp_json(200,{'message':f'DNS record created and email sent successfully. new_records={new_records} changed_records={changed_records}'})
 
 
 def api_heartbeat(event, context):
@@ -593,7 +593,7 @@ def api_grader(event, context, payload):
     now = datetime.datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
-        A.SK: f"{A.SK_GRADE_PREFIX}{now}",
+        A.SK: f"{A.SK_GRADE_PREFIX}#{lab}#{now}",
         A.LAB: lab,
         A.PUBLIC_IP: public_ip,
         "score": str(summary["score"]),

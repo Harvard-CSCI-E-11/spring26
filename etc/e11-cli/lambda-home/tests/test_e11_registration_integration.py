@@ -6,10 +6,10 @@ from unittest.mock import Mock, patch
 import home_app.home as home
 from home_app.common import User
 
-from test_utils import (
-    create_test_config_data, create_test_config_file, setup_aws_mocks, assert_dynamodb_updated,
-    assert_route53_called, assert_ses_email_sent
-)
+from conftest import expected_hostnames
+
+from test_utils import ( create_test_config_data, create_test_config_file, setup_aws_mocks, assert_dynamodb_updated,
+                         assert_route53_called, assert_ses_email_sent )
 
 
 def test_e11_registration_with_test_config(monkeypatch):
@@ -153,16 +153,6 @@ def test_e11_registration_with_test_config(monkeypatch):
         })
 
         # Verify Route53 was called using common utility
-        expected_hostnames = [
-            'user.csci-e-11.org',  # Based on email user@csci-e-11.org
-            'user-lab1.csci-e-11.org',
-            'user-lab2.csci-e-11.org',
-            'user-lab3.csci-e-11.org',
-            'user-lab4.csci-e-11.org',
-            'user-lab5.csci-e-11.org',
-            'user-lab6.csci-e-11.org',
-            'user-lab7.csci-e-11.org'
-        ]
         assert_route53_called(mock_aws, expected_hostnames, test_config_data['public_ip'])
 
         # Verify SES email was sent using common utility
