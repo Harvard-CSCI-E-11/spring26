@@ -5,6 +5,12 @@
 lint:
 	for dir in lab? ; do (cd $$dir && pwd && make lint) ; done
 
+check-all:
+	for dir in lab? ; do (cd $$dir && pwd && make check) ; done
+	(cd etc/e11-cli; make check)
+	(cd etc/e11-cli/lambda-home; make check)
+	(cd staff/leaderboard; make check)
+
 distclean:
 	for dir in lab? ; do (cd $$dir && pwd && make distclean) ; done
 	(cd etc/e11-cli && make distclean)
