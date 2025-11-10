@@ -7,6 +7,19 @@ from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
 
+expected_hostnames = [
+    'testcsci-e-11.csci-e-11.org',
+    'testcsci-e-11-lab1.csci-e-11.org',
+    'testcsci-e-11-lab2.csci-e-11.org',
+    'testcsci-e-11-lab3.csci-e-11.org',
+    'testcsci-e-11-lab4.csci-e-11.org',
+    'testcsci-e-11-lab5.csci-e-11.org',
+    'testcsci-e-11-lab6.csci-e-11.org',
+    'testcsci-e-11-lab7.csci-e-11.org',
+    'testcsci-e-11-lab8.csci-e-11.org'
+]
+
+
 def _rsa_keypair():
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     priv_pem = key.private_bytes(
