@@ -175,7 +175,9 @@ def init_app(app):
             if error_code == 404:
                 error_message = "S3 bucket does not exist"
             else:
-                error_message = f"S3 error: {e}"
+                # Log the detailed error server-side, return generic error to user.
+                logging.error(f"S3 error occurred: {e}", exc_info=True)
+                error_message = "An internal S3 error has occurred"
             return {"error": error_message}
 
         # Validate the API key and post the message
