@@ -1,28 +1,24 @@
+# This is the configuration for your STAGING environment.
+# It is used by `make stage-vbd`.
 version = 0.1
+
 [default.deploy.parameters]
 stack_name = "home-app-stage"
-EnvironmentName = "stage"
-resolve_s3 = true
-s3_prefix = "home-app-stage"
 region = "us-east-1"
 profile = "fas"
+resolve_s3 = true
+s3_prefix = "home-app-stage"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 disable_rollback = false
-parameter_overrides = "UsersTableName=\"e11-users\" SessionsTableName=\"home-app-sessions\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""
 image_repositories = []
-template_file = ".aws-sam/build/template.yaml"
 
-[default.build.parameters]
-cached = false
-parallel=true
-use_container = true
-dependency_layer = false
-
-
-[default.sync.parameters]
-stack_name = "home-app-stage"
-region = "us-east-1"
-profile = "fas"
-capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
-parameter_overrides = "UsersTableName=\"e11-users\" SessionsTableName=\"home-app-sessions\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""
+# --- Parameters ---
+# All parameters are now defined as explicit keys.
+EnvironmentName = "stage"
+UsersTableName = "e11-users"
+OidcSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb"
+SshSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl"
+HostedZoneId = "Z05034072HOMXYCK23BRA"
+CertificateArn = ""
+LogLevel = "DEBUG"

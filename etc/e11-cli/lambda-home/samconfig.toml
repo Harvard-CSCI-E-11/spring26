@@ -1,7 +1,9 @@
+# This is the configuration for your PRODUCTION environment.
+# It is used by `make prod-vbd`.
 version = 0.1
+
 [default.deploy.parameters]
 stack_name = "home-app"
-EnvironmentName = "prod"
 region = "us-east-1"
 profile = "fas"
 resolve_s3 = true
@@ -9,11 +11,15 @@ s3_prefix = "home-app"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 disable_rollback = false
-parameter_overrides = "UsersTableName=\"e11-users\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"DEBUG\""
 image_repositories = []
-template_file = ".aws-sam/build/template.yaml"
-#template_file = "template.yaml"
 
-[default.build.parameters]
-cached = false
-parallel=true
+# --- Parameters ---
+# All parameters are now defined as explicit keys.
+# The old "parameter_overrides" string is removed.
+EnvironmentName = "prod"
+UsersTableName = "e11-users"
+OidcSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb"
+SshSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl"
+HostedZoneId = "Z05034072HOMXYCK23BRA"
+CertificateArn = ""
+LogLevel = "DEBUG"
