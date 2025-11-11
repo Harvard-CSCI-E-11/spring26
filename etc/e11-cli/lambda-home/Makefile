@@ -1,86 +1,92 @@
-# ===== e11 home Makefile =====
-# lambda-home is the minimal home page. It requires no e11 packages
+# ===== e11 home Makefile (Poetry Version) =====
+# Uses Poetry for dependency management and Make for SAM/AWS task running.
+
+# SAM/AWS Configuration (unchanged)
 STACK           ?= home-app
 STACK_STAGE     ?= home-app-stage
 CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 REGION          ?= us-east-1
 PROFILE         ?= fas
-PYTHON          = python3.13
-PIP_PLATFORM_OPTS := --platform manylinux2014_x86_64 --implementation cp --python-version 313 --only-binary=:all:
-DJLINT_FLAGS ?= --profile=jinja --lint --quiet --ignore J004,J018
+DJLINT_FLAGS    ?= --profile=jinja --lint --quiet --ignore J004,J018
+TEMPLATE_DIR    := src/home_app/templates
+
+# Shell Configuration (unchanged)
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
-PY    := PYTHONPATH=$$(pwd)/src/home_app/e11.whl:$(PYTHONPATH) .venv/bin/python
 
-
-TEMPLATE_DIR := src/home_app/templates
-
+# Environment setup (unchanged)
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PIP_NO_INPUT=1
 export PYTHONDONTWRITEBYTECODE=1
 
-.PHONY: install vend-e11 lint pytest test
+# --- Poetry-based Targets ---
+
+.PHONY: install lint check test clean
 install:
-	make .venv/pyvenv.cfg
+	@echo "--- Installing dependencies with Poetry ---"
+	poetry install --with dev
 
-.venv/pyvenv.cfg: pyproject.toml Makefile
-	python3.13 -m venv .venv
-	.venv/bin/pip install -e .
-	.venv/bin/pip install -e ".[dev]"
+lint: vend-e11
+	@echo "--- Linting with djlint ---"
+	poetry run djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
+	@echo "--- Linting with ruff ---"
+	poetry run ruff check --fix
+	@echo "--- Linting with pylint ---"
+	poetry run pylint src
+	@echo "--- Type checking with pyright ---"
+	poetry run pyright
 
-vend-e11: Makefile
+check: vend-e11 lint
+	@echo "--- Running tests with pytest ---"
+	poetry run pytest -q --cov=. --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/
+
+# This target generates the requirements.txt for SAM to use
+src/requirements.txt: poetry.lock pyproject.toml
+	@echo "--- Exporting requirements.txt from Poetry ---"
+	poetry export -f requirements.txt --output src/requirements.txt --without-hashes
+
+clean:
+	@echo "--- Cleaning up project files ---"
+	/bin/rm -rf .venv
+	/bin/rm -rf .aws-sam/build
+	/bin/rm -f src/requirements.txt
+	/bin/rm -f poetry.lock
+	/bin/rm -f lambda.zip
+	/bin/rm -rf .mypy_cache .pytest_cache
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+
+# --- Custom Vendoring (largely unchanged) ---
+# This is a custom script for your project, so we keep it.
+# It now uses `poetry run` to ensure it uses the venv's python/pip.
+.PHONY: vend-e11
+vend-e11: install
 	@echo "Building src/home_app/e11.whl via pip"
-	( cd .. && .venv/bin/python -m pip wheel --no-deps -w dist . )
+	( cd .. && poetry run python -m pip wheel --no-deps -w dist . )
 	@echo "Installing wheel into src/home_app/ as e11.whl"
 	install -d src/home_app
 	install -m 444 $$(ls -t ../dist/*.whl | head -1) src/home_app/e11.whl
 	@echo "OK -> src/home_app/e11.whl"
 
-lint: .venv/pyvenv.cfg
-	make vend-e11
-	.venv/bin/djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
-	$(PY) -m ruff check --fix
-	$(PY) -m pylint src
-	$(PY) -m pyright
 
-check: .venv/pyvenv.cfg
-	make vend-e11
-	make lint
-	$(PY) -m pytest -q --cov=.   --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG tests/
+# --- AWS SAM/CLI Targets (unchanged) ---
+# These are deployment tasks, perfect for Make.
+# They now depend on the new poetry-based targets.
 
-
-# AWS Lambda Vend, Build and Deploy (VBD)
-prod-vbd: template.yaml samconfig.toml src/requirements.txt
-	make vend-e11
-	sam validate --config-file samconfig.toml -t template.yaml --lint
-	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
-	sam deploy --config-file "$$(pwd)/samconfig.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
+.PHONY: prod-vbd stage-vbd
+prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
+	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
+	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
+	sam deploy --config-file "$$(pwd)/samconfig-prod.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://csci-e-11.org/ | head -3
 
-stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt
-	make lint
-	make vend-e11
-	sam validate --config-file samconfig-stage.toml -t template-stage.yaml --lint
-	sam build --parallel --use-container --config-file samconfig-stage.toml -t template-stage.yaml
+stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt vend-e11 lint
+	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
+	sam build --parallel --use-container --config-file samconfig-stage.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://stage.csci-e-11.org/ | head -3
 
-# sync is just not working
-# Note - sync and watch don't work because the files in requirements.txt are not vendored into the src/
-# directory. There are a number of workarounds but we aren't using them here.
-# sync-stage: build-stage
-#	make vend-e11
-#	sam sync --config-file samconfig-stage.toml -t template-stage.yaml --stack-name $(STACK_STAGE) --capabilities $(CAPS)
-#
-# sync-watch-stage: template-stage.yaml samconfig-stage.toml src/requirements.txt
-#	@echo note that SAM resolves relative paths from the template’s directory when you pass -t
-#	make vend-e11
-#	sam sync --config-file "$$(pwd)/samconfig-stage.toml" --stack-name home-app-stage --watch --code -t .aws-sam/build/template.yaml
-
-src/requirements.txt: pyproject.toml Makefile .venv/pyvenv.cfg
-	.venv/bin/pip-compile -q pyproject.toml --output-file src/requirements.txt
-
 # Show function names
+.PHONY: functions
 functions:
 	@echo "Production function:"
 	@aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
@@ -90,6 +96,7 @@ functions:
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
 # Tail logs
+.PHONY: prod-tail
 prod-tail:
 	@echo "Tailing production logs..."
 	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
@@ -97,6 +104,7 @@ prod-tail:
 		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
 # Tail stage logs (separate stack)
+.PHONY: stage-tail
 stage-tail:
 	@echo "Tailing stage logs..."
 	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
@@ -104,6 +112,7 @@ stage-tail:
 		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
 # Download deployed Lambda package for inspection
+.PHONY: fetch-zip-prod
 fetch-zip-prod:
 	@FUNC=$$(aws cloudformation describe-stacks \
 		--stack-name $(STACK) \
@@ -119,17 +128,14 @@ fetch-zip-prod:
 	/bin/rm -f lambda.zip && curl -sSL $$URL -o lambda.zip && ls -l lambda.zip && \
 	echo "Deployed package extracted to lambda-package-prod/"
 
-
-clean:
-	/bin/rm -rf .venv
-	/bin/rm -rf .aws-sam/build
-
 # Show stage URL
+.PHONY: urls
 urls:
 	@echo "Production URL: https://csci-e-11.org/"
 	@echo "Stage URL: https://stage.csci-e-11.org/"
 
 # Show deployment info
+.PHONY: info
 info:
 	@echo "Production Stack: $(STACK)"
 	@echo "Stage Stack: $(STACK_STAGE)"

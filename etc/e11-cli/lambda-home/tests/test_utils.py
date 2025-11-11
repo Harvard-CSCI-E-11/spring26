@@ -287,7 +287,6 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
 def assert_ses_email_sent(mock_aws: MockedAWSServices, expected_recipient: str, expected_subject_contains: str = None):
     """Assert that SES email was sent with expected recipient"""
     for msg in mock_aws.ses_emails:
-        logger.debug("msg=%s",json.dumps(msg,indent=4,default=str))
         if msg['Source'] == 'admin@csci-e-11.org':
             if (expected_subject_contains in msg['Message']['Subject']['Data'] and
                 expected_recipient in msg['Destination']['ToAddresses']):
