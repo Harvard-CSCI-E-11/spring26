@@ -2,19 +2,8 @@
 # It is used by `make stage-vbd`.
 version = 0.1
 
-[default.deploy.parameters]
-stack_name = "home-app-stage"
-region = "us-east-1"
-profile = "fas"
-resolve_s3 = true
-s3_prefix = "home-app-stage"
-confirm_changeset = true
-capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
-disable_rollback = false
-image_repositories = []
-
-# --- Parameters ---
-# All parameters are now defined as explicit keys.
+[default.build.parameters]
+# SAM build reads from this section
 EnvironmentName = "stage"
 UsersTableName = "e11-users"
 OidcSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb"
@@ -22,3 +11,26 @@ SshSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqR
 HostedZoneId = "Z05034072HOMXYCK23BRA"
 CertificateArn = ""
 LogLevel = "DEBUG"
+
+[default.deploy.parameters]
+# SAM deploy reads from this section
+stack_name = "home-app-stage"
+profile = "fas"
+resolve_s3 = true
+s3_prefix = "home-app-stage"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
+disable_rollback = false
+image_repositories = []
+# --- Parameters ---
+EnvironmentName = "stage"
+UsersTableName = "e11-users"
+OidcSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb"
+SshSecretId = "arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl"
+HostedZoneId = "Z05034072HOMXYCK23BRA"
+CertificateArn = ""
+LogLevel = "DEBUG"
+parameter_overrides = "EnvironmentName=\"stage\" UsersTableName=\"e11-users\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" LogLevel=\"INFO\""
+
+[default.global.parameters]
+region = "us-east-1"
