@@ -193,7 +193,7 @@ Resources:
   # Sessions table holds the cookie sessions
   SessionsTable:
     Type: AWS::DynamoDB::Table
-    DeletionPolicy: Snapshot
+    DeletionPolicy: Delete
     UpdateReplacePolicy: Retain
     Properties:
       BillingMode: PAY_PER_REQUEST

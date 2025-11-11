@@ -73,10 +73,10 @@ vend-e11: install
 # They now depend on the new poetry-based targets.
 
 .PHONY: prod-vbd stage-vbd
-prod-vbd: template.yaml samconfig.toml src/requirements.txt vend-e11
-	sam validate --config-file samconfig.toml -t template.yaml --lint
-	sam build --parallel --use-container --config-file samconfig.toml -t template.yaml
-	sam deploy --config-file "$$(pwd)/samconfig.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
+prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
+	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
+	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
+	sam deploy --config-file "$$(pwd)/samconfig-prod.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://csci-e-11.org/ | head -3
 
 stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt vend-e11 lint
