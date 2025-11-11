@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "lab2"
+name = "lab1"
 version = "0.1.0"
-description = "Lab 2 template files"
+description = "Lab 1 template files"
 authors = ["Simson Garfinkel <simsong@acm.org>"]
 readme = "README.md"
 package-mode = false
@@ -9,6 +9,7 @@ package-mode = false
 [tool.poetry.dependencies]
 python = ">=3.12"
 djlint = ">=1.36.4,<2.0.0"
+pylint = "^4.0.2"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

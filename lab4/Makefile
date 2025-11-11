@@ -12,16 +12,16 @@
 export LAB=lab4
 export PORT=8004
 
-FLASK=.venv/bin/flask
+PYTHON=.venv/bin/python3
 
-$(FLASK):
+$(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# includes flask in pyproject.toml
 	npm install --save-dev globals
 
 #
 # Install the lab4.services file
-install-lab4-service: $(FLASK)
+install-lab4-service: $(PYTHON)
 	poetry install
 	sudo install lab4.service /etc/systemd/system/
 	sudo systemctl daemon-reload
@@ -35,34 +35,34 @@ install-lab4-nginx:
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app: $(FLASK)
+local-app: $(PYTHON)
 	poetry run flask  --app server.main:app run --debug --port 8004 --reload
 
 # Print help for the application
-help: $(FLASK)
+help: $(PYTHON)
 	poetry run flask  --app server.main:app --help
 
 # Create a new database
-init-db: $(FLASK)
+init-db: $(PYTHON)
 	poetry run flask  --app server.main:app init-db
 
 # Wipe the database and start over
-wipe-db: $(FLASK)
+wipe-db: $(PYTHON)
 	poetry run flask  --app server.main:app wipe-db
 	make init-db
 
 # Generate a new api-key
-new-apikey: $(FLASK)
+new-apikey: $(PYTHON)
 	poetry run flask  --app server.main:app new-apikey
 
 # Dump the database
-dump-db: $(FLASK)
+dump-db: $(PYTHON)
 	poetry run flask  --app server.main:app dump-db
 
 #
 # Software engineering targets
 
-lint: $(FLASK)
+lint: $(PYTHON)
 	poetry run pylint server
 	poetry run djlint --profile=jinja --reformat server/templates/*html
 	npx eslint -c tools/eslint.config.mjs server/static

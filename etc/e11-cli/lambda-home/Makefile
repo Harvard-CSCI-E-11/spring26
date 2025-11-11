@@ -27,14 +27,12 @@ install:
 	poetry install --with dev
 
 lint: vend-e11
-	@echo "--- Linting with djlint ---"
 	poetry run djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
-	@echo "--- Linting with ruff ---"
 	poetry run ruff check --fix
-	@echo "--- Linting with pylint ---"
 	poetry run pylint src
-	@echo "--- Type checking with pyright ---"
 	poetry run pyright
+	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
+	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
 
 check: vend-e11 lint
 	@echo "--- Running tests with pytest ---"
@@ -52,7 +50,7 @@ distclean:
 	/bin/rm -f src/requirements.txt
 	/bin/rm -f poetry.lock
 	/bin/rm -f lambda.zip
-	/bin/rm -rf .mypy_cache .pytest_cache 
+	/bin/rm -rf .mypy_cache .pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # --- Custom Vendoring (largely unchanged) ---

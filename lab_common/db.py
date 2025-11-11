@@ -16,6 +16,7 @@ STUDENTS - You do not need to modify this file.
 
 import os
 import sqlite3
+import glob
 from datetime import datetime
 from os.path import join
 
@@ -33,8 +34,11 @@ sqlite3.register_converter("timestamp", lambda v: datetime.fromisoformat(v.decod
 
 
 def get_db_conn():
-    """Return either a new database connection or the cached per-instance connection.
-    Note that the connection is modified so all records are returned as dictionaries, rather than tuples.
+    """Return either a new database connection or the cached
+    per-instance connection.
+
+    Note that the connection is modified so all records are returned
+    as dictionaries, rather than tuples.
     """
     if "db" not in g:
         g.conn = sqlite3.connect(
@@ -58,7 +62,7 @@ def init_db():
     """
     conn = get_db_conn()
     app_directory = current_app.root_path
-    for fname in glob.glob(join(app_directory), "schema*.sql"):
+    for fname in glob.glob(join(app_directory, "schema*.sql")):
         with open(fname, "r", encoding="utf8") as f:
             conn.executescript(f.read())
             conn.commit()

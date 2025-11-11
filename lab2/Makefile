@@ -14,7 +14,7 @@
 export LAB=lab2
 export PORT=8002
 
-PYTHON:=.venv/bin/python3
+PYTHON=.venv/bin/python3
 install: $(PYTHON)
 
 $(PYTHON):
@@ -22,7 +22,7 @@ $(PYTHON):
 	poetry install		# installs the current poetry.lock, do not update
 
 lint: $(PYTHON)
-	poetry run djlint *.html
+	poetry run python -m djlint .
 
 distclean:
 	@echo already clean

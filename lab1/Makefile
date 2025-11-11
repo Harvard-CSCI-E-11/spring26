@@ -13,9 +13,17 @@
 # create_log_db.py can be run through the python that's preinstalled with the OS.
 
 export LAB=lab1
+PYTHON=.venv/bin/python3
 
-lint:
-	pylint create_log_db.py
+$(PYTHON):
+	poetry config virtualenvs.in-project true
+	poetry install		# installs the current poetry.lock, do not update
+
+lint: $(PYTHON)
+	poetry run pylint *.py
 
 distclean:
 	@echo already clean
+
+
+.PHONY: distclean lint

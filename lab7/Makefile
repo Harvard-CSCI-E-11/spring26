@@ -5,17 +5,12 @@
 
 export LAB=lab7
 
-PYTHON:=.venv/bin/python3
+PYTHON=.venv/bin/python3
 install: $(PYTHON)
 
 $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# installs the current poetry.lock, do not update
-
-.venv/py.venv.cfg:
-	echo create the virtual environment and install the requirements
-	poetry config virtualenvs.in-project true
-	poetry install
 
 distclean:
 	/bin/rm -rf .venv
