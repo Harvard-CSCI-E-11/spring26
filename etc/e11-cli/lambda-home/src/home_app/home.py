@@ -69,12 +69,23 @@ from .common import (
 from .common import COURSE_DOMAIN, COOKIE_NAME
 
 
+__version__ = "0.1.0"
+
 LOGGER = get_logger("home")
 CSCIE_BOT = "cscie-bot"
 
-__version__ = "0.1.0"
-eastern = ZoneInfo("America/New_York")
+LAB_REDIRECTS = {0:'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
+                 1:'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
+                 2:'https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link',
+                 3:'https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link',
+                 4:'https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link',
+                 5:'https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link',
+                 6:'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
+                 7:'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
+                 8:'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'}
 
+
+eastern = ZoneInfo("America/New_York")
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
 
 
@@ -678,7 +689,7 @@ def api_delete_session(payload):
 
 ################################################################
 ## Parse Lambda Events and cookies
-# THis is the entry point
+# This is the entry point
 def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
     """parser HTTP API v2 event"""
     stage = event.get("requestContext", {}).get("stage", "")
@@ -813,6 +824,17 @@ def lambda_handler(event, context):
                 # note that / handles all pages. Specify html template with page= option
                 case ("GET", "/", _):
                     return do_page(event)
+
+                # lab redirects
+                case ("GET", "/lab0", _): return redirect(LAB_REDIRECTS[0])
+                case ("GET", "/lab1", _): return redirect(LAB_REDIRECTS[1])
+                case ("GET", "/lab2", _): return redirect(LAB_REDIRECTS[2])
+                case ("GET", "/lab3", _): return redirect(LAB_REDIRECTS[3])
+                case ("GET", "/lab4", _): return redirect(LAB_REDIRECTS[4])
+                case ("GET", "/lab5", _): return redirect(LAB_REDIRECTS[5])
+                case ("GET", "/lab6", _): return redirect(LAB_REDIRECTS[6])
+                case ("GET", "/lab7", _): return redirect(LAB_REDIRECTS[7])
+                case ("GET", "/lab8", _): return redirect(LAB_REDIRECTS[8])
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript
