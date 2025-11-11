@@ -21,6 +21,7 @@ Description: e11 home Lambda staging environment (stage.csci-e-11.org)
 
 Globals:
   Function:
+    Architectures: [arm64]
     Environment:
       Variables:
         LOG_LEVEL: !Ref LogLevel

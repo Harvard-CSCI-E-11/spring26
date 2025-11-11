@@ -13,6 +13,8 @@ from test_utils import (
     assert_response_success, setup_aws_mocks
 )
 
+from conftest import expected_hostnames
+
 """
 Registration API Test Coverage:
 
@@ -40,8 +42,6 @@ Flow 4: Invalid course key (test_registration_api_invalid_course_key)
 - User exists but course_key doesn't match
 - Should return 403 error
 """
-
-
 
 
 def test_registration_api_flow(monkeypatch):
@@ -97,16 +97,6 @@ def test_registration_api_flow(monkeypatch):
         })
 
         # Verify Route53 was called using common utility
-        expected_hostnames = [
-            'testcsci-e-11.csci-e-11.org',
-            'testcsci-e-11-lab1.csci-e-11.org',
-            'testcsci-e-11-lab2.csci-e-11.org',
-            'testcsci-e-11-lab3.csci-e-11.org',
-            'testcsci-e-11-lab4.csci-e-11.org',
-            'testcsci-e-11-lab5.csci-e-11.org',
-            'testcsci-e-11-lab6.csci-e-11.org',
-            'testcsci-e-11-lab7.csci-e-11.org'
-        ]
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility
@@ -235,16 +225,6 @@ def test_registration_api_returning_user_flow(monkeypatch):
         })
 
         # Verify Route53 was called using common utility
-        expected_hostnames = [
-            'testcsci-e-11.csci-e-11.org',
-            'testcsci-e-11-lab1.csci-e-11.org',
-            'testcsci-e-11-lab2.csci-e-11.org',
-            'testcsci-e-11-lab3.csci-e-11.org',
-            'testcsci-e-11-lab4.csci-e-11.org',
-            'testcsci-e-11-lab5.csci-e-11.org',
-            'testcsci-e-11-lab6.csci-e-11.org',
-            'testcsci-e-11-lab7.csci-e-11.org'
-        ]
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility

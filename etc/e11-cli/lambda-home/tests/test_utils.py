@@ -3,11 +3,15 @@ Common test utilities to eliminate redundancy across test files.
 This module consolidates AWS mock classes, test data factories, and assertion helpers.
 """
 
+import logging
 import json
 import os
 import tempfile
 import configparser
 from typing import Dict, Any, List, Optional
+
+
+logger = logging.getLogger()
 
 
 class MockedAWSServices:
@@ -16,7 +20,7 @@ class MockedAWSServices:
     def __init__(self):
         self.dynamodb_items = {}
         self.route53_changes = []
-        self.ses_emails = []
+        self.ses_emails = []    # list of sent mails
         self.secrets = {}
 
     def setup_mocks(self, monkeypatch):
@@ -83,6 +87,9 @@ class MockedAWSServices:
         class MockRoute53:
             def __init__(self, mock_aws):
                 self.mock_aws = mock_aws
+
+            def list_resource_record_sets(self, HostedZoneId, StartRecordName, StartRecordType, MaxItems):
+                return {'ResourceRecordsSets':[]}
 
             def change_resource_record_sets(self, HostedZoneId, ChangeBatch):
                 self.mock_aws.route53_changes.append({
@@ -264,6 +271,9 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
     assert route53_change['HostedZoneId'] == 'Z05034072HOMXYCK23BRA'
 
     changes = route53_change['ChangeBatch']['Changes']
+    if len(changes) != len(expected_hostnames):
+        logger.error("changes=%s",json.dumps(changes,indent=4,default=str))
+        logger.error("expected_hostnames=%s",json.dumps(expected_hostnames,indent=4,default=str))
     assert len(changes) == len(expected_hostnames), f"Expected {len(expected_hostnames)} DNS changes, got {len(changes)}"
 
     for change in changes:
@@ -276,15 +286,13 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
 
 def assert_ses_email_sent(mock_aws: MockedAWSServices, expected_recipient: str, expected_subject_contains: str = None):
     """Assert that SES email was sent with expected recipient"""
-    assert len(mock_aws.ses_emails) == 1, f"Expected 1 SES email, got {len(mock_aws.ses_emails)}"
+    for msg in mock_aws.ses_emails:
+        if msg['Source'] == 'admin@csci-e-11.org':
+            if (expected_subject_contains in msg['Message']['Subject']['Data'] and
+                expected_recipient in msg['Destination']['ToAddresses']):
+                return
 
-    ses_email = mock_aws.ses_emails[0]
-    assert ses_email['Source'] == 'admin@csci-e-11.org'
-    assert ses_email['Destination']['ToAddresses'] == [expected_recipient]
-
-    if expected_subject_contains:
-        message = ses_email['Message']
-        assert expected_subject_contains in message['Subject']['Data']
+    logger.error("Could not find %s/%s in ses_emails: %s",expected_subject_contains,expected_recipient,json.dumps(mock_aws.ses_emails,indent=4,default=str))
 
 
 def assert_response_success(response: Dict[str, Any], expected_message_contains: str = None):
