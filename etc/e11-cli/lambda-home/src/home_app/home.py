@@ -826,15 +826,24 @@ def lambda_handler(event, context):
                     return do_page(event)
 
                 # lab redirects
-                case ("GET", "/lab0", _): return redirect(LAB_REDIRECTS[0])
-                case ("GET", "/lab1", _): return redirect(LAB_REDIRECTS[1])
-                case ("GET", "/lab2", _): return redirect(LAB_REDIRECTS[2])
-                case ("GET", "/lab3", _): return redirect(LAB_REDIRECTS[3])
-                case ("GET", "/lab4", _): return redirect(LAB_REDIRECTS[4])
-                case ("GET", "/lab5", _): return redirect(LAB_REDIRECTS[5])
-                case ("GET", "/lab6", _): return redirect(LAB_REDIRECTS[6])
-                case ("GET", "/lab7", _): return redirect(LAB_REDIRECTS[7])
-                case ("GET", "/lab8", _): return redirect(LAB_REDIRECTS[8])
+                case ("GET", "/lab0", _):
+                    return redirect(LAB_REDIRECTS[0])
+                case ("GET", "/lab1", _):
+                    return redirect(LAB_REDIRECTS[1])
+                case ("GET", "/lab2", _):
+                    return redirect(LAB_REDIRECTS[2])
+                case ("GET", "/lab3", _):
+                    return redirect(LAB_REDIRECTS[3])
+                case ("GET", "/lab4", _):
+                    return redirect(LAB_REDIRECTS[4])
+                case ("GET", "/lab5", _):
+                    return redirect(LAB_REDIRECTS[5])
+                case ("GET", "/lab6", _):
+                    return redirect(LAB_REDIRECTS[6])
+                case ("GET", "/lab7", _):
+                    return redirect(LAB_REDIRECTS[7])
+                case ("GET", "/lab8", _):
+                    return redirect(LAB_REDIRECTS[8])
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript

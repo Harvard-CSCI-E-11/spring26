@@ -1,6 +1,7 @@
 version = 0.1
 [default.deploy.parameters]
 stack_name = "home-app"
+EnvironmentName = "prod"
 region = "us-east-1"
 profile = "fas"
 resolve_s3 = true

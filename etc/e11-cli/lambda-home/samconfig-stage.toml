@@ -1,6 +1,7 @@
 version = 0.1
 [default.deploy.parameters]
 stack_name = "home-app-stage"
+EnvironmentName = "stage"
 resolve_s3 = true
 s3_prefix = "home-app-stage"
 region = "us-east-1"

@@ -1,56 +1,42 @@
-# Install optional dependencies with:
-# pip install -e .[dev]
-
-
-[project]
+[tool.poetry]
 name = "lambda-home"
 version = "0.1.1"
 description = "CSCI E-11 home page"
-authors = [
-    {name = "Simson Garfinkel",email = "simsong@acm.org"}
-]
+authors = ["Simson Garfinkel <simsong@acm.org>"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
-dependencies = [
-    "boto3",
-    "requests",
-    "dnspython",
-    "paramiko",
-    "email-validator",
-    "itsdangerous",
-    "pyjwt",
-    "jinja2",
-    "pydantic",
-    "boto3-stubs[essential,route53,secretsmanager,dynamodb]"
+packages = [
+    { include = "home_app", from = "src" }
 ]
 
-[project.optional-dependencies]
-dev = [
-    "djlint",
-    "pylint",
-    "pyright",
-    "pytest",
-    "pip-tools",
-    "pytest-cov",
-    "ruff",
-    "flask"
-]
+[tool.poetry.dependencies]
+python = ">=3.13,<3.14"
+boto3 = "*"
+requests = "*"
+dnspython = "*"
+paramiko = "*"
+email-validator = "*"
+itsdangerous = "*"
+pyjwt = "*"
+jinja2 = "*"
+pydantic = "*"
+boto3-stubs = { version = "*", extras = ["essential", "route53", "secretsmanager", "dynamodb"] }
+
+[tool.poetry.group.dev.dependencies]
+djlint = "*"
+pylint = "*"
+pyright = "*"
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"
 
 [build-system]
-requires = ["setuptools>=70", "wheel"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools.package-dir]
-"" = "src"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-include = ["home_app"]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.djlint]
 profile = "jinja"
-ignore = ["jinja-block","jinja-variable","J004", "J018"]
+ignore = ["jinja-block", "jinja-variable", "J004", "J018"]
 extend_exclude = "node_modules/**,.venv/**"
 indent = 4
 
@@ -61,6 +47,7 @@ ignore-paths = [
     "src/home_app/e11/.*"
 ]
 source-roots = [".."]
+
 [tool.pylint.FORMAT]
 max-line-length=200
 
