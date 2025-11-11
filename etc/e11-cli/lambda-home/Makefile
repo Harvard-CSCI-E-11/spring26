@@ -45,14 +45,14 @@ src/requirements.txt: poetry.lock pyproject.toml
 	@echo "--- Exporting requirements.txt from Poetry ---"
 	poetry export -f requirements.txt --output src/requirements.txt --without-hashes
 
-clean:
+distclean:
 	@echo "--- Cleaning up project files ---"
 	/bin/rm -rf .venv
 	/bin/rm -rf .aws-sam/build
 	/bin/rm -f src/requirements.txt
 	/bin/rm -f poetry.lock
 	/bin/rm -f lambda.zip
-	/bin/rm -rf .mypy_cache .pytest_cache
+	/bin/rm -rf .mypy_cache .pytest_cache 
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # --- Custom Vendoring (largely unchanged) ---

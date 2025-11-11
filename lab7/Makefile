@@ -12,8 +12,11 @@ $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# installs the current poetry.lock, do not update
 
-venv/pyvenv.cfg:
+.venv/py.venv.cfg:
 	echo create the virtual environment and install the requirements
-	python3 -m venv venv
-	venv/bin/python3 -m pip install --upgrade pip
-	venv/bin/python3 -m pip install -r requirements.txt
+	poetry config virtualenvs.in-project true
+	poetry install
+
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db

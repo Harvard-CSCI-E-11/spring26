@@ -1,7 +1,21 @@
 #
-# Assumes pylint and ruff are in your path
+# Makefile for lab1
+#
+# The variable LAB is set but it isn't used.
+#
+# The best Makefile tutorial we have found is here:
+# https://opensource.com/article/18/8/what-how-makefile
+#
+# For background, see:
+# https://en.wikipedia.org/wiki/Make_(software)
+#
+# This Makefile assumes pylint is your path.
+# create_log_db.py can be run through the python that's preinstalled with the OS.
 
 export LAB=lab1
 
 lint:
 	pylint create_log_db.py
+
+distclean:
+	@echo already clean

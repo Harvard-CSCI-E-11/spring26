@@ -1,4 +1,5 @@
 -- lab4 database server schema
+-- STUDENTS - You do not need to modify this file.
 
 DROP TABLE IF EXISTS api_keys;
 DROP TABLE IF EXISTS messages;

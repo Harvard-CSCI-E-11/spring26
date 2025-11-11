@@ -1,17 +1,20 @@
-pytest:
-	venv/bin/pytest --log-cli-level=DEBUG
+PYTHON=python3.13
+PY=.venv/bin/python
 
-pylint:
-	venv/bin/pylint leaderboard_app
+check: $(PY)
+	$(PY) -m pytest --log-cli-level=DEBUG
 
-local-debug:
-	. venv/bin/activate ; python -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
+pylint: $(PY)
+	$(PY) -m pylint leaderboard_app
+
+local-debug: $(PY)
+	$(PY) -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
 
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-sync.html
-sam-sync:
+sam-sync: $(PY)
 	sam sync --code --watch
 
-deploy:
+deploy: $(PY)
 	make pylint
 	sam validate
 	sam validate --lint
@@ -21,9 +24,12 @@ deploy:
 
 # Create the virtual environment and install both host requirements
 # and the lambda requirements for testing
-.PHONY: venv
-venv:
-	python3.13 -m venv venv
-	venv/bin/pip install --upgrade pip
-	venv/bin/pip install -r requirements.txt
-	venv/bin/pip install -r leaderboard_app/requirements.txt
+$(PY):
+	$(PYTHON) -m venv .venv
+	$(PY) -m pip install --upgrade pip
+	$(PY) -m pip install -r requirements.txt
+	$(PY) -m pip install -r leaderboard_app/requirements.txt
+
+distclean:
+	/bin/rm -rf .venv
+	/bin/rm -f instance/message_board.db

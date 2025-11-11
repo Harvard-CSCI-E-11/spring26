@@ -1,4 +1,5 @@
 -- lab5 adds
+-- STUDENTS - You do not need to modify this file.
 
 DROP TABLE IF EXISTS images;
 

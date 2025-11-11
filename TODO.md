@@ -44,12 +44,12 @@ sudo certbot --nginx --expand -d example.com -d www.example.com -d store.example
   - answer - the attack we used
   - modify ssh attacker to attack systems that have been registered but do not have a perfect score.
 
-
 - lab3
   - check access key
 
 - lab4
   - we will set up the gunicorn and nginx
+  - Add comments to each file explaining what it does.
 
 - lab5 tester
   - web app
@@ -68,3 +68,19 @@ sudo certbot --nginx --expand -d example.com -d www.example.com -d store.example
 
 
 - batch grader - do not grade winners
+
+- leadboard:
+- add history to leaderboard
+
+Assignments:
+- indicate which files are modified
+- symlinks indicate file does not need to be changed.
+- add email & coursekey to /leaderboard db & api
+
+
+solutions:
+- Scripts that solve each.
+- Automate full testing.
+
+- go through all healthcheck code from spring25 and integrate it.
+- implement e11 answers and check the answers.

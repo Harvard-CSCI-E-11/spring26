@@ -1,1 +1,1 @@
-../../lab4/server/db.py
+../../lab_common/db.py
