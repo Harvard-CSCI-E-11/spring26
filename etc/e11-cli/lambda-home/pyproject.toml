@@ -29,6 +29,8 @@ pyright = "*"
 pytest = "*"
 pytest-cov = "*"
 ruff = "*"
+boto3-stubs = "^1.40.71"
+mypy-boto3-route53 = "^1.40.57"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

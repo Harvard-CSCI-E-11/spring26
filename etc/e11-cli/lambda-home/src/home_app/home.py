@@ -169,8 +169,7 @@ def resp_png(
     status: int,
     png_bytes: bytes,
     headers: Optional[Dict[str, str]] = None,
-    cookies: Optional[list[str]] = None,
-) -> Dict[str, Any]:
+    cookies: Optional[list[str]] = None ) -> Dict[str, Any]:
     """End HTTP event processing with binary PNG"""
     LOGGER.debug("resp_png(status=%s, len=%s)", status, len(png_bytes))
     return {

@@ -127,7 +127,7 @@ version = "1.40.71"
 description = "Type annotations for boto3 1.40.71 generated with mypy-boto3-builder 8.12.0"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "boto3_stubs-1.40.71-py3-none-any.whl", hash = "sha256:0bdd1033b789bc0a145101f4e27f1770d3a65d5f6841db63f774fceef23e48c5"},
     {file = "boto3_stubs-1.40.71.tar.gz", hash = "sha256:4f9ccbfc51eada139803fadd7b247a806bdb2ae9b26260b8750aa9a776c7b1ac"},
@@ -584,7 +584,7 @@ version = "1.40.71"
 description = "Type annotations and code completion for botocore"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "botocore_stubs-1.40.71-py3-none-any.whl", hash = "sha256:0d97505567bd1b427a222fbecc78aedbc0a95872cf11592de8caf86e4d4c7c30"},
     {file = "botocore_stubs-1.40.71.tar.gz", hash = "sha256:6524ccba435229edd46a463bbd3ea7c795b572444695318395337ada2d405b07"},
@@ -1471,7 +1471,7 @@ version = "1.40.57"
 description = "Type annotations for boto3 Route53 1.40.57 service generated with mypy-boto3-builder 8.11.0"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "mypy_boto3_route53-1.40.57-py3-none-any.whl", hash = "sha256:f322e46936310f3d0fa2de1abac3cc4ecbe2edf9c2c04da95853a90db80486e0"},
     {file = "mypy_boto3_route53-1.40.57.tar.gz", hash = "sha256:19c7c656672baa00b7300a2a256af3517143afa6fd41e49338ff2e081a67cc27"},
@@ -2281,7 +2281,7 @@ version = "0.28.4"
 description = "Type annotations and code completion for awscrt"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "types_awscrt-0.28.4-py3-none-any.whl", hash = "sha256:2d453f9e27583fcc333771b69a5255a5a4e2c52f86e70f65f3c5a6789d3443d0"},
     {file = "types_awscrt-0.28.4.tar.gz", hash = "sha256:15929da84802f27019ee8e4484fb1c102e1f6d4cf22eb48688c34a5a86d02eb6"},
@@ -2293,7 +2293,7 @@ version = "0.14.0"
 description = "Type annotations and code completion for s3transfer"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "types_s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:108134854069a38b048e9b710b9b35904d22a9d0f37e4e1889c2e6b58e5b3253"},
     {file = "types_s3transfer-0.14.0.tar.gz", hash = "sha256:17f800a87c7eafab0434e9d87452c809c290ae906c2024c24261c564479e9c95"},
@@ -2347,4 +2347,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "cc541744a7a6b24f6dec904064cd40b1e8e5535b9f8e4b3e73550f01f403be49"
+content-hash = "15d403c301d4dafc5436a274b68e7a04794a72d84614c8597656b0572c1e08f9"
