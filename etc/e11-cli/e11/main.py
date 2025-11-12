@@ -360,7 +360,3 @@ def main():
             print("ERROR: This must be run on EC2")
             sys.exit(1)
     args.func(args)
-
-
-if __name__ == "__main__":
-    main()
