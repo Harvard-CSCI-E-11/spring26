@@ -65,7 +65,6 @@ vend-e11: install
 	install -m 444 $$(ls -t ../dist/*.whl | head -1) src/home_app/e11.whl
 	@echo "OK -> src/home_app/e11.whl"
 
-
 # --- AWS SAM/CLI Targets (unchanged) ---
 # These are deployment tasks, perfect for Make.
 # They now depend on the new poetry-based targets.

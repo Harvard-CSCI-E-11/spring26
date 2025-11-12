@@ -10,14 +10,12 @@ from typing import Optional
 
 from boto3.dynamodb.conditions import Key
 
-from .common import DatabaseInconsistency, EmailNotRegistered, convert_dynamodb_item
-from .common import get_logger, add_user_log
-from .common import users_table, sessions_table, SESSION_TTL_SECS, A
-from .common import User, Session, get_cookie_domain, COOKIE_NAME
+from e11.e11_common import DatabaseInconsistency, EmailNotRegistered, convert_dynamodb_item, sessions_table, users_table, A, User, Session
+
+from .common import get_logger, add_user_log, SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
 
 LOGGER = get_logger("home")
 COURSE_KEY_LEN = 6
-
 
 # Auth Cookie
 
