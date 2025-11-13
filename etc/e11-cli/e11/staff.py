@@ -32,10 +32,11 @@ def do_register_email(args):
     # See if the email exists
     response = dynamodb_resource.Table('e11-users').scan(FilterExpression = Attr('email').eq(email))
     if response.get('Items'):
-        print(f"User {email} already exists")
-        exit(1)
+        user = response.get('Items')[0]
+        print(f"User {email} already exists.\ncourse_key={user[A.COURSE_KEY]}")
+        exit(0)
     user = create_new_user(email)
-    print(f"Registered {email}  course_key={user[A.COURSE_KEY]}")
+    print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
 
 def do_report(args):
     session = boto3.session.Session()

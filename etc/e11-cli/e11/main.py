@@ -136,7 +136,7 @@ def do_access_check_me(args):
 
 ################################################################
 
-def get_answers_and_write_config(cp,section_name,attribs):
+def get_answers(cp,section_name,attribs):
     section = cp[section_name]
     for attrib in attribs:
         while True:
@@ -146,6 +146,7 @@ def get_answers_and_write_config(cp,section_name,attribs):
             if section.get(attrib,'') != '':
                 break
 
+def write_config(cp):
     with config_path().open('w') as f:
         print(f"Writing configuration to {config_path()}:")
         cp.write(sys.stdout)
@@ -154,7 +155,16 @@ def get_answers_and_write_config(cp,section_name,attribs):
 
 def do_config(args):
     cp = get_config()
-    get_answers_and_write_config(cp,STUDENT,STUDENT_ATTRIBS)
+    if args.get and args.section and args.name:
+        print(cp[args.section][args.name])
+        return
+    if args.section and args.name and args.value:
+        if args.section not in cp:
+            cp.add_section(args.section)
+        cp[args.section][args.name] = args.value
+    else:
+        get_answers(cp,STUDENT,STUDENT_ATTRIBS)
+    write_config(cp)
 
 def do_answer(args):
     cp = get_config()
@@ -167,8 +177,8 @@ def do_answer(args):
         return
     if args.lab not in cp:
         cp.add_section(args.lab)
-    get_answers_and_write_config(cp, args.lab, ANSWERS[args.lab])
-
+    get_answers(cp, args.lab, ANSWERS[args.lab])
+    write_config(cp)
 
 def do_register(args):
     errors = 0
@@ -306,6 +316,10 @@ def main():
 
     # e11 config
     config_parser = subparsers.add_parser('config', help='Config E11 student variables')
+    config_parser.add_argument("--get",action='store_true',help='get a value')
+    config_parser.add_argument("--section", help='the section to --get or --setvalue')
+    config_parser.add_argument("--name", help='the name to --get or --setvalue')
+    config_parser.add_argument("--setvalue",help='set this value')
     config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
