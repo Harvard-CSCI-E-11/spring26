@@ -19,12 +19,13 @@ import requests
 from email_validator import validate_email, EmailNotValidError
 
 from . import staff
-from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
+from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,
+REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
 from .e11core.render import print_summary
-from .e11core.utils import get_logger
+from .e11core.utils import get_logger,smash_email
 from .e11core import grader
 
 from .doctor import run_doctor
@@ -155,13 +156,16 @@ def write_config(cp):
 
 def do_config(args):
     cp = get_config()
-    if args.get and args.section and args.name:
-        print(cp[args.section][args.name])
+    if args.get and args.section and args.key:
+        val = cp[args.section][args.key]
+        if args.key=='email' and args.smash:
+            val = smash_email(val)
+        print(val)
         return
-    if args.section and args.name and args.value:
+    if args.section and args.key and args.value:
         if args.section not in cp:
             cp.add_section(args.section)
-        cp[args.section][args.name] = args.value
+        cp[args.section][args.key] = args.value
     else:
         get_answers(cp,STUDENT,STUDENT_ATTRIBS)
     write_config(cp)
@@ -318,8 +322,9 @@ def main():
     config_parser = subparsers.add_parser('config', help='Config E11 student variables')
     config_parser.add_argument("--get",action='store_true',help='get a value')
     config_parser.add_argument("--section", help='the section to --get or --setvalue')
-    config_parser.add_argument("--name", help='the name to --get or --setvalue')
+    config_parser.add_argument("--key", help='the key to --get or --setvalue')
     config_parser.add_argument("--setvalue",help='set this value')
+    config_parser.add_argument("--smash",action='store_true',help='if key is email, smash the results')
     config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
