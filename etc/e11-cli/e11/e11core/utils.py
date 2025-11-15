@@ -2,6 +2,7 @@ import logging
 import functools
 import os
 import re
+import socket
 
 @functools.cache                # singleton
 def _configure_root_once():
@@ -35,3 +36,20 @@ def smash_email(email):
     email    = re.sub(r'[^-a-zA-Z0-9_@.+]', '', email).lower().strip()
     smashed_email = "".join(email.replace("@",".").split(".")[0:2])
     return smashed_email
+
+def tcp_peek_banner(host: str, port: int, timeout_s: float = 2.0, nbytes: int = 64) -> str:
+    """
+    Connects to host:port, reads up to nbytes (non-blocking), returns decoded banner (may be '').
+    SSH servers usually send 'SSH-2.0-...' immediately; HTTP servers send nothing until a request.
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout_s) as s:
+            s.settimeout(timeout_s)
+            try:
+                data = s.recv(nbytes)
+            except socket.timeout:
+                return ""
+            return data.decode("utf-8", errors="ignore")
+    except OSError:
+        # Connection refused/timeout => definitely not an SSH banner
+        return ""
