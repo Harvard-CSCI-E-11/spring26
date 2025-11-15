@@ -102,13 +102,11 @@ def post_image(image):
            'message':f' frame {uploaded}'
            }
 
-    print(POST_IMAGE_URL)
-    print("obj=",obj)
     form_data = urlencode(obj)
-    print("form_data=",form_data)
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
+    print("posting to",POST_IMAGE_URL)
     r = urequests.post(POST_IMAGE_URL, headers=headers, data = form_data)
     print("r=",r,r.text)
     if (r.status_code // 100) * 100 != 200:
