@@ -201,8 +201,7 @@ def do_register(args):
         errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     try:
-        emailinfo = validate_email(email, check_deliverability=False)
-        email = emailinfo.email
+        validate_email(email, check_deliverability=False)
     except EmailNotValidError as e:
         print(f"ERROR: '{email}' is not a valid email address: {e}")
         errors += 1
