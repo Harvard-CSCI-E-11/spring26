@@ -19,14 +19,14 @@ python-dotenv = "*"
 
 [[package]]
 name = "adafruit-blinka"
-version = "8.66.2"
+version = "8.67.0"
 description = "CircuitPython APIs for non-CircuitPython versions of Python such as CPython on Linux and MicroPython."
 optional = false
 python-versions = ">=3.7.0"
 groups = ["main"]
 files = [
-    {file = "adafruit_blinka-8.66.2-py3-none-any.whl", hash = "sha256:93cfd6df6c523bc1312b731bdb4d51711d3ec6e468f18c8d40e09b7339bb2574"},
-    {file = "adafruit_blinka-8.66.2.tar.gz", hash = "sha256:35f72589aa45d8738922367753f5588700b043b35611510d8efbe818d1a355fd"},
+    {file = "adafruit_blinka-8.67.0-py3-none-any.whl", hash = "sha256:ed14d50bee5b09a707eda4ed0f4e3788353fd7283b5d014d53bcfaeb6f600563"},
+    {file = "adafruit_blinka-8.67.0.tar.gz", hash = "sha256:54bb4e5c8d77f2e2efa8ff9784b933142cf4324e3bd00adf6824043d771297f8"},
 ]
 
 [package.dependencies]
@@ -70,14 +70,14 @@ Adafruit-Blinka = "*"
 
 [[package]]
 name = "adafruit-circuitpython-requests"
-version = "4.1.14"
+version = "4.1.15"
 description = "A requests-like library for web interfacing"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "adafruit_circuitpython_requests-4.1.14-py3-none-any.whl", hash = "sha256:3f5b2a3856ae9205bb022bdbb9989c617b928432ca7bf8045e719bf25ec9c35d"},
-    {file = "adafruit_circuitpython_requests-4.1.14.tar.gz", hash = "sha256:36431be6eb1471bc6c281c8b48cc50eea08f3b7b22d82619e2a0e99d53d40fee"},
+    {file = "adafruit_circuitpython_requests-4.1.15-py3-none-any.whl", hash = "sha256:62c6e44d23e8dfdc24f1f33464953019a9d88853b29fa471ac00200d4fa3e8ff"},
+    {file = "adafruit_circuitpython_requests-4.1.15.tar.gz", hash = "sha256:409cb1c9304a0ce0a4b2f64d572400007849f6972f92a4b08ebfe35a532761e7"},
 ]
 
 [package.dependencies]
@@ -305,14 +305,14 @@ files = [
 
 [[package]]
 name = "circup"
-version = "2.2.3"
+version = "2.3.0"
 description = "A tool to manage/update libraries on CircuitPython devices."
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "circup-2.2.3-py3-none-any.whl", hash = "sha256:cd6bff42808a0af4af579a8a7786d013f27b9c63c43e8706f6f3dbac48eda48d"},
-    {file = "circup-2.2.3.tar.gz", hash = "sha256:53c254ce92b7f1f894a184e24d7491e63e3416bc930582c7c942dc93b321f34b"},
+    {file = "circup-2.3.0-py3-none-any.whl", hash = "sha256:93226d034f262bcd7ffdc5e700036ddfa853be3241fd70e4e1943bafcca98d53"},
+    {file = "circup-2.3.0.tar.gz", hash = "sha256:ce5117d6353d3b3055793738b35735955d1f535566eb90a8e0f9138814b18284"},
 ]
 
 [package.dependencies]

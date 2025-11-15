@@ -1,20 +1,21 @@
-PYTHON=python3.13
-PY=.venv/bin/python
+# This needs to be updated to pyproject.toml and poetry
 
-check: $(PY)
-	$(PY) -m pytest --log-cli-level=DEBUG
+PYTHON=.venv/bin/python3.13
 
-pylint: $(PY)
-	$(PY) -m pylint leaderboard_app
+check: $(PYTHON)
+	$(PYTHON) -m pytest --log-cli-level=DEBUG
 
-local-debug: $(PY)
-	$(PY) -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
+lint: $(PYTHON)
+	$(PYTHON) -m pylint leaderboard_app
+
+local-debug: $(PYTHON)
+	$(PYTHON) -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
 
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-sync.html
-sam-sync: $(PY)
+sam-sync: $(PYTHON)
 	sam sync --code --watch
 
-deploy: $(PY)
+deploy: $(PYTHON)
 	make pylint
 	sam validate
 	sam validate --lint
@@ -24,11 +25,11 @@ deploy: $(PY)
 
 # Create the virtual environment and install both host requirements
 # and the lambda requirements for testing
-$(PY):
-	$(PYTHON) -m venv .venv
-	$(PY) -m pip install --upgrade pip
-	$(PY) -m pip install -r requirements.txt
-	$(PY) -m pip install -r leaderboard_app/requirements.txt
+$(PYTHON):
+	python3.13 -m venv .venv
+	$(PYTHON) -m pip install --upgrade pip
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -r leaderboard_app/requirements.txt
 
 distclean:
 	/bin/rm -rf .venv

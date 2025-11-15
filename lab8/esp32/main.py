@@ -1,5 +1,15 @@
-# main.py will run on the ESP32 to upload an image.
-# It can also be run from the Python command line on a laptop to test the upload
+"""
+main.py will run on the ESP32 to upload an image.
+It can also be run from the Python command line on a laptop to test the upload
+"""
+# handle the fact this really runs under micropython
+# pylint: disable=redefined-outer-name, disable=import-error, disable=ungrouped-imports
+
+import sys
+import time
+import gc
+
+from config import API_KEY,API_SECRET_KEY,POST_IMAGE_URL
 
 UPLOAD_INTERVAL_SECONDS = 10
 UPLOAD_ATTEMPTS = 6
@@ -10,12 +20,6 @@ ESP32_WROVER_BLUE_LED_PIN = 2
 ERROR_FIRST_POST_FAILED = 3
 ERROR_S3_POST_FAILED = 4
 ERROR_CAMERA_INIT_FAILED = 5
-
-from config import API_KEY,API_SECRET_KEY,POST_IMAGE_URL
-
-import sys
-import time
-import gc
 
 data = {'frames_uploaded':0}
 
@@ -30,7 +34,7 @@ except ImportError:
     led = None
 
 
-def connect_wifi(ssid, password, timeout=10):
+def connect_wifi(network, ssid, password, timeout=10):
     """Connect to Wi-Fi, retrying for `timeout` seconds. Returns True if successful."""
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
@@ -44,9 +48,8 @@ def connect_wifi(ssid, password, timeout=10):
     if wlan.isconnected():
         print("Wi-Fi connected:", wlan.ifconfig())
         return True
-    else:
-        print("Failed to connect to Wi-Fi")
-        return False
+    print("Failed to connect to Wi-Fi")
+    return False
 
 if led is not None:
     # Micropython
@@ -54,7 +57,7 @@ if led is not None:
     import urequests
     import network
     from config import WIFI_SSID, WIFI_PASSWORD
-    connect_wifi(WIFI_SSID, WIFI_PASSWORD)
+    connect_wifi(network, WIFI_SSID, WIFI_PASSWORD)
 else:
     # Cpython.
     import requests as urequests
@@ -75,18 +78,22 @@ def error_led(message, times, delay=0.2):
     blink_led(times, delay)
 
 def quote(s):
-    # encode only a-zA-Z0-9 and '-_.~'
+    """
+    URL quoting -- encode only a-zA-Z0-9 and '-_.~'
+    """
     safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~'
-    return ''.join(c if c in safe else '%%%02X' % ord(c) for c in s)
+    return ''.join(c if c in safe else '%%%02X' % ord(c) for c in s) # pylint: disable=consider-using-f-string
 
 def urlencode(params):
-    # basic urlencode implementation for MicroPython
+    """
+    basic urlencode implementation for MicroPython
+    """
     return '&'.join(f'{quote(str(k))}={quote(str(v))}' for k, v in params.items())
 
 def post_image(image):
-    #
-    # first use /api/post-image to get the presigned post
-    #
+    """
+     Use use /api/post-image to get the presigned post, then post the image.
+    """
     uploaded = data["frames_uploaded"]+1
     data["frames_uploaded"] = uploaded
 
@@ -95,16 +102,14 @@ def post_image(image):
            'message':f' frame {uploaded}'
            }
 
-    print(POST_IMAGE_URL)
-    print("obj=",obj)
     form_data = urlencode(obj)
-    print("form_data=",form_data)
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded'
     }
+    print("posting to",POST_IMAGE_URL)
     r = urequests.post(POST_IMAGE_URL, headers=headers, data = form_data)
     print("r=",r,r.text)
-    if not (200 <= r.status_code < 300 ):
+    if (r.status_code // 100) * 100 != 200:
         print("url=",POST_IMAGE_URL,"r=",r,r.text)
         error_led("first post failed",ERROR_FIRST_POST_FAILED)
         raise RuntimeError("first post failed")
@@ -144,7 +149,7 @@ def post_image(image):
     blink_led(1,0.5)      # Let socket & TCP stack settle
     gc.collect()          # force GC
 
-    if not (200 <= r.status_code < 300):
+    if (r.status_code // 100) * 100 != 200:
         error_led("S3 upload failed",ERROR_S3_POST_FAILED)
         raise RuntimeError("second post failed")
     print(f"[{time.time()}] Uploaded frame {uploaded}")
@@ -158,7 +163,10 @@ if led is not None:
 
 
     camera.deinit()
-    if not camera.init(0, d0=4, d1=5, d2=18, d3=19, d4=36, d5=39, d6=34, d7=35,format=camera.JPEG, framesize=camera.FRAME_VGA, xclk_freq=camera.XCLK_20MHz, href=23, vsync=25, reset=-1, pwdn=-1,sioc=27, siod=26, xclk=21, pclk=22,fb_location=camera.PSRAM):
+    if not camera.init(0, d0=4, d1=5, d2=18, d3=19, d4=36, d5=39, d6=34, d7=35,format=camera.JPEG,
+                       framesize=camera.FRAME_VGA, xclk_freq=camera.XCLK_20MHz, href=23, vsync=25,
+                       reset=-1, pwdn=-1,sioc=27, siod=26, xclk=21,
+                       pclk=22, fb_location=camera.PSRAM):
         error_led("Camera init failed", ERROR_CAMERA_INIT_FAILED)
         raise RuntimeError("Camera init failed")
 
@@ -188,7 +196,7 @@ if (led is None) and (__name__=='__main__'):
     try:
         with open(args.image,"rb") as f:
             image = f.read()
-    except Exception as e:
+    except FileNotFoundError as e:
         print(f"Failed to read image: {e}")
         sys.exit(1)
 

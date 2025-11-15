@@ -44,6 +44,8 @@ from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
 from e11.e11core import grader
+from e11.e11_common import users_table, sessions_table, A, COURSE_DOMAIN, EmailNotRegistered
+from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
 
 from . import common
 from . import oidc
@@ -56,18 +58,7 @@ from .sessions import (
     delete_session_from_event,
 )
 from .sessions import get_user_from_email, delete_session, expire_batch
-from .common import get_logger, add_user_log, EmailNotRegistered
-from .common import users_table, sessions_table, SESSION_TTL_SECS, A
-from .common import (
-    route53_client,
-    User,
-    convert_dynamodb_item,
-    make_cookie,
-    get_cookie_domain,
-    secretsmanager_client,
-)
-from .common import COURSE_DOMAIN, COOKIE_NAME
-
+from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS
 
 __version__ = "0.1.0"
 
@@ -178,8 +169,7 @@ def resp_png(
     status: int,
     png_bytes: bytes,
     headers: Optional[Dict[str, str]] = None,
-    cookies: Optional[list[str]] = None,
-) -> Dict[str, Any]:
+    cookies: Optional[list[str]] = None ) -> Dict[str, Any]:
     """End HTTP event processing with binary PNG"""
     LOGGER.debug("resp_png(status=%s, len=%s)", status, len(png_bytes))
     return {

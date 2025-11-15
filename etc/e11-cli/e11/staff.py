@@ -1,9 +1,18 @@
+
 """
 e11 staff commands.
 """
 
+import sys
 import os
+import time
+
+from tabulate import tabulate
+import boto3
+from boto3.dynamodb.conditions import Attr
+
 from .e11core.e11ssh import E11Ssh
+from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -19,8 +28,75 @@ def do_check_access(args):
         if err:
             print("err:\n",err)
 
+def do_register_email(args):
+    email = args.email
+    # See if the email exists
+    response = dynamodb_resource.Table('e11-users').scan(FilterExpression = Attr('email').eq(email))
+    if response.get('Items'):
+        user = response.get('Items')[0]
+        print(f"User {email} already exists.\ncourse_key={user[A.COURSE_KEY]}")
+        sys.exit(0)
+    user = create_new_user(email)
+    print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
+
+def do_report(args):
+    session = boto3.session.Session()
+    current_profile = session.profile_name
+    print(f"Current AWS Profile: {current_profile}\n")
+
+    response = dynamodb_client.list_tables()
+    print("DynamoDB Tables:")
+    for table_name in response['TableNames']:
+        table_description = dynamodb_client.describe_table(TableName=table_name)
+        item_count = table_description['Table']['ItemCount']
+        print(f"Table: {table_name}, Approximate Item Count: {item_count}")
+
+        # dump the whole table?
+        if args.dump:
+            kwargs = {}
+            while True:
+                response = dynamodb_resource.Table( table_name ).scan(**kwargs)
+                for item in response.get('Items'):
+                    print(item)
+                lek = response.get('LastEvaluatedKey')
+                if not lek:
+                    break
+                kwargs['ExclusiveStartKey'] = lek
+            print("-------------------------")
+
+    print("Users:")
+    table = dynamodb_resource.Table('e11-users')
+    kwargs = { 'FilterExpression':Attr('sk').eq('#'),
+               'ProjectionExpression': 'user_registered, email, preferred_name, claims'}
+
+    response = table.scan( **kwargs )
+    items = response['Items']
+
+    while 'LastEvaluatedKey' in response:
+        kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = table.scan( **kwargs)
+        items.extend(response['Items'])
+
+    pitems = [{"Registered":time.asctime(time.localtime(int(item['user_registered']))),
+               "Email":item.get('email'),
+               "Name":item.get('preferred_name'),
+               'HarvardKey':"YES" if item.get('claims') else "NO"} for item in items]
+
+    print(tabulate(pitems,headers='keys'))
+
+
+
 def add_parsers(parser,subparsers):
     ca = subparsers.add_parser('check-access', help='E11_STAFF: Check to see if we can access a host')
     ca.add_argument(dest='host', help='Host to check')
     ca.set_defaults(func=do_check_access)
-    parser.add_argument("--keyfile",help="SSH private ke file")
+
+    ca = subparsers.add_parser('register-email', help='E11_STAFF: Register an email address directly with DynamoDB')
+    ca.add_argument(dest='email', help='Email address to register')
+    ca.set_defaults(func=do_register_email)
+
+    ca = subparsers.add_parser('report', help='E11_STAFF: Generate a report directly from DynamoDB')
+    ca.set_defaults(func=do_report)
+    ca.add_argument("--dump",help="Dump all information", action='store_true')
+
+    parser.add_argument("--keyfile",help="SSH private key file")

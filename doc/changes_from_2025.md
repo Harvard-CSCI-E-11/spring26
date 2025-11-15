@@ -11,3 +11,4 @@ Changes from last year:
 * The old [lab5](https://github.com/Harvard-CSCI-E-11/spring25/tree/main/lab5) which involved creating a system that allowed uploading images and then feeding them through Amazon Rekognition has been split into two labs:
   - [lab5](lab5/) [Add images to your message board](https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_web&ouid=114142951656037982317)
   - [lab6](lab6/) [AI image analysis with AWS Rekognition](https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?tab=t.0)
+* Because the labs are now graded asynchronously, the results are stored in a database, and the VMs are configured to re-reigster themselves on boot and get new DNS names for their new IP addresses, there is no need for students to leave the VMs running all the time.

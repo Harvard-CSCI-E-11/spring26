@@ -176,7 +176,7 @@ def init_app(app):
                 error_message = "S3 bucket does not exist"
             else:
                 # Log the detailed error server-side, return generic error to user.
-                logging.error(f"S3 error occurred: {e}", exc_info=True)
+                logging.error("S3 error occurred: %s", e, exc_info=True)
                 error_message = "An internal S3 error has occurred"
             return {"error": error_message}
 

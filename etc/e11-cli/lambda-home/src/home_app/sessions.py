@@ -10,14 +10,21 @@ from typing import Optional
 
 from boto3.dynamodb.conditions import Key
 
-from .common import DatabaseInconsistency, EmailNotRegistered, convert_dynamodb_item
-from .common import get_logger, add_user_log
-from .common import users_table, sessions_table, SESSION_TTL_SECS, A
-from .common import User, Session, get_cookie_domain, COOKIE_NAME
+from e11.e11_common import (
+    A,
+    DatabaseInconsistency,
+    EmailNotRegistered,
+    Session,
+    User,
+    convert_dynamodb_item,
+    create_new_user,
+    sessions_table,
+    users_table,
+)
+
+from .common import get_logger, add_user_log, SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
 
 LOGGER = get_logger("home")
-COURSE_KEY_LEN = 6
-
 
 # Auth Cookie
 
@@ -25,11 +32,6 @@ COURSE_KEY_LEN = 6
 ################################################################
 ## session management - sessions are signed cookies that are stored in the DynamoDB
 ##
-
-
-def make_course_key():
-    """Make a course key"""
-    return str(uuid.uuid4())[0:COURSE_KEY_LEN]
 
 
 def parse_cookies(event) -> dict:
@@ -41,24 +43,6 @@ def parse_cookies(event) -> dict:
             k, v = c.split("=", 1)
             cookies[k] = v
     return cookies
-
-
-def create_new_user(event, claims):
-    """Create a new user. claims must include 'email'"""
-    now = int(time.time())
-    user_id = str(uuid.uuid4())
-    user = {
-        A.USER_ID: user_id,
-        A.SK: A.SK_USER,
-        A.EMAIL: claims["email"],
-        A.COURSE_KEY: make_course_key(),
-        A.USER_REGISTERED: now,
-        A.CLAIMS: claims,
-    }
-    users_table.put_item(Item=user)  # USER CREATION POINT
-    add_user_log(event, user_id, f"User {claims['email']} created", claims=claims)
-    return user_id
-
 
 def get_user_from_email(email) -> User:
     """Given an email address, get the DynamoDB user record from the users_table.
@@ -80,7 +64,6 @@ def get_user_from_email(email) -> User:
     LOGGER.debug("get_user_from_email - item=%s", item)
     return User(**convert_dynamodb_item(item))
 
-
 def new_session(event, claims) -> Session:
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
     The esid (email plus session identifier) is {email}:{uuid}
@@ -96,7 +79,9 @@ def new_session(event, claims) -> Session:
         user_id = user.user_id
     except EmailNotRegistered:
         # User doesn't exist, create new user
-        user_id = create_new_user(event, claims)
+        user = create_new_user(email, claims)
+        user_id = user[A.USER_ID]
+        add_user_log(event, user_id, f"User {claims['email']} created", claims=claims)
 
     sid = str(uuid.uuid4())
     session = {
@@ -117,7 +102,6 @@ def new_session(event, claims) -> Session:
     )
     add_user_log(event, user_id, f"Session {sid} created")
     return Session(**session)
-
 
 def get_session_from_sid(event, sid) -> Optional[Session]:
     LOGGER.debug(

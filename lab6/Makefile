@@ -11,8 +11,8 @@
 export LAB=lab6
 export PORT=8006
 
-FLASK=.venv/bin/flask
-$(FLASK):
+PYTHON=.venv/bin/python6
+$(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install
 
@@ -32,34 +32,34 @@ install-lab6-nginx:
 # Application targets
 # Run the application locally for testing
 # Note: your local machine must be authorized for your AWS account with the `aws` command.
-local-app: $(FLASK)
+local-app: $(PYTHON)
 	poetry run flask --app server.main:app run --debug --port 8006 --reload
 
 # Print help for the application
-help: $(FLASK)
+help: $(PYTHON)
 	poetry run flask --app server.main:app --help
 
 # Create a new database
-init-db: $(FLASK)
+init-db: $(PYTHON)
 	poetry run flask --app server.main:app init-db
 
 # Wipe the database and start over
-wipe-db: $(FLASK)
+wipe-db: $(PYTHON)
 	poetry run flask --app server.main:app wipe-db
 	make init-db
 
 # Generate a new api-key
-new-apikey: $(FLASK)
+new-apikey: $(PYTHON)
 	poetry run flask --app server.main:app new-apikey
 
 # Dump the database
-dump-db: $(FLASK)
+dump-db: $(PYTHON)
 	poetry run flask  --app server.main:app dump-db
 
 #
 # Software engineering targets
 
-lint:
+lint: $(PYTHON)
 	poetry run pylint server
 
 distclean:

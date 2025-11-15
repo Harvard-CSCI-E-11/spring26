@@ -1,6 +1,7 @@
 from pathlib import Path
 
 VERSION = "spring26"
+DOMAIN = 'csci-e-11.org'
 CONFIG_FILENAME = "e11-config.ini"
 COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
