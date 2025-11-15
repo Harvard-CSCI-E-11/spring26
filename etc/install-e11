@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# configure git
+git config --global pull.rebase false
+git config --global pull.ff only
+
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 export DEBIAN_FRONTEND=noninteractive
 

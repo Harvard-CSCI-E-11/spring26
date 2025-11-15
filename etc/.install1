@@ -12,15 +12,20 @@ fi
 if [ -r /etc/ssh/sshd80_config ]; then
     exit 0			# already installed
 fi
+
+# --- 1. Create independent port 80 config file ---
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd80_config
-sudo sed -i 's/#Port 22/Port 80/' /etc/ssh/sshd80_config
+sudo sed -i 's/^[#]*[[:space:]]*Port 22/Port 80/' /etc/ssh/sshd80_config
 
 # Create port80 service
-sudo cp /lib/systemd/system/ssh.service /lib/systemd/system/ssh80.service
-sudo sed -i 's|^Description=OpenBSD Secure Shell server|Description=OpenBSD Secure Shell server on port 80|' /lib/systemd/system/ssh80.service
-sudo sed -i 's|^ExecStart=.*|ExecStart=/usr/sbin/sshd -D -f /etc/ssh/sshd80_config|' /lib/systemd/system/ssh80.service
-sudo sed -i 's|^Alias=sshd.service|Alias=sshd80.service|' /lib/systemd/system/ssh80.service
-
+sudo cp /lib/systemd/system/ssh.service /etc/systemd/system/ssh80.service
+sudo sed -i \
+  -e 's|^Description=.*|Description=OpenBSD Secure Shell server on port 80|' \
+  -e '/^Requires=ssh.socket/d' \
+  -e '/^After=ssh.socket/d' \
+  -e 's|^ExecStart=.*|ExecStart=/usr/sbin/sshd -D -f /etc/ssh/sshd80_config|' \
+  -e 's|^Alias=sshd.service|Alias=sshd80.service|' \
+  /etc/systemd/system/ssh80.service
 
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
@@ -40,3 +45,6 @@ sudo cp /home/ubuntu/.ssh/authorized_keys /home/hacker/.ssh/authorized_keys
 echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJf1hjU/vrqVZeNzaJcRhtPO6C5gWdCpEtCwVYmmqeuz hacker" | sudo tee -a /home/hacker/.ssh/authorized_keys > /dev/null
 sudo chown hacker:hacker /home/hacker/.ssh/authorized_keys
 sudo chmod 600 /home/hacker/.ssh/authorized_keys
+
+# for good measure:
+systemctl daemon-reload
