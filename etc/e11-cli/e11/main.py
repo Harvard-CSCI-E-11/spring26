@@ -19,8 +19,7 @@ import requests
 from email_validator import validate_email, EmailNotValidError
 
 from . import staff
-from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,
-REPO_YEAR,DEFAULT_TIMEOUT,get_config
+from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
 from .e11core.constants import GRADING_TIMEOUT
 from .e11core.context import build_ctx, chdir_to_lab
@@ -162,10 +161,10 @@ def do_config(args):
             val = smash_email(val)
         print(val)
         return
-    if args.section and args.key and args.value:
+    if args.section and args.key and args.setvalue:
         if args.section not in cp:
             cp.add_section(args.section)
-        cp[args.section][args.key] = args.value
+        cp[args.section][args.key] = args.setvalue
     else:
         get_answers(cp,STUDENT,STUDENT_ATTRIBS)
     write_config(cp)
@@ -310,6 +309,7 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
+# pylint: disable=too-many-statements
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')

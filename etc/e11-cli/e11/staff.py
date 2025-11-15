@@ -3,6 +3,7 @@
 e11 staff commands.
 """
 
+import sys
 import os
 import time
 
@@ -34,7 +35,7 @@ def do_register_email(args):
     if response.get('Items'):
         user = response.get('Items')[0]
         print(f"User {email} already exists.\ncourse_key={user[A.COURSE_KEY]}")
-        exit(0)
+        sys.exit(0)
     user = create_new_user(email)
     print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
 

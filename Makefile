@@ -18,3 +18,6 @@ update-all:
 
 sync-all:
 	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && pwd && poetry sync) ; done
+
+install:
+	(cd etc/e11-cli; make lint && pipx install . --force)

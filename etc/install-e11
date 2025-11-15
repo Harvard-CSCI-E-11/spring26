@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
+export DEBIAN_FRONTEND=noninteractive
 
 if [ ! -r /etc/os-release ]; then
     echo /etc/os-release not found. Exiting.

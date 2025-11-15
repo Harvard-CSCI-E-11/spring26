@@ -54,7 +54,7 @@ class InvalidCookie(RuntimeError):
 
 # attributes
 
-class A:
+class A:                        # pylint: disable=too-few-public-methods
     SESSION_CREATED='session_created'
     SESSION_EXPIRE='session_expire'
     USER_ID = 'user_id'
