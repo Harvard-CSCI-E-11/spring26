@@ -1,7 +1,7 @@
 # e11.lab_tests.lab1_test
 import re
 
-from e11.e11core.decorators import timeout, retry
+from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains, assert_not_contains
 
@@ -80,7 +80,7 @@ def test_hacker_user_deleted( tr:TestRunner ):
     try:
         txt = tr.read_file("/etc/passwd")
     except Exception as e:  # pragma: no cover - surfaced to student clearly
-        raise TestFail(f"Cannot read /etc/passwd", context=str(e)) from e
+        raise TestFail("Cannot read /etc/passwd", context=str(e)) from e
     assert_not_contains(txt,"hacker")
 
 @timeout(5)
