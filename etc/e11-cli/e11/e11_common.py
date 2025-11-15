@@ -55,24 +55,22 @@ class InvalidCookie(RuntimeError):
 # attributes
 
 class A:                        # pylint: disable=too-few-public-methods
-    SESSION_CREATED='session_created'
-    SESSION_EXPIRE='session_expire'
-    USER_ID = 'user_id'
-    EMAIL = 'email'
-    PUBLIC_IP = 'public_ip'           # public IP address
-    PREFERRED_NAME = 'preferred_name'
-    HOSTNAME = 'hostname'
-    COURSE_KEY = 'course_key'
     CLAIMS = 'claims'
-    SESSION_CREATED = 'session_created'  # time_t
-    SESSION_EXPIRE = 'session_expire'    # time_t
-    USER_REGISTERED = 'user_registered'
+    COURSE_KEY = 'course_key'
+    EMAIL = 'email'
+    HOSTNAME = 'hostname'
     HOST_REGISTERED = 'host_registered'
     LAB = 'lab'
+    PREFERRED_NAME = 'preferred_name'
+    PUBLIC_IP = 'public_ip'           # public IP address
+    SESSION_CREATED = 'session_created'  # time_t
+    SESSION_EXPIRE = 'session_expire'    # time_t
     SK = 'sk'                   # sort key
-    SK_USER = '#'               # sort key for the user record
-    SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
+    SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
+    SK_USER = '#'               # sort key for the user record
+    USER_ID = 'user_id'
+    USER_REGISTERED = 'user_registered'
 
 
 def convert_dynamodb_value(value: Any) -> Any:
