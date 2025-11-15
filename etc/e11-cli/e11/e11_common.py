@@ -30,16 +30,18 @@ COURSE_KEY_LEN = 6
 
 # DynamoDB config
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
+SECRETS_REGION = os.environ.get("SECRETS_REGION","us-east-1")
+ROUTE53_REGION = "us-east-1"
 USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
 
 # DynamoDB values:
-dynamodb_client : DynamoDBClient = boto3.client("dynamodb")
+dynamodb_client : DynamoDBClient = boto3.client("dynamodb", region_name=DDB_REGION)
 dynamodb_resource : DynamoDBServiceResource = boto3.resource( 'dynamodb', region_name=DDB_REGION )
 users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
-route53_client : Route53Client = boto3.client('route53')
-secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager")
+route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
+secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
 
 # Classes
 
