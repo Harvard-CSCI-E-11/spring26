@@ -562,6 +562,8 @@ def api_heartbeat(event, context):
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
+
+
     ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
     secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
     json_key = secret.get("SecretString")
