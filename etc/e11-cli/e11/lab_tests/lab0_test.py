@@ -18,7 +18,7 @@ def test_run_command_echo( tr:TestRunner ):
     r = tr.run_command("echo hello")
     if r.exit_code != 0:
         raise TestFail("echo failed", context=r.stderr)
-    assert_contains(r.text, r"\bhello\b")
+    assert_contains(r.text, "hello")
 
 @timeout(5)
 def test_assertions_basic( _:TestRunner ): # pylint: disable=unused-argument
@@ -31,7 +31,7 @@ def test_read_file_self( tr:TestRunner ):
     # Ensure read_file works and returns non-empty content
     txt = tr.read_file(__file__)
     assert_len_between(txt, min_len=50)
-    assert_contains(txt, r"lab0_test\.py")
+    assert_contains(txt, "lab0_test.py")
 
 def test_fails( _:TestRunner ):
     # This test should fail
