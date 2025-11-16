@@ -59,6 +59,7 @@ disable = [
 [tool.pylint.design]
 # Set the maximum number of arguments for a function.
 max-args = 10
+max-branches = 20
 
 # Set the maximum number of public methods in a class.
 max-public-methods = 20
