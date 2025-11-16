@@ -7,9 +7,28 @@ import configparser
 
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
-from e11.e11core.assertions import TestFail
+from e11.e11core.assertions import TestFail,assert_contains
 
 CONFIG_FILE = "/home/ubuntu/e11-config.ini"
+AUTO_GRADER_KEY_LINE = (
+    "ssh-ed25519 "
+    "AAAAC3NzaC1lZDI1NTE5AAAAIEK/6zvwwWOO+ui4zbUYN558g+LKh5N8f3KpoyKKrmoR "
+    "auto-grader-do-not-delete"
+)
+
+
+@timeout(5)
+def test_autograder_key_present( tr:TestRunner ):
+    """
+    The autograder key must exist in ubuntu's authorized_keys.
+    """
+    auth_path = "/home/ubuntu/.ssh/authorized_keys"
+    try:
+        txt = tr.read_file(auth_path)
+    except Exception as e:  # pragma: no cover - surfaced to student clearly
+        raise TestFail(f"Cannot read {auth_path}", context=str(e)) from e
+    # Require the exact key line (comment is part of it)
+    assert_contains(txt, AUTO_GRADER_KEY_LINE)
 
 
 @timeout(5)
@@ -41,8 +60,6 @@ def test_gunicorn_running( tr:TestRunner ):
     if count==0:
         raise TestFail(f"Could not find {lab} gunicorn running")
     return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
-
-
 
 @timeout(5)
 def test_database_created( tr:TestRunner):

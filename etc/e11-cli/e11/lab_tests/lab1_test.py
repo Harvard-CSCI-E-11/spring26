@@ -3,14 +3,11 @@ import re
 
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
-from e11.e11core.assertions import TestFail, assert_contains, assert_not_contains
+from e11.e11core.assertions import TestFail, assert_not_contains
 
-# The exact line we expect in authorized_keys
-AUTO_GRADER_KEY_LINE = (
-    "ssh-ed25519 "
-    "AAAAC3NzaC1lZDI1NTE5AAAAIEK/6zvwwWOO+ui4zbUYN558g+LKh5N8f3KpoyKKrmoR "
-    "auto-grader-do-not-delete"
-)
+from e11.lab_tests import lab_common
+
+test_autograder_key_present = lab_common.test_autograder_key_present
 
 @timeout(2)
 def test_journal_retension( tr:TestRunner):
@@ -71,16 +68,3 @@ def test_hacker_user_deleted( tr:TestRunner ):
     except Exception as e:  # pragma: no cover - surfaced to student clearly
         raise TestFail("Cannot read /etc/passwd", context=str(e)) from e
     assert_not_contains(txt,"hacker")
-
-@timeout(5)
-def test_autograder_key_present( tr:TestRunner ):
-    """
-    The autograder key must exist in ubuntu's authorized_keys.
-    """
-    auth_path = "/home/ubuntu/.ssh/authorized_keys"
-    try:
-        txt = tr.read_file(auth_path)
-    except Exception as e:  # pragma: no cover - surfaced to student clearly
-        raise TestFail(f"Cannot read {auth_path}", context=str(e)) from e
-    # Require the exact key line (comment is part of it)
-    assert_contains(txt, AUTO_GRADER_KEY_LINE)

@@ -48,7 +48,7 @@ def assert_contains(content, m, context=3):
             snippet = _numbered_context(text, None, context, context)
             raise TestFail(f"Expected pattern not found: {rx.pattern}", context=snippet)
     else:
-        if content not in text:
+        if m not in text:
             snippet = _numbered_context(text, None, context, context)
             raise TestFail(f"Expected text '{m}' not found", context=snippet)
 
