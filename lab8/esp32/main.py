@@ -149,7 +149,7 @@ def post_image(image):
     blink_led(1,0.5)      # Let socket & TCP stack settle
     gc.collect()          # force GC
 
-    if not (r.status_code // 100 * 100) != 200 :
+    if (r.status_code // 100) * 100 != 200:
         error_led("S3 upload failed",ERROR_S3_POST_FAILED)
         raise RuntimeError("second post failed")
     print(f"[{time.time()}] Uploaded frame {uploaded}")
