@@ -198,7 +198,7 @@ def do_register(args):
     public_ip = cp[STUDENT].get(INSTANCE_PUBLIC_IP)
     if public_ip != get_public_ip():
         if args.fixip:          # silently fix the IP address
-            cp.set(STUDENT,INSTANCE_PUBLIC_IP,get_public_ip)
+            cp.set(STUDENT,INSTANCE_PUBLIC_IP,get_public_ip())
             write_config(cp)
         else:
             print(f"ERROR: This instance does not have the public IP address {public_ip}.")
