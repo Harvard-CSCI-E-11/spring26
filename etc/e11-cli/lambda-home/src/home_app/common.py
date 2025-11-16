@@ -13,7 +13,7 @@ from os.path import dirname, join, isdir
 from e11.e11_common import COURSE_DOMAIN, users_table, A
 
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
-
+DNS_TTL = 30
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",COURSE_DOMAIN)

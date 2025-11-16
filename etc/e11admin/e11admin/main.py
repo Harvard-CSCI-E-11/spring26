@@ -18,7 +18,7 @@ def validate_dynamodb():
     print("DynamoDB Tables:")
     for table_name in r['TableNames']:
         print(f"- {table_name}")
-    for name in ['Leaderboard','e11-users','home-app-sessions']:
+    for name in ['Leaderboard','e11-users','home-app-prod-sessions','home-app-stage-sessions']:
         assert name in r['TableNames']
 
 def get_all_sk(sk, projection=None):
@@ -45,12 +45,16 @@ def get_all_sk(sk, projection=None):
 
 def show_registered_users():
     users = get_all_sk('#',projection='user_registered,email,claims')
-    pusers = [ (user['claims']['name'], user['email'], time.asctime(time.localtime(int(user['user_registered']))))
+    pusers = [ (user.get('preferred_name','n/a'),
+                user.get('email','n/a'),
+                time.asctime(time.localtime(int(user.get('user_registered',0)))),
+                user.get('public_ip','n/a/')
+                )
               for user in users]
     pusers.sort()
-    print(tabulate(pusers,headers=['name','email','registered']))
+    print(tabulate(pusers,headers=['name','email','registered','public_ip']))
 
-def dump_users_table():
+def dump_users_table(args):
     items = []
     response = users_table.scan()
     items.extend(response['Items'])
@@ -62,16 +66,24 @@ def dump_users_table():
         items.extend(response['Items'])
 
     print(f"Scan complete. Found {len(items)} items")
+    printable = {}
     for item in items:
-        #print(item)
-        print(item['sk'])
+        user_id = item['user_id']
+        if user_id not in printable:
+            printable[user_id] = user_id[0:3] + " " + item.get('preferred_name','')[0:15]
+        print(printable[user_id],item['sk'],item.get('message','')[0:40])
+        if item['sk']=='#':
+            print(item)
+        if args.dump:
+            print(item)
 
 def main():
-    parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program')
+    parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--dump", help='Dump all ', action='store_true')
     args = parser.parse_args()
     validate_dynamodb()
     show_registered_users()
-    #dump_users_table()
+    dump_users_table(args)
 
 
 if __name__=="__main__":

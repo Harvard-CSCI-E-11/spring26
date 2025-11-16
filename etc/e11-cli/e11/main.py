@@ -197,8 +197,12 @@ def do_register(args):
     # Check the IP address
     public_ip = cp[STUDENT].get(INSTANCE_PUBLIC_IP)
     if public_ip != get_public_ip():
-        print(f"ERROR: This instance does not have the public IP address {public_ip}.")
-        errors += 1
+        if args.fixip:          # silently fix the IP address
+            cp.set(STUDENT,INSTANCE_PUBLIC_IP,get_public_ip)
+            write_config(cp)
+        else:
+            print(f"ERROR: This instance does not have the public IP address {public_ip}.")
+            errors += 1
     email = cp[STUDENT][STUDENT_EMAIL]
     try:
         validate_email(email, check_deliverability=False)
@@ -310,11 +314,10 @@ def do_check(args):
 
 # pylint: disable=too-many-statements
 def main():
-    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access')
+    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
-    parser.add_argument('--quiet', help='Run quietly', action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # e11 config
@@ -338,7 +341,11 @@ def main():
     access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
 
     # Other primary commands
-    subparsers.add_parser('register', help='Register this instance').set_defaults(func=do_register)
+    register_parser = subparsers.add_parser('register', help='Register this instance')
+    register_parser.set_defaults(func=do_register)
+    register_parser.add_argument('--quiet', help='Run quietly', action='store_true')
+    register_parser.add_argument('--fixip', help='Fix the IP address', action='store_true')
+
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)

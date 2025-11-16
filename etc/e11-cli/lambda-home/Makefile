@@ -2,7 +2,7 @@
 # Uses Poetry for dependency management and Make for SAM/AWS task running.
 
 # SAM/AWS Configuration (unchanged)
-STACK           ?= home-app
+STACK_PROD      ?= home-app-prod
 STACK_STAGE     ?= home-app-stage
 CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 REGION          ?= us-east-1
@@ -86,17 +86,17 @@ stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt vend-e1
 .PHONY: functions
 functions:
 	@echo "Production function:"
-	@aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
+	aws cloudformation describe-stacks --stack-name $(STACK_PROD) --region $(REGION) --profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 	@echo "Stage function:"
-	@aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
+	aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(REGION) --profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
 # Tail logs
 .PHONY: prod-tail
 prod-tail:
 	@echo "Tailing production logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK) --region $(REGION) --profile $(PROFILE) \
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_PROD) --region $(REGION) --profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
 		--since 15m --follow --region $(REGION) --profile $(PROFILE)
 
@@ -112,7 +112,7 @@ stage-tail:
 .PHONY: fetch-zip-prod
 fetch-zip-prod:
 	@FUNC=$$(aws cloudformation describe-stacks \
-		--stack-name $(STACK) \
+		--stack-name $(STACK_PROD) \
 		--region $(REGION) \
 		--profile $(PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' \
@@ -134,7 +134,7 @@ urls:
 # Show deployment info
 .PHONY: info
 info:
-	@echo "Production Stack: $(STACK)"
+	@echo "Production Stack: $(STACK_PROD)"
 	@echo "Stage Stack: $(STACK_STAGE)"
 	@echo "Region: $(REGION)"
 	@echo "Profile: $(PROFILE)"
