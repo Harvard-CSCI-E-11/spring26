@@ -260,12 +260,12 @@ def do_grade(args):
         return
 
     ep = endpoint(args)
-    print(f"Requesting {ep} to grade {lab}...")
+    print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     cp = get_config()
     r = requests.post(ep, json={'action':'grade',
                                 'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
                                 'lab': lab},
-                      timeout = GRADING_TIMEOUT+5 ) # wait for 5 seconds longer than server waits
+        timeout = args.timeout )
     result = r.json()
     if not r.ok:
         print("Error: ",r.text)
@@ -362,6 +362,7 @@ def main():
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
     grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
     grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading',type=pathlib.Path)
+    grade_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]
