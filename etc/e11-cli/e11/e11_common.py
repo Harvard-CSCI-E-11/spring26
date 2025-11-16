@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 from decimal import Decimal
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
@@ -95,11 +95,11 @@ class User(DictLikeModel):
     email: str
     course_key: str
     user_registered: int
-    preferred_name: Optional[str] = None
-    claims: Dict[str, Any]
-    public_ip: Optional[str] = None
-    hostname: Optional[str] = None
-    host_registered: Optional[int] = None
+    preferred_name: str|None = None
+    claims: dict[str, Any] | None = None
+    public_ip: str|None = None
+    hostname: str|None = None
+    host_registered: int|None = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
     @field_validator('user_registered', mode='before')
@@ -115,7 +115,7 @@ class Session(DictLikeModel):
     email: str                  # used to find the user in the Users table
     session_created: int
     session_expire: int
-    claims: Dict[str, Any]
+    claims: dict[str, Any] | None
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
     @field_validator('session_created', 'session_expire', mode='before')

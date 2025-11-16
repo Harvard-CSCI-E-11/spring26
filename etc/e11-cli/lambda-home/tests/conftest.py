@@ -64,7 +64,7 @@ def fake_idp_server():
 def fake_aws(monkeypatch):
     """Monkeypatch Secrets Manager + DynamoDB used by home.py."""
     from home_app import home
-    from home_app import common
+    from e11 import e11_common
 
     class FakeSecrets:
         def get_secret_value(self, SecretId):
@@ -213,7 +213,7 @@ def fake_aws(monkeypatch):
     monkeypatch.setenv("SESSIONS_TABLE_NAME", "sessions-table")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
 
-    monkeypatch.setattr(common, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(e11_common, "secretsmanager_client", FakeSecrets())
     monkeypatch.setattr(home, "users_table", FakeTable())
     monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
     yield

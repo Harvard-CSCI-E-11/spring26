@@ -2,15 +2,15 @@ import json
 import pytest
 import os
 
+from e11.e11_common import User
 import home_app.home as home
-from home_app.common import User
 from home_app.home import EmailNotRegistered
 
 from test_utils import (
     create_test_config_data, create_test_auth_data,
     create_registration_payload, create_lambda_event, create_test_config_file,
     assert_dynamodb_updated, assert_route53_called, assert_ses_email_sent,
-    assert_response_success, setup_aws_mocks
+    assert_response_success, setup_aws_mocks, apply_all_aws_mocks
 )
 
 from conftest import expected_hostnames
@@ -48,7 +48,7 @@ def test_registration_api_flow(monkeypatch):
     """Test that registration parameters flow correctly from e11 CLI to home.py backend"""
 
     # Setup mocked AWS services
-    mock_aws = setup_aws_mocks(monkeypatch)
+    mock_aws = apply_all_aws_mocks(monkeypatch)
 
     # Create test data using common utilities
     config_data = create_test_config_data()
@@ -172,7 +172,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
     """Test registration API with returning user (Flow 2: existing user + new session)"""
 
     # Setup mocked AWS services
-    mock_aws = setup_aws_mocks(monkeypatch)
+    mock_aws = apply_all_aws_mocks(monkeypatch)
 
     # Create test data using common utilities
     config_data = create_test_config_data()

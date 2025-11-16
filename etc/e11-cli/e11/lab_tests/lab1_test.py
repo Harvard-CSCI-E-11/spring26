@@ -13,17 +13,6 @@ AUTO_GRADER_KEY_LINE = (
 )
 
 @timeout(2)
-def test_hostname( tr:TestRunner ):
-    """
-    See if the hostname program works
-    """
-    r = tr.run_command("hostname")
-    if r.exit_code !=0:
-        raise TestFail("hostname command does not work")
-    return r.stdout
-
-
-@timeout(2)
 def test_journal_retension( tr:TestRunner):
     """
     check if the journal retains for 6 months

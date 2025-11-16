@@ -4,19 +4,18 @@ import logging
 
 import home_app.home as home
 import home_app.sessions as sessions
-import home_app.common as common
 import home_app.oidc as oidc
+import e11.e11_common as e11_common
+from e11.e11_common import User
 
-from test_utils import create_lambda_event, setup_oidc_mocks, setup_sessions_mocks, setup_aws_mocks
+from test_utils import create_lambda_event, setup_oidc_mocks, setup_sessions_mocks, apply_all_aws_mocks
 
 def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
-    # Set up mocked AWS services using common utilities
-    setup_aws_mocks(monkeypatch)  # Add DynamoDB table mock first
+    apply_all_aws_mocks(monkeypatch)                # Centralized AWS mocks
     setup_oidc_mocks(monkeypatch, fake_idp_server)  # Then override with OIDC-specific mocks
     setup_sessions_mocks(monkeypatch)
 
     # Mock the get_user_from_email function to return a test user
-    from home_app.common import User
     def mock_get_user_from_email(email):
         return User(**{
             'user_id': 'test-user-id',
@@ -30,7 +29,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     monkeypatch.setattr(sessions, 'get_user_from_email', mock_get_user_from_email)
 
     # Debug: Check if the monkeypatch worked
-    print(f"**1 secretsmanager_client type: {type(common.secretsmanager_client)}")
+    print(f"**1 secretsmanager_client type: {type(e11_common.secretsmanager_client)}")
 
     # 1) GET "/" should embed login URL
     resp = home.lambda_handler(create_lambda_event("/"), None)
