@@ -83,4 +83,4 @@ def test_autograder_key_present( tr:TestRunner ):
     except Exception as e:  # pragma: no cover - surfaced to student clearly
         raise TestFail(f"Cannot read {auth_path}", context=str(e)) from e
     # Require the exact key line (comment is part of it)
-    assert_contains(txt, re.escape(AUTO_GRADER_KEY_LINE))
+    assert_contains(txt, AUTO_GRADER_KEY_LINE)

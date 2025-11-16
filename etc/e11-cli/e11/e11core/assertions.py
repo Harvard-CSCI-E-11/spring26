@@ -38,13 +38,20 @@ def _numbered_context(text: str, match_span=None, lines_before=3, lines_after=3)
         out.append(f"{i+1:5d}{prefix} {lines[i]}")
     return "\n".join(out)
 
-def assert_contains(content, pattern, flags=0, context=3):
+def assert_contains(content, m, context=3):
     text = _coerce_text(content)
-    rx = pattern if hasattr(pattern, "search") else re.compile(pattern, flags)
-    m = rx.search(text)
-    if not m:
-        snippet = _numbered_context(text, None, context, context)
-        raise TestFail(f"Expected pattern not found: {rx.pattern}", context=snippet)
+    snippet = text[0:40]
+    if isinstance(m,re.Pattern):
+        rx = m            # pattern is a regular expression
+        m = rx.search(text)
+        if not m:
+            snippet = _numbered_context(text, None, context, context)
+            raise TestFail(f"Expected pattern not found: {rx.pattern}", context=snippet)
+    else:
+        if content not in text:
+            snippet = _numbered_context(text, None, context, context)
+            raise TestFail(f"Expected text '{m}' not found", context=snippet)
+
 
 def assert_not_contains(content, pattern, flags=0, context=3):
     text = _coerce_text(content)
