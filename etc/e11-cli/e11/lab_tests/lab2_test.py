@@ -53,9 +53,20 @@ def get_cert_organization(cert):
 def domain(tr):
     return f"{tr.ctx['smashedemail']}.csci-e-11.org"
 
-def test_nginx( tr:TestRunner ):
+@timeout(2)
+def test_hostname( tr:TestRunner ):
     """
     See if the hostname program works
+    """
+    r = tr.run_command("hostname")
+    if r.exit_code !=0:
+        raise TestFail("hostname command does not work")
+    return r.stdout
+
+
+def test_nginx( tr:TestRunner ):
+    """
+    See if the nginx program is installed
     """
     servers = get_nginx_servers(tr)
     d = domain(tr)
@@ -65,7 +76,7 @@ def test_nginx( tr:TestRunner ):
 
 def test_home( tr:TestRunner ):
     """
-    See if the hostname program works
+    See if the home certificate is installed.
     """
     d = domain(tr)
     url = f"https://{d}/"
