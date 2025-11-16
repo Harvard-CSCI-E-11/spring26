@@ -13,14 +13,10 @@ from e11.e11core.assertions import assert_contains, TestFail
 
 from . import lab_common
 
-def test_venv_present( tr:TestRunner):
-    return lab_common.test_venv_present(tr)
-
-def test_nginx_config_syntax_ok( tr:TestRunner):
-    return lab_common.test_nginx_config_syntax_okay( tr )
-
-def test_gunicorn_running( tr:TestRunner ):
-    return lab_common.test_gunicorn_running(tr)
+test_autograder_key_present = lab_common.test_autograder_key_present
+test_venv_present = lab_common.test_venv_present
+test_nginx_config_syntax_ok = lab_common.test_nginx_config_syntax_okay
+test_gunicorn_running = lab_common.test_gunicorn_running
 
 
 @retry(times=3, backoff=0.25)

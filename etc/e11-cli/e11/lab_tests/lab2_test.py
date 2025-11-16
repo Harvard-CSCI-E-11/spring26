@@ -5,13 +5,15 @@ lab2 tester
 import tempfile
 import urllib
 import urllib.request
-
-import crossplane               # type: ignore
+import crossplane               # type: ignore // parser for nginx files
 
 # pylint: disable=unused-import
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
+from e11.lab_tests import lab_common
+
+test_autograder_key_present = lab_common.test_autograder_key_present
 
 STUDENT_USER = 'student'
 STUDENT_AUTH = 'secret'

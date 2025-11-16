@@ -9,7 +9,7 @@ Wants=network-online.target
 Type=oneshot
 User=ubuntu
 ExecStartPre=/bin/sleep 60
-ExecStart=/home/ubuntu/.local/bin/e11 register --quiet
+ExecStart=/home/ubuntu/.local/bin/e11 register --quiet --fixip
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 [Install]

@@ -47,7 +47,6 @@ from e11.e11core import grader
 from e11.e11_common import users_table, sessions_table, A, COURSE_DOMAIN, EmailNotRegistered
 from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
 
-from . import common
 from . import oidc
 from . import sessions
 
@@ -58,7 +57,7 @@ from .sessions import (
     delete_session_from_event,
 )
 from .sessions import get_user_from_email, delete_session, expire_batch
-from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS
+from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
 
 __version__ = "0.1.0"
 
@@ -97,7 +96,7 @@ def eastern_filter(value):
 # jinja2
 env = Environment(
     loader=FileSystemLoader(
-        ["templates", common.TEMPLATE_DIR, os.path.join(common.NESTED, "templates")]
+        ["templates", TEMPLATE_DIR, os.path.join(NESTED, "templates")]
     )
 )
 env.filters["eastern"] = eastern_filter
@@ -210,10 +209,10 @@ def static_file(fname):
     headers = {}
     try:
         if fname.endswith(".png"):
-            with open(join(common.STATIC_DIR, fname), "rb") as f:
+            with open(join(STATIC_DIR, fname), "rb") as f:
                 return resp_png(200, f.read())
 
-        with open(join(common.STATIC_DIR, fname), "r", encoding="utf-8") as f:
+        with open(join(STATIC_DIR, fname), "r", encoding="utf-8") as f:
             if fname.endswith(".css"):
                 headers["Content-Type"] = "text/css; charset=utf-8"
             return resp_text(200, f.read(), headers=headers)
@@ -512,7 +511,7 @@ def api_register(event, payload):
         ChangeTypeDef( Action="UPSERT",
                        ResourceRecordSet={ "Name": hostname,
                                            "Type": "A",
-                                           "TTL": 300, "ResourceRecords": [{"Value": public_ip}]
+                                           "TTL": DNS_TTL, "ResourceRecords": [{"Value": public_ip}]
                                           }
                       ) for hostname in hostnames ]
 
@@ -586,11 +585,11 @@ def api_grader(event, context, payload):
     lab = payload["lab"]
     public_ip = user.public_ip
     email = user.email
-    add_user_log(None, user.user_id, "Grading lab {lab} starts")
+    add_user_log(None, user.user_id, f"Grading lab {lab} starts")
     summary = grader.grade_student_vm(
         user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT)
     )
-    add_user_log(None, user.user_id, "Grading lab {lab} ends")
+    add_user_log(None, user.user_id, f"Grading lab {lab} ends")
 
     # Record grades
     now = datetime.datetime.now().isoformat()
