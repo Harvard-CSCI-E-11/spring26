@@ -1,5 +1,5 @@
 # e11.lab_tests.lab1_test
-import re
+
 
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
