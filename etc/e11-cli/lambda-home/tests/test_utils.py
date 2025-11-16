@@ -137,13 +137,13 @@ class MockedAWSServices:
 
         # Apply mocks
         import home_app.home as home
-        import home_app.common as common
+        import e11.e11_common as e11_common
 
-        monkeypatch.setattr(home, 'users_table', MockDynamoDBTable(self))
-        monkeypatch.setattr(common, 'users_table', MockDynamoDBTable(self))
-        monkeypatch.setattr(home, 'route53_client', MockRoute53(self))
         monkeypatch.setattr(home, 'ses_client', MockSES(self))
-        monkeypatch.setattr(common, 'secretsmanager_client', MockSecretsManager(self))
+        monkeypatch.setattr(e11_common, 'route53_client', MockRoute53(self))
+        monkeypatch.setattr(e11_common, 'users_table', MockDynamoDBTable(self))
+        monkeypatch.setattr(e11_common, 'secretsmanager_client', MockSecretsManager(self))
+        monkeypatch.setattr(e11_common, 'users_table', MockDynamoDBTable(self))
 
         # Set environment variables
         monkeypatch.setenv('OIDC_SECRET_ID', 'fake-secret-id')
@@ -323,7 +323,7 @@ def setup_aws_mocks(monkeypatch, **config):
 
 def setup_oidc_mocks(monkeypatch, fake_idp_server):
     """Setup OIDC-specific mocks"""
-    import home_app.common as common
+    import e11.e11_common as e11_common
 
     class FakeSecrets:
         def get_secret_value(self, SecretId):
@@ -335,7 +335,7 @@ def setup_oidc_mocks(monkeypatch, fake_idp_server):
                 "secret_key": "client-secret-xyz",
             })}
 
-    monkeypatch.setattr(common, "secretsmanager_client", FakeSecrets())
+    monkeypatch.setattr(e11_common, "secretsmanager_client", FakeSecrets())
     return fake_idp_server
 
 
@@ -343,10 +343,34 @@ def setup_sessions_mocks(monkeypatch):
     """Setup sessions table mocks"""
     import home_app.home as home
     import home_app.sessions as sessions
-    import home_app.common as common
+    import e11.e11_common as e11_common
 
     fake_sessions = MockedSessionsTable()
     monkeypatch.setattr(home, "sessions_table", fake_sessions)
     monkeypatch.setattr(sessions, "sessions_table", fake_sessions)
-    monkeypatch.setattr(common, "sessions_table", fake_sessions)
+    monkeypatch.setattr(e11_common, "sessions_table", fake_sessions)
     return fake_sessions
+
+
+def apply_all_aws_mocks(monkeypatch):
+    """
+    Apply consolidated AWS mocks and also patch consumer modules that imported
+    attributes by value from e11.e11_common. This avoids brittle import-time
+    bindings during refactors.
+    """
+    mock_aws = setup_aws_mocks(monkeypatch)
+
+    # Import after base mocks are set so we bind to the mocked objects
+    import e11.e11_common as e11_common
+    import home_app.home as home
+    import home_app.sessions as sessions
+    import home_app.common as common
+
+    # Ensure consumer modules reference the same mocked tables/clients
+    monkeypatch.setattr(home, "users_table", e11_common.users_table)
+    monkeypatch.setattr(sessions, "users_table", e11_common.users_table)
+    monkeypatch.setattr(common, "users_table", e11_common.users_table)
+    monkeypatch.setattr(home, "route53_client", e11_common.route53_client)
+    monkeypatch.setattr(home, "secretsmanager_client", e11_common.secretsmanager_client)
+
+    return mock_aws

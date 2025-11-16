@@ -3,8 +3,8 @@ import pytest
 import os
 from unittest.mock import Mock, patch
 
+from e11.e11_common import User
 import home_app.home as home
-from home_app.common import User
 
 from conftest import expected_hostnames
 
