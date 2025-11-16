@@ -12,7 +12,7 @@ AMI=ami-05eb56e0befdb025f
 list-running-instances:
 	aws ec2 describe-instances \
 	  --filters "Name=instance-state-name,Values=running" \
-	  --region us-east-2 \
+	  --region $(REGION) \
 	  --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,PublicIP:PublicIpAddress,LaunchTime:LaunchTime,AZ:Placement.AvailabilityZone}' \
 	  --output table
 
