@@ -524,11 +524,11 @@ def api_register(event, payload):
         add_user_log(event, user.user_id, f"DNS updated for {h}.{COURSE_DOMAIN}")
 
     # Send email notification using SES if there is a new record or a changed record
-    if new_records>0 or changed_records>0 or verbose:
+    if new_records > 0 or changed_records > 0 or verbose:
         subject = "CSCI E-11 Update: "
-        if new_records>0:
+        if new_records > 0:
             subject += f"New DNS records created for {hostnames[0]}"
-        if changed_records>0:
+        if changed_records > 0:
             subject += f"DNS records updated for {hostnames[0]}"
         send_email(to_addr=email,
                    email_subject = subject,
