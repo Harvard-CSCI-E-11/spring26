@@ -524,12 +524,13 @@ def api_register(event, payload):
         add_user_log(event, user.user_id, f"DNS updated for {h}.{COURSE_DOMAIN}")
 
     # Send email notification using SES if there is a new record or a changed record
-    if new_records>0 or changed_records>0 or verbose:
-        subject = "CSCI E-11 Update: "
-        if new_records>0:
-            subject += f"New DNS records created for {hostnames[0]}"
-        if changed_records>0:
-            subject += f"DNS records updated for {hostnames[0]}"
+    if new_records > 0 or changed_records > 0 or verbose:
+        subject_parts = []
+        if new_records > 0:
+            subject_parts.append(f"New DNS records created for {hostnames[0]}")
+        if changed_records > 0:
+            subject_parts.append(f"DNS records updated for {hostnames[0]}")
+        subject = "CSCI E-11 Update: " + "; ".join(subject_parts) if subject_parts else "CSCI E-11 Update"
         send_email(to_addr=email,
                    email_subject = subject,
                    email_body = EMAIL_BODY.format(
@@ -538,7 +539,9 @@ def api_register(event, payload):
                        course_key=user.course_key,
                        preferred_name=user.preferred_name))
         add_user_log(event, user.user_id, f'Registration email sent to {email}')
-    return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+        return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+    else:
+        return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
 
 
 def api_heartbeat(event, context):
