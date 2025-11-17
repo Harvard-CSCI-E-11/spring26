@@ -263,7 +263,8 @@ def do_grade(args):
     print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     cp = get_config()
     r = requests.post(ep, json={'action':'grade',
-                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
+                                        COURSE_KEY:cp[STUDENT][COURSE_KEY]},
                                 'lab': lab},
         timeout = args.timeout )
     result = r.json()
@@ -314,7 +315,8 @@ def do_check(args):
 
 # pylint: disable=too-many-statements
 def main():
-    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
@@ -337,7 +339,8 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
-    access_subparsers.add_parser('check-dashboard', help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
+    access_subparsers.add_parser('check-dashboard',
+                                 help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
     access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
 
     # Other primary commands

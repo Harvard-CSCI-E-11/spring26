@@ -20,7 +20,7 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "e11 home Lambda (Unified Prod/Stage)"
+Description: "CSCI E-11 Home Lambda (Unified Prod/Stage)"
 
 Mappings:
   EnvConfig:
@@ -59,7 +59,7 @@ Parameters:
     Description: DynamoDB table name for users
   HostedZoneId:
     Type: String
-    Description: Route53 Hosted Zone ID (e.g., Z0123456789ABCDEF)
+    Description: Route53 Hosted Zone ID for csci-e-11.org (e.g., Z0123456789ABCDEF)
   CertificateArn:
     Type: String
     Default: ""
@@ -91,7 +91,7 @@ Resources:
         - DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
           HostedZoneId: !Ref HostedZoneId
 
-  # HTTP API fronting the Lambda, bound to the domain in Route53
+  # HTTP API fronting the Lambda, bound to specified domain
   HomeHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
