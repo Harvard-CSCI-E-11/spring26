@@ -2,12 +2,12 @@
 lab2 tester
 """
 
+import re
+import os
 import tempfile
 import urllib
 import urllib.request
 import crossplane               # type: ignore // parser for nginx files
-import re
-import os
 
 # pylint: disable=unused-import
 from e11.e11core.decorators import timeout, retry
