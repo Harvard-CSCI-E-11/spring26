@@ -84,7 +84,7 @@ def test_hostname( tr:TestRunner ):
     """
     See if the hostname program works
     """
-    r = tr.run_command("hostname")
+    r = tr.run_command("hostname").strip()
     if r.exit_code !=0:
         raise TestFail("hostname command does not work")
     return r.stdout
