@@ -236,14 +236,23 @@ def do_register(args):
             'verbose':verbose,
             'registration' : dict(cp[STUDENT])}
 
-    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
-    if not r.ok:
-        print("Registration failed: ",r.text)
-    else:
-        if verbose:
-            print("Registered!")
-            print("Message: ",r.json()['message'])
-            print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
+    MAX_RETRIES = 3
+    for n in range(1,MAX_RETRIES+1):
+        try:
+            r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
+            if not r.ok:
+                print("Registration failed: ",r.text)
+                sys.exit(1)
+        except TimeoutError:
+            if n==MAX_RETRIES:
+                print("Retries reached. Please contact course support and try again later")
+                sys.exit(1)
+            print(f"retrying... {n}/{MAX_RETRIES}")
+
+    if verbose:
+        print("Registered!")
+        print("Message: ",r.json()['message'])
+        print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
 
 
 def do_grade(args):

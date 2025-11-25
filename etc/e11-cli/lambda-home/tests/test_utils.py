@@ -10,6 +10,7 @@ import tempfile
 import configparser
 from typing import Dict, Any, List, Optional
 
+from home_app.common import DNS_TTL
 
 logger = logging.getLogger()
 
@@ -279,7 +280,7 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
     for change in changes:
         assert change['Action'] == 'UPSERT'
         assert change['ResourceRecordSet']['Type'] == 'A'
-        assert change['ResourceRecordSet']['TTL'] == 300
+        assert change['ResourceRecordSet']['TTL'] == DNS_TTL
         assert change['ResourceRecordSet']['ResourceRecords'][0]['Value'] == expected_ip
         assert change['ResourceRecordSet']['Name'] in expected_hostnames
 
