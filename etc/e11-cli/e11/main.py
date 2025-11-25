@@ -183,6 +183,7 @@ def do_answer(args):
     get_answers(cp, args.lab, ANSWERS[args.lab])
     write_config(cp)
 
+# pylint: disable=too-many-statements
 def do_register(args):
     errors = 0
     verbose = not args.quiet
