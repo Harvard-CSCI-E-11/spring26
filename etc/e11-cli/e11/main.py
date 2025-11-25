@@ -7,7 +7,6 @@ import argparse
 import sys
 import os
 import json
-import pathlib
 import re
 
 import dns
