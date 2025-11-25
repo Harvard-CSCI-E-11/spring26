@@ -47,7 +47,7 @@ def discover_and_run(ctx):
     try:
         mod = _import_tests_module(lab)
     except ModuleNotFoundError:
-        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test"}
+        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. Please contact course admin."}
 
     # Create the test runner
     if ctx.get("pkey_pem",None):
@@ -89,7 +89,7 @@ def discover_and_run(ctx):
 
     score = 5.0 * (len(passes) / len(tests)) if tests else 0.0
     # return the summary
-    return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx":ctx}
+    return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx":ctx, "error":False}
 
 
 def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str):
