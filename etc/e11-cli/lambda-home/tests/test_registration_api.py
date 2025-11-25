@@ -88,7 +88,7 @@ def test_registration_api_flow(monkeypatch):
         response = home.api_register(event, registration_payload)
 
         # Verify the response using common utility
-        assert_response_success(response, 'DNS record created and email sent successfully')
+        assert_response_success(response, 'DNS updated and email sent successfully')
 
         # Verify DynamoDB was called with correct data using common utility
         assert_dynamodb_updated(mock_aws, 'test-user-id', {
@@ -216,7 +216,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
         response = home.api_register(event, registration_payload)
 
         # Verify the response using common utility
-        assert_response_success(response, 'DNS record created and email sent successfully')
+        assert_response_success(response, 'DNS updated and email sent successfully')
 
         # Verify DynamoDB was called with correct data using common utility
         assert_dynamodb_updated(mock_aws, 'existing-user-id', {
