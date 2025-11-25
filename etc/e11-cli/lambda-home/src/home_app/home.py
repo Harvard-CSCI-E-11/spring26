@@ -540,8 +540,7 @@ def api_register(event, payload):
                        preferred_name=user.preferred_name))
         add_user_log(event, user.user_id, f'Registration email sent to {email}')
         return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
-    else:
-        return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
+    return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
 
 
 def api_heartbeat(event, context):
