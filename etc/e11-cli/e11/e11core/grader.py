@@ -103,8 +103,8 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str):
         ctx["smashedemail"] = smashed
     ctx["public_ip"] = public_ip  # ensure provided IP used
     ctx["pkey_pem"]  = pkey_pem
-
     summary = discover_and_run(ctx)
+    ctx["pkey_pem"]  = "<censored>"
     return summary
 
 def create_email(summary):
