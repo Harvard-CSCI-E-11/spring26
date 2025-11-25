@@ -259,12 +259,19 @@ def do_register(args):
 def do_grade(args):
     lab = args.lab
     if args.direct:
-        if not args.identity:
-            print("--direct requires [-i | --identity | --pkey_pem ]")
-            sys.exit(1)
         cp = get_config()
-        print(f"Grading Direct: {cp['student']['email']}@{cp['student']['public_ip']} for {lab}")
-        summary = grader.grade_student_vm(cp['student']['email'],cp['student']['public_ip'],lab,pkey_pem=args.identity.read_text())
+        email     = cp['student']['email']
+        public_ip = cp['vm']['public_ip']
+        if not args.identity:
+            print("--direct requires [-i | --identity | --pkey_pem ]",file=sys.stderr)
+            sys.exit(1)
+        if args.identity.endswith(".pub"):
+            args.identity = args.identity.replace(".pub","")
+        print(f"Grading Direct: {email}@{public_ip} for {lab} with SSH key {args.identity}")
+        summary = grader.grade_student_vm(email,public_ip,lab,key_filename=args.identity)
+        if summary.get('error'):
+            print("summary error:",summary)
+            sys.exit(1)
         (_,body) = grader.create_email(summary)
         print(body)
         return
@@ -373,8 +380,8 @@ def main():
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
-    grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
-    grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading',type=pathlib.Path)
+    grade_parser.add_argument('--direct', help='Instead of grading [student]public_ip from server, grade from this system. Requires SSH access to target',action='store_true')
+    grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading')
     grade_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     grade_parser.set_defaults(func=do_grade)
 

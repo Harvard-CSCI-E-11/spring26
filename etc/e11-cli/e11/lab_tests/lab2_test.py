@@ -6,6 +6,8 @@ import tempfile
 import urllib
 import urllib.request
 import crossplane               # type: ignore // parser for nginx files
+import re
+import os
 
 # pylint: disable=unused-import
 from e11.e11core.decorators import timeout, retry
@@ -13,8 +15,10 @@ from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
 from e11.lab_tests import lab_common
 
-test_autograder_key_present = lab_common.test_autograder_key_present
+from e11.e11core.utils import get_logger
 
+test_autograder_key_present = lab_common.test_autograder_key_present
+LOGGER = get_logger("testrunner")
 STUDENT_USER = 'student'
 STUDENT_AUTH = 'secret'
 
@@ -24,14 +28,34 @@ def get_nginx_servers(tr):
         text = tr.read_file("/etc/nginx/sites-available/default")
     except Exception as e:  # pragma: no cover - surfaced to student clearly
         raise TestFail("Cannot read /etc/nginx/sites-available/default") from e
-    wrapped = f"http {{\n{text}\n}}\n"
 
+    # Handle any includes if we are running on a remote system
+    if tr.ctx.get('grade_with_ssh'):
+        include_count = 0
+        pat = re.compile(r"^\s+include (.*);", re.I|re.M)
+        while m := pat.search(text):
+            fname = m.group(1)
+            LOGGER.debug("reading include file %s",fname)
+            text = text[:m.span()[0]] + tr.read_file(fname) + text[m.span()[1]:]
+            include_count += 1
+            if include_count > 100:
+                raise TestFail("too many levels of include")
+
+
+    if os.getenv("LOG_LEVEL","INFO")=="DEBUG":
+        print("text:")
+        for _ in enumerate(text.split("\n"),1):
+            print(_)
+
+
+    wrapped = f"http {{\n{text}\n}}\n"
     with tempfile.NamedTemporaryFile(mode='w+') as tf:
         tf.write(wrapped)
         tf.seek(0)
         data =  crossplane.parse(tf.name)
+    LOGGER.debug("crossplane returned %s",data)
     if data['status'] != 'ok':
-        raise TestFail("Crossplane cannot parse /etc/nginx/sites-available/default")
+        raise TestFail(f"Crossplane cannot parse /etc/nginx/sites-available/default: {data['errors']}")
     for config in data['config']: # pylint: disable=too-many-nested-blocks
         if config['status'] != 'ok':
             raise TestFail("nginx sites file config status is not okay")
@@ -64,7 +88,6 @@ def test_hostname( tr:TestRunner ):
     if r.exit_code !=0:
         raise TestFail("hostname command does not work")
     return r.stdout
-
 
 def test_nginx( tr:TestRunner ):
     """

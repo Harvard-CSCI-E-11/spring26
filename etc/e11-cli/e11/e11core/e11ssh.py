@@ -27,22 +27,24 @@ LOGGER = get_logger("e11core")
 def _q(s: str) -> str:
     return shlex.quote(s)
 
+def get_key(pkey_pem):
+    for keycls in (paramiko.RSAKey, paramiko.Ed25519Key, paramiko.ECDSAKey):
+        try:
+            return keycls.from_private_key(io.StringIO(pkey_pem))
+        except Exception: # pylint: disable=broad-exception-caught
+            continue
+    raise ValueError("could not determine key type from {pkey_pem}")
+
 class E11Ssh:
     def __init__(self, hostname, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10): # pylint: disable=too-many-positional-arguments
         """Create one SSH/SFTP session for grader mode."""
+
         LOGGER.debug("configure hostname=%s username=%s port=%s key_filename=%s timeout=%s",hostname,username,port,key_filename,timeout)
         assert isinstance(hostname,str)
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        pkey = None
-        if pkey_pem:
-            for keycls in (paramiko.RSAKey, paramiko.Ed25519Key, paramiko.ECDSAKey):
-                try:
-                    pkey = keycls.from_private_key(io.StringIO(pkey_pem))
-                    LOGGER.debug("key found. pkey=%s keycls=%s",pkey,keycls)
-                    break
-                except Exception: # pylint: disable=broad-exception-caught
-                    continue
+        pkey = get_key(pkey_pem) if pkey_pem else None
+        assert (key_filename is not None) or (pkey is not None)
         try:
             LOGGER.info("ssh_connect(hostname=%s, port=%s, username=%s, key_filename=%s, pkey=%s, timeout=%s",
                         hostname,port,username,key_filename,pkey,timeout)

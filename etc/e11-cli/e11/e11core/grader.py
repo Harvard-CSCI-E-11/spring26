@@ -16,7 +16,7 @@ from .e11ssh import E11Ssh
 
 from .context import build_ctx
 
-LOGGER = get_logger("loader")
+LOGGER = get_logger("grader")
 
 
 def _import_tests_module(lab: str):
@@ -46,13 +46,15 @@ def discover_and_run(ctx):
     lab = ctx["lab"]  # 'lab3'
     try:
         mod = _import_tests_module(lab)
-    except ModuleNotFoundError:
-        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. Please contact course admin."}
+    except ModuleNotFoundError as e:
+        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin."}
 
     # Create the test runner
-    if ctx.get("pkey_pem",None):
+    if ctx.get("grade_with_ssh",False):
         LOGGER.info("SSH will connect to %s (lab=%s)", ctx.get("public_ip"), lab)
-        tr = TestRunner( ctx, ssh = E11Ssh( ctx['public_ip'], pkey_pem=ctx['pkey_pem']) )
+        tr = TestRunner( ctx, ssh = E11Ssh( ctx['public_ip'],
+                                            key_filename=ctx.get('key_filename'),
+                                            pkey_pem=ctx.get('pkey_pem')))
     else:
         LOGGER.info("Tests will run locally")
         tr = TestRunner( ctx )
@@ -64,6 +66,7 @@ def discover_and_run(ctx):
 
     # Run each of the tests
     for name, fn in tests:
+        LOGGER.debug("name=%s fn=%s",name,fn)
         t0 = monotonic()
         try:
             message = fn( tr )
@@ -92,7 +95,7 @@ def discover_and_run(ctx):
     return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx":ctx, "error":False}
 
 
-def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str):
+def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str=None, key_filename:str=None):
     """Run grading by SSHing into the student's VM and executing tests via shared runner."""
 
     smashed = smash_email(user_email)
@@ -101,8 +104,10 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str):
     ctx = build_ctx(lab)
     if smashed:
         ctx["smashedemail"] = smashed
-    ctx["public_ip"] = public_ip  # ensure provided IP used
+    ctx["public_ip"] = public_ip
     ctx["pkey_pem"]  = pkey_pem
+    ctx["key_filename"] = key_filename
+    ctx["grade_with_ssh"] = True
     summary = discover_and_run(ctx)
     ctx["pkey_pem"]  = "<censored>"
     return summary
