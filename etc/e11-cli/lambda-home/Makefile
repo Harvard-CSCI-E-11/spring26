@@ -71,6 +71,8 @@ vend-e11: install
 
 .PHONY: prod-vbd stage-vbd
 prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
+	make lint
+	make check
 	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-prod.toml" --no-confirm-changeset -t .aws-sam/build/template.yaml

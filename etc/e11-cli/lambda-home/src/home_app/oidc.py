@@ -26,7 +26,6 @@ LOGGER = common.get_logger("grader")
 ## Secrets management
 def get_oidc_config():
     """Return the config from AWS Secrets"""
-    print(f"**3 e11_common.secretsmanager_client type: {type(e11_common.secretsmanager_client)}")
     oidc_secret_id = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
     LOGGER.debug("fetching secret %s",oidc_secret_id)
     harvard_secrets = json.loads(e11_common.secretsmanager_client.get_secret_value(SecretId=oidc_secret_id)['SecretString'])

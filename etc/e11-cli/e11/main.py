@@ -183,6 +183,7 @@ def do_answer(args):
     get_answers(cp, args.lab, ANSWERS[args.lab])
     write_config(cp)
 
+# pylint: disable=too-many-statements
 def do_register(args):
     errors = 0
     verbose = not args.quiet
@@ -236,14 +237,23 @@ def do_register(args):
             'verbose':verbose,
             'registration' : dict(cp[STUDENT])}
 
-    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
-    if not r.ok:
-        print("Registration failed: ",r.text)
-    else:
-        if verbose:
-            print("Registered!")
-            print("Message: ",r.json()['message'])
-            print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
+    MAX_RETRIES = 3
+    for n in range(1,MAX_RETRIES+1):
+        try:
+            r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
+            if not r.ok:
+                print("Registration failed: ",r.text)
+                sys.exit(1)
+        except TimeoutError:
+            if n==MAX_RETRIES:
+                print("Retries reached. Please contact course support and try again later")
+                sys.exit(1)
+            print(f"retrying... {n}/{MAX_RETRIES}")
+
+    if verbose:
+        print("Registered!")
+        print("Message: ",r.json()['message'])
+        print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
 
 
 def do_grade(args):
@@ -260,12 +270,13 @@ def do_grade(args):
         return
 
     ep = endpoint(args)
-    print(f"Requesting {ep} to grade {lab}...")
+    print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     cp = get_config()
     r = requests.post(ep, json={'action':'grade',
-                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
+                                        COURSE_KEY:cp[STUDENT][COURSE_KEY]},
                                 'lab': lab},
-                      timeout = GRADING_TIMEOUT+5 ) # wait for 5 seconds longer than server waits
+        timeout = args.timeout )
     result = r.json()
     if not r.ok:
         print("Error: ",r.text)
@@ -314,7 +325,8 @@ def do_check(args):
 
 # pylint: disable=too-many-statements
 def main():
-    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
@@ -337,7 +349,8 @@ def main():
     access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
     access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
-    access_subparsers.add_parser('check-dashboard', help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
+    access_subparsers.add_parser('check-dashboard',
+                                 help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
     access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
 
     # Other primary commands
@@ -362,6 +375,7 @@ def main():
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
     grade_parser.add_argument('--direct', help='Instead of grading from server, grade from this system. Requires SSH access to target',action='store_true')
     grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading',type=pathlib.Path)
+    grade_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]

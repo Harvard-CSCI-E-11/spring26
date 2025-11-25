@@ -562,8 +562,6 @@ def api_heartbeat(event, context):
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
-
-
     ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
     secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
     json_key = secret.get("SecretString")
@@ -573,7 +571,6 @@ def get_pkey_pem(key_name):
     except KeyError:
         LOGGER.error("keys  %s not found", key_name)
         raise
-
 
 def api_grader(event, context, payload):
     """
@@ -587,9 +584,12 @@ def api_grader(event, context, payload):
     public_ip = user.public_ip
     email = user.email
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
-    summary = grader.grade_student_vm(
-        user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT)
-    )
+    summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
+    if summary['error']:
+        LOGGER.error("summary=%s",summary)
+        return resp_json(500, summary)
+    LOGGER.info("summary=%s",summary)
+
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
 
     # Record grades
