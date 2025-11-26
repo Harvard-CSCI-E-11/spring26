@@ -53,7 +53,8 @@ disable = [
     "missing-class-docstring",
     "missing-function-docstring",
     "line-too-long",
-    "unspecified-encoding"
+    "unspecified-encoding",
+    "too-many-locals"
 ]
 
 [tool.pylint.design]

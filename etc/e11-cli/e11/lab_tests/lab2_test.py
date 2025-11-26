@@ -41,12 +41,10 @@ def get_nginx_servers(tr):
             if include_count > 100:
                 raise TestFail("too many levels of include")
 
-
     if os.getenv("LOG_LEVEL","INFO")=="DEBUG":
         print("text:")
         for _ in enumerate(text.split("\n"),1):
             print(_)
-
 
     wrapped = f"http {{\n{text}\n}}\n"
     with tempfile.NamedTemporaryFile(mode='w+') as tf:
