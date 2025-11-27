@@ -1,0 +1,6 @@
+# lab2_patch
+
+ location /confidential {
+                 auth_basic "CSCI E-11";
+                 auth_basic_user_file /home/web-passwords;
+        }

@@ -59,7 +59,7 @@ from .sessions import (
 from .sessions import get_user_from_email, delete_session, expire_batch
 from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 LOGGER = get_logger("home")
 CSCIE_BOT = "cscie-bot"
@@ -789,7 +789,7 @@ def lambda_handler(event, context):
                     return api_heartbeat(event, context)
 
                 # Must be last API call - match all actions
-                case ("POST", "/api/v1", _):
+                case (_, "/api/v1", _):
                     return resp_json(
                         400,
                         {
@@ -798,6 +798,7 @@ def lambda_handler(event, context):
                             "method": method,
                             "path": path,
                             "action": action,
+                            "version": __version__
                         },
                     )
 
@@ -835,6 +836,9 @@ def lambda_handler(event, context):
                     return redirect(LAB_REDIRECTS[7])
                 case ("GET", "/lab8", _):
                     return redirect(LAB_REDIRECTS[8])
+
+                case ("GET", "/version", _):
+                    return resp_text(200, f"version: {__version__}\n")
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript
