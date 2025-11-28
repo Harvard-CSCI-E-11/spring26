@@ -69,7 +69,7 @@ def endpoint(args):
 def do_version(args):
     print(f"E11 local version: {__version__}")
     ep = endpoint(args)
-    r = requests.post(ep, json={'action':'version'})
+    r = requests.post(ep, json={'action':'version'},timeout=5)
     data = r.json()
     if data['error']:
         print(f"Error attempting to get server version: {data}")
