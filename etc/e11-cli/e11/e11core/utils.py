@@ -52,3 +52,30 @@ def tcp_peek_banner(host: str, port: int, timeout_s: float = 2.0, nbytes: int = 
     except OSError:
         # Connection refused/timeout => definitely not an SSH banner
         return ""
+
+
+def get_error_location(exc_traceback, test_file_pattern='_test.py', exclude_pattern=None):
+    """
+    Extract filename and line number from traceback where error occurred in test files.
+    :param exc_traceback: Exception traceback object
+    :param test_file_pattern: Pattern to match test files (default: '_test.py')
+    :param exclude_pattern: Optional pattern to exclude (e.g., 'testrunner.py')
+    :return: tuple of (filename, line_no) or ("unknown", "unknown")
+    """
+    line_no = "unknown"
+    filename = "unknown"
+    if exc_traceback:
+        tb = exc_traceback
+        while tb:
+            frame = tb.tb_frame
+            code = frame.f_code
+            # Look for frames in test files
+            if code.co_filename.endswith(test_file_pattern):
+                if exclude_pattern and code.co_filename.endswith(exclude_pattern):
+                    tb = tb.tb_next
+                    continue
+                line_no = tb.tb_lineno
+                filename = code.co_filename.split('/')[-1]
+                break
+            tb = tb.tb_next
+    return filename, line_no

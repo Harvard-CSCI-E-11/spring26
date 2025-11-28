@@ -33,8 +33,6 @@ from .doctor import run_doctor
 # pylint: disable=unused-argument, disable=invalid-name
 
 __version__ = '0.1.0'
-API_ENDPOINT = 'https://csci-e-11.org/api/v1'
-STAGE_ENDPOINT = 'https://stage.csci-e-11.org/api/v1'
 
 logger = get_logger()
 
@@ -59,6 +57,9 @@ git pull
 (cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
+
+API_ENDPOINT = 'https://csci-e-11.org/api/v1'
+STAGE_ENDPOINT = 'https://stage.csci-e-11.org/api/v1'
 
 def endpoint(args):
     if args.stage is True:
@@ -260,7 +261,7 @@ def do_grade(args):
     if args.direct:
         cp = get_config()
         email     = cp['student']['email']
-        public_ip = cp['vm']['public_ip']
+        public_ip = args.direct
         if not args.identity:
             print("--direct requires [-i | --identity | --pkey_pem ]",file=sys.stderr)
             sys.exit(1)
@@ -287,14 +288,13 @@ def do_grade(args):
     if not r.ok:
         print("Error: ",r.text)
         sys.exit(1)
-    print_summary(result['summary'], verbose=getattr(args, "verbose", False))
-    if args.debug:
-        print(json.dumps(r.json(),indent=4))
     try:
         print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     except KeyError:
         print(f"Invalid response from server:\n{json.dumps(result,indent=4)}")
         sys.exit(1)
+    if args.debug:
+        print(json.dumps(r.json(),indent=4))
     sys.exit(0 if not result['summary']["fails"] else 1)
 
 
@@ -379,7 +379,7 @@ def main():
     grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
-    grade_parser.add_argument('--direct', help='Instead of grading [student]public_ip from server, grade from this system. Requires SSH access to target',action='store_true')
+    grade_parser.add_argument('--direct', help='Instead of grading [student]public_ip from server, grade from this system. Requires SSH access to target')
     grade_parser.add_argument('-i','--identity','--pkey_pem', help='Specify public key to use for direct grading')
     grade_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     grade_parser.set_defaults(func=do_grade)

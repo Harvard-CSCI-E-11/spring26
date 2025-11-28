@@ -11,6 +11,8 @@ import ssl
 import socket
 import subprocess
 import shlex
+import traceback
+import sys
 
 import urllib.parse
 from urllib.request import build_opener, Request
@@ -21,8 +23,9 @@ from dataclasses import dataclass
 from typing import Optional
 from .constants import DEFAULT_NET_TIMEOUT_S,DEFAULT_HTTP_TIMEOUT_S
 from .assertions import TestFail  # for nice errors in grader mode
+from .context import E11Context
 from .e11ssh import E11Ssh
-from .utils import get_logger
+from .utils import get_logger, get_error_location
 
 LOGGER = get_logger("testrunner")
 
@@ -48,8 +51,9 @@ class PythonEntryResult:
     value: Optional[object] = None
 
 class TestRunner:
-    def __init__(self, ctx:dict, ssh:Optional[E11Ssh] = None):
+    def __init__(self, ctx: E11Context, ssh:Optional[E11Ssh] = None):
         """
+        :param ctx: E11Context object
         :param ssh: if True, use ssh. as the mechanism
         """
         self.ssh = ssh
@@ -94,7 +98,7 @@ class TestRunner:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
 
-    # pylint: disable=too-many-locals, disable=too-many-positional-arguments
+    # pylint: disable=too-many-locals, disable=too-many-positional-arguments, disable=too-many-statements
     def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_HTTP_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. This should work from anywhere
         LOGGER.debug("http_get %s timeout %s",url,timeout)
@@ -110,12 +114,36 @@ class TestRunner:
                 text = r.read().decode("utf-8", errors="replace")
         except HTTPError as e:
             status = e.code
-            headers = "".join(f"{k}: {v}\n" for k, v in (e.headers or {}).items())
+            if e.headers:
+                if isinstance(e.headers, dict):
+                    headers = "".join(f"{k}: {v}\n" for k, v in e.headers.items())
+                else:
+                    headers = str(e.headers)
+            else:
+                headers = ""
             text = e.read().decode("utf-8", errors="replace") if e.fp else ""
         except URLError as e:   # more general
+            # Get traceback information for detailed logging
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            tb_str = "".join(tb_lines)
+
+            # Find the line number in the test file where http_get was called
+            filename, line_no = get_error_location(exc_traceback, exclude_pattern='testrunner.py')
+
+            # Log detailed error information
+            error_details = f"URL: {url}, Error: {e}"
+            if filename != "unknown" and line_no != "unknown":
+                error_details += f", File: {filename}, Line: {line_no}"
+            LOGGER.error("http_get failed: %s\nTraceback:\n%s", error_details, tb_str)
+
             status = 0
-            headers = []
-            text = f"url={url} error:{e}"
+            headers = ""
+            # Include detailed error information in the text for user reporting
+            error_text = f"HTTP request failed - URL: {url}, Error: {e}"
+            if filename != "unknown" and line_no != "unknown":
+                error_text += f", File: {filename}, Line: {line_no}"
+            text = error_text
         cert_info = None
         if tls_info and url.lower().startswith("https://"):
             host = urllib.parse.urlparse(url).hostname

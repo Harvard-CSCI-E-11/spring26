@@ -34,7 +34,7 @@ def test_autograder_key_present( tr:TestRunner ):
 @timeout(5)
 def test_venv_present( tr:TestRunner):
     # Require {labdir}/.venv
-    labdir = tr.ctx['labdir']
+    labdir = tr.ctx.labdir
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:
         raise TestFail("lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
@@ -49,7 +49,7 @@ def test_nginx_config_syntax_okay( tr:TestRunner):
 
 @timeout(5)
 def test_gunicorn_running( tr:TestRunner ):
-    lab = tr.ctx['lab']
+    lab = tr.ctx.lab
     r = tr.run_command("ps auxww")
     if r.exit_code != 0:
         raise TestFail("could not run ps auxww")
@@ -63,7 +63,7 @@ def test_gunicorn_running( tr:TestRunner ):
 
 @timeout(5)
 def test_database_created( tr:TestRunner):
-    fname = tr.ctx['labdir'] + "/instance/message_board.db"
+    fname = tr.ctx.labdir + "/instance/message_board.db"
     if not os.path.exists(fname):
         raise TestFail(f"database file {fname} has not been created. Did you run `make init-db`?")
 
@@ -80,7 +80,7 @@ def test_database_created( tr:TestRunner):
 
 def get_lab_config( tr:TestRunner ):
     """Gets the [lab4] or [lab5] config and puts the api_key and api_secret_key into the context"""
-    lab = tr.ctx['lab']
+    lab = tr.ctx.lab
     txt = tr.read_file(CONFIG_FILE)
     cp = configparser.ConfigParser()
     try:
@@ -96,8 +96,8 @@ def get_lab_config( tr:TestRunner ):
         api_secret_key = lab_cp['api_secret_key']
     except KeyError as e:
         raise TestFail(f"{CONFIG_FILE} [{lab}] section requires both an api_key and an api_secret_key") from e
-    tr.ctx['api_key'] = api_key
-    tr.ctx['api_secret_key'] = api_secret_key
+    tr.ctx['api_key'] = api_key  # Dynamic field, use dict access
+    tr.ctx['api_secret_key'] = api_secret_key  # Dynamic field, use dict access
     return (api_key, api_secret_key)
 
 
@@ -106,7 +106,7 @@ def get_lab_config( tr:TestRunner ):
 def test_database_keys( tr:TestRunner):
     (api_key, _) = get_lab_config( tr )
 
-    fname = tr.ctx['labdir'] + "/instance/message_board.db"
+    fname = tr.ctx.labdir + "/instance/message_board.db"
     r = tr.run_command(f"sqlite3 {fname} .schema")
     for (table,name) in [("api_keys","API Keys"),
                          ("messages","messages")]:

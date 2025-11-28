@@ -5,16 +5,19 @@ Tests are located in csci-e-11/etc/e11-cli/e11/lab_tests/
 """
 
 import importlib
+import traceback
+import sys
 from time import monotonic
 import inspect
 from types import FunctionType
 
 from .assertions import TestFail
 from .testrunner import TestRunner
-from .utils import get_logger,smash_email
+from .utils import get_logger, smash_email, get_error_location
 from .e11ssh import E11Ssh
+from .constants import DOMAIN
 
-from .context import build_ctx
+from .context import build_ctx, E11Context
 
 LOGGER = get_logger("grader")
 
@@ -42,19 +45,19 @@ def collect_tests_in_definition_order(mod):
             tests.extend(_iter_test_functions_in_class(obj))
     return tests
 
-def discover_and_run(ctx):
-    lab = ctx["lab"]  # 'lab3'
+def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
+    lab = ctx.lab  # 'lab3'
     try:
         mod = _import_tests_module(lab)
     except ModuleNotFoundError as e:
-        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin."}
+        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin.", "ctx": ctx}
 
     # Create the test runner
-    if ctx.get("grade_with_ssh",False):
-        LOGGER.info("SSH will connect to %s (lab=%s)", ctx.get("public_ip"), lab)
-        tr = TestRunner( ctx, ssh = E11Ssh( ctx['public_ip'],
-                                            key_filename=ctx.get('key_filename'),
-                                            pkey_pem=ctx.get('pkey_pem')))
+    if ctx.grade_with_ssh:
+        LOGGER.info("SSH will connect to %s (lab=%s)", ctx.public_ip, lab)
+        tr = TestRunner( ctx, ssh = E11Ssh( ctx.public_ip,
+                                            key_filename=ctx.key_filename,
+                                            pkey_pem=ctx.pkey_pem))
     else:
         LOGGER.info("Tests will run locally")
         tr = TestRunner( ctx )
@@ -87,15 +90,52 @@ def discover_and_run(ctx):
             fails.append(name)
         except Exception as e:  # noqa: BLE001 pylint: disable=broad-exception-caught
             duration = monotonic() - t0
-            results.append({"name": name, "status": "fail", "message": f"Error: {e}", "duration": duration})
+
+            # Get traceback information for detailed logging
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            tb_str = "".join(tb_lines)
+
+            # Find the line number and file where the error occurred
+            filename, line_no = get_error_location(exc_traceback)
+
+            # Log detailed error information
+            error_details = f"Test: {name}, Error: {e}, File: {filename}, Line: {line_no}"
+            LOGGER.error("Test failed with exception: %s\nTraceback:\n%s", error_details, tb_str)
+
+            # Build detailed error message for user
+            error_msg = f"Error: {e}"
+            if filename != "unknown" and line_no != "unknown":
+                error_msg += f" (at {filename}:{line_no})"
+
+            results.append({"name": name, "status": "fail", "message": error_msg, "duration": duration})
             fails.append(name)
 
     score = 5.0 * (len(passes) / len(tests)) if tests else 0.0
+    # Convert ctx to dict for JSON serialization
+    ctx_dict = {
+        "version": ctx.version,
+        "lab": ctx.lab,
+        "labnum": ctx.labnum,
+        "course_root": ctx.course_root,
+        "labdir": ctx.labdir,
+        "labdns": ctx.labdns,
+        "course_key": ctx.course_key,
+        "email": ctx.email,
+        "smashedemail": ctx.smashedemail,
+        "public_ip": ctx.public_ip,
+        "grade_with_ssh": ctx.grade_with_ssh,
+        "pkey_pem": "<censored>" if ctx.pkey_pem else None,
+        "key_filename": ctx.key_filename,
+    }
+    # Add any extra fields using get() to access dynamic fields
+    # We can't easily enumerate _extra without accessing it directly,
+    # so we'll just include the known fields above
     # return the summary
-    return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx":ctx, "error":False}
+    return {"lab": lab, "passes": passes, "fails": fails, "tests": results, "score": round(score, 2), "ctx": ctx_dict, "error": False}
 
 
-def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str=None, key_filename:str=None):
+def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str|None=None, key_filename:str|None=None):
     """Run grading by SSHing into the student's VM and executing tests via shared runner."""
 
     smashed = smash_email(user_email)
@@ -103,13 +143,15 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str=None, key_file
     # Build context and mark grader mode
     ctx = build_ctx(lab)
     if smashed:
-        ctx["smashedemail"] = smashed
-    ctx["public_ip"] = public_ip
-    ctx["pkey_pem"]  = pkey_pem
-    ctx["key_filename"] = key_filename
-    ctx["grade_with_ssh"] = True
+        ctx.smashedemail = smashed
+        # Set labdns based on smashed email for grading
+        ctx.labdns = f"{smashed}-{lab}.{DOMAIN}"
+    ctx.public_ip = public_ip
+    ctx.pkey_pem = pkey_pem
+    ctx.key_filename = key_filename
+    ctx.grade_with_ssh = True
     summary = discover_and_run(ctx)
-    ctx["pkey_pem"]  = "<censored>"
+    ctx.pkey_pem = "<censored>"
     return summary
 
 def create_email(summary):
