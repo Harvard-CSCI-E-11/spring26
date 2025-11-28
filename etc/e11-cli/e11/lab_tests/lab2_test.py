@@ -75,7 +75,7 @@ def get_cert_organization(cert):
     return None
 
 def domain(tr):
-    return f"{tr.ctx['smashedemail']}.csci-e-11.org"
+    return f"{tr.ctx.smashedemail}.csci-e-11.org"
 
 @timeout(2)
 def test_hostname( tr:TestRunner ):

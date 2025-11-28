@@ -20,8 +20,8 @@ test_database_keys = lab_common.test_database_keys
 @retry(times=3, backoff=0.25)
 @timeout(10)
 def test_https_root_ok( tr:TestRunner):
-    lab = tr.ctx['lab']
-    url = f"https://{tr.ctx['labdns']}/"
+    lab = tr.ctx.lab
+    url = f"https://{tr.ctx.labdns}/"
     r = tr.http_get(url, tls_info=True)
     if r.status != 200:
         raise TestFail(f"Expected 200 at {url}, got {r.status}", context=r.headers)
