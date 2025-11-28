@@ -50,7 +50,23 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
     try:
         mod = _import_tests_module(lab)
     except ModuleNotFoundError as e:
-        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin.", "ctx": ctx}
+        # Convert ctx to dict for JSON serialization
+        ctx_dict = {
+            "version": ctx.version,
+            "lab": ctx.lab,
+            "labnum": ctx.labnum,
+            "course_root": ctx.course_root,
+            "labdir": ctx.labdir,
+            "labdns": ctx.labdns,
+            "course_key": ctx.course_key,
+            "email": ctx.email,
+            "smashedemail": ctx.smashedemail,
+            "public_ip": ctx.public_ip,
+            "grade_with_ssh": ctx.grade_with_ssh,
+            "pkey_pem": "<censored>" if ctx.pkey_pem else None,
+            "key_filename": ctx.key_filename,
+        }
+        return {"score": 0.0, "tests": [], "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin.", "ctx": ctx_dict}
 
     # Create the test runner
     if ctx.grade_with_ssh:

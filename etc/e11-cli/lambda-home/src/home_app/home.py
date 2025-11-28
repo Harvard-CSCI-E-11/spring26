@@ -140,7 +140,7 @@ def resp_json(
             "Access-Control-Allow-Origin": "*",
             **(headers or {}),
         },
-        "body": json.dumps(body),
+        "body": json.dumps(body, default=str),
     }
 
 
@@ -601,7 +601,7 @@ def api_grader(event, context, payload):
         "score": str(summary["score"]),
         "pass_names": summary["passes"],
         "fail_names": summary["fails"],
-        "raw": json.dumps(summary)[:35000],
+        "raw": json.dumps(summary, default=str)[:35000],
     }
     users_table.put_item(Item=item)
     LOGGER.info("DDB put_item to %s", users_table)
@@ -798,19 +798,21 @@ def lambda_handler(event, context):
                 case ("POST", "/api/v1", "heartbeat"):
                     return api_heartbeat(event, context)
 
+                case ("POST", "/api/v1", "version"):
+                    return resp_json(200, {
+                        'error':False,
+                        'version':__version__,
+                        'deployment_timestamp':os.environ.get('DEPLOYMENT_TIMESTAMP')})
+
                 # Must be last API call - match all actions
                 case (_, "/api/v1", _):
-                    return resp_json(
-                        400,
-                        {
-                            "error": True,
-                            "message": "unknown or missing action.",
-                            "method": method,
-                            "path": path,
-                            "action": action,
-                            "version": __version__
-                        },
-                    )
+                    return resp_json( 400,{
+                        "error": True,
+                        "message": "unknown or missing action.",
+                        "method": method,
+                        "path": path,
+                        "action": action,
+                        "version": __version__ })
 
                 ################################################################
                 # Human actions

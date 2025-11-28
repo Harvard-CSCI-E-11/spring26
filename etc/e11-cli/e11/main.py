@@ -32,7 +32,7 @@ from .doctor import run_doctor
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
 
-__version__ = '0.1.0'
+__version__ = '0.2.1'
 
 logger = get_logger()
 
@@ -67,7 +67,17 @@ def endpoint(args):
     return API_ENDPOINT
 
 def do_version(args):
-    print("version",__version__)
+    print(f"E11 local version: {__version__}")
+    ep = endpoint(args)
+    r = requests.post(ep, json={'action':'version'})
+    data = r.json()
+    if data['error']:
+        print(f"Error attempting to get server version: {data}")
+    else:
+        print(f"E11 server version: {data['version']} (deployed {data['deployment_timestamp']})")
+        if __version__.split() < data['version'].split():
+            print("Update to current version with: `e11 update`")
+
 
 ################################################################
 
