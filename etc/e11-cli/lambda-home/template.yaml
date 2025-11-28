@@ -46,6 +46,7 @@ Globals:
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable
         PYTHONPATH: "/var/task/home_app/e11.whl"
+        DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
 
 Parameters:
   EnvironmentName:
@@ -75,6 +76,10 @@ Parameters:
     Default: INFO
     AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET]
     Description: Default LOG_LEVEL environment value for the function
+  DeploymentTimestamp:
+    Type: String
+    Description: UTC timestamp of when the application was deployed.
+    Default: 'Not Set'
 
 Conditions:
   CreateAcmCert: !Equals [!Ref CertificateArn, ""]

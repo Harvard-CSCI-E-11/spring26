@@ -838,8 +838,7 @@ def lambda_handler(event, context):
                     return redirect(LAB_REDIRECTS[8])
 
                 case ("GET", "/version", _):
-                    when = time.asctime(time.localtime(os.path.getmtime(__file__)))
-                    return resp_text(200, f"version: {__version__} of {when}\n")
+                    return resp_text(200, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript
