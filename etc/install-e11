@@ -41,10 +41,10 @@ echo AWS Region: $REGION
 echo Setting Ubuntu mirror to $MIRROR
 sudo sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list.d/ubuntu.sources
 
-# Install CSCI E-11 pipx, poetry, make, emacs and the e11 command
+# Install CSCI E-11 pipx, python3, make, npm and emacs
 echo Install apt items
 sudo apt -y update
-sudo apt -y install pipx python-is-python3 make
+sudo apt -y install pipx python-is-python3 make npm
 sudo snap install emacs --classic
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
@@ -61,6 +61,11 @@ if [ ! -r $SCRIPT_DIR/e11-cli ]; then
     exit 1
 fi
 (cd $SCRIPT_DIR/e11-cli; pipx install . --force)
+
+# Update .bashrc so that it runs e11 version and e11 access on login
+echo "e11 version" >> $HOME/.bashrc
+echo "e11 access" >> $HOME/.bashrc
+
 
 ################################################################
 # Make e11 register run on book
