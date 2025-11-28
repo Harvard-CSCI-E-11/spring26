@@ -153,7 +153,6 @@ def post_image(image):
         error_led("S3 upload failed",ERROR_S3_POST_FAILED)
         raise RuntimeError("second post failed")
     print(f"[{time.time()}] Uploaded frame {uploaded}")
-    return
 
 #
 # Actual program for running in MicroPython

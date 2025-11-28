@@ -36,7 +36,7 @@ def test_https_root_ok( tr:TestRunner):
 @timeout(5)
 def test_invalid_api_key( tr:TestRunner):
     # test posting with an invalid API key
-    msg = f'this should not be posted'
+    msg = 'this should not be posted'
     url = f"https://{tr.ctx.labdns}/api/post-message"
     r = tr.http_get(url,
                     method='POST',
