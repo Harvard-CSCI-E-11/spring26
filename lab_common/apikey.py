@@ -110,8 +110,8 @@ def validate_api_key(api_key, api_secret_key):
 def new_apikey_command():
     """Create a new API key and print it"""
     (api_key, api_secret_key) = new_apikey()
-    click.echo(f"API_KEY: {api_key}")
-    click.echo(f"API_SECRET_KEY: {api_secret_key}")
+    click.echo(f'API_KEY: "{api_key}"')
+    click.echo(f'API_SECRET_KEY: "{api_secret_key}"')
 
 
 # Init code
