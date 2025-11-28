@@ -114,7 +114,10 @@ def test_api_keys_work( tr:TestRunner):
         r = tr.run_command(f"sqlite3 {fname} -json 'select * from {table}'")
         if r.exit_code != 0:
             raise TestFail(f"could not select * from {table} for {fname}")
-        rows = json.loads(r.stdout)
+        try:
+            rows = json.loads(r.stdout)
+        except json.decoder.JSONDecodeError as e:
+            raise TestFail(f"JSONDecodeError {e} could not decode: {r.stdout}")
         if len(rows)==0:
             raise TestFail(f"No {name} created")
 
