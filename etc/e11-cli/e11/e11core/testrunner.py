@@ -14,7 +14,7 @@ import shlex
 
 import urllib.parse
 from urllib.request import build_opener, Request
-from urllib.error import HTTPError
+from urllib.error import HTTPError,URLError
 
 
 from dataclasses import dataclass
@@ -112,6 +112,10 @@ class TestRunner:
             status = e.code
             headers = "".join(f"{k}: {v}\n" for k, v in (e.headers or {}).items())
             text = e.read().decode("utf-8", errors="replace") if e.fp else ""
+        except URLError as e:   # more general
+            status = 0
+            headers = []
+            text = f"url={url} error:{e}"
         cert_info = None
         if tls_info and url.lower().startswith("https://"):
             host = urllib.parse.urlparse(url).hostname
