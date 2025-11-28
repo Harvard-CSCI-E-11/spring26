@@ -33,7 +33,7 @@ def test_https_root_ok( tr:TestRunner):
 
 @timeout(5)
 def test_sqlite3_installed( tr:TestRunner):
-    r = tr.run_command(f"sqlite3 -help")
+    r = tr.run_command("sqlite3 :memory: 'select 1;'")
     if r.exit_code != 0:
         raise TestFail("sqlite3 command not found - install it with 'sudo apt install sqlite3'")
     return "sqlite3 installed"
