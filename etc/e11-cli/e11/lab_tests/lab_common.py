@@ -2,12 +2,9 @@
 lab_commnon.py: common things for the lab tester.
 """
 import json
-import os.path
-import configparser
 
 import yaml
 
-from e11.e11core.context    import E11Context
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
@@ -36,7 +33,7 @@ def test_autograder_key_present( tr:TestRunner ):
 
 @timeout(5)
 def test_venv_present( tr:TestRunner):
-    # Require {labdir}/.venv
+    """Require {labdir}/.venv"""
     labdir = tr.ctx.labdir
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:
@@ -106,7 +103,7 @@ def test_api_keys_exist( tr: TestRunner):
 
 
 def get_database_tables( tr:TestRunner ):
-    tr.ctx.table_rows = dict()  # clear the .table_rows
+    tr.ctx.table_rows = {}  # clear the .table_rows
     fname = tr.ctx.database_fname
     r = tr.run_command(f"sqlite3 {fname} .schema")
     for (table,_) in [("api_keys","API Keys"),
@@ -118,7 +115,7 @@ def get_database_tables( tr:TestRunner ):
         try:
             tr.ctx.table_rows[table] = json.loads(r.stdout) if r.stdout else []
         except json.decoder.JSONDecodeError as e:
-            raise TestFail(f"JSONDecodeError {e} could not decode: {r.stdout}")
+            raise TestFail(f"JSONDecodeError {e} could not decode: {r.stdout}") from e
 
 
 @timeout(5)
