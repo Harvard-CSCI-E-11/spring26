@@ -717,7 +717,7 @@ def lambda_handler(event, context):
     # Detect if this is a browser request vs API request
     accept_header = event.get("headers", {}).get("accept", "")
     is_browser_request = "text/html" in accept_header
-    
+
     # Extract source IP address
     source_ip = (
         event.get("requestContext", {}).get("http", {}).get("sourceIp")
@@ -725,7 +725,7 @@ def lambda_handler(event, context):
         or event.get("headers", {}).get("x-forwarded-for", "").split(",")[0].strip()
         or "unknown"
     )
-    
+
     with _with_request_log_level(payload):
         try:
             LOGGER.info(
