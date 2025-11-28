@@ -32,6 +32,13 @@ def test_https_root_ok( tr:TestRunner):
     return f"Correct webserver running on {url}"
 
 @timeout(5)
+def test_sqlite3_installed( tr:TestRunner):
+    r = tr.run_command(f"sqlite3 -help")
+    if r.exit_code != 0:
+        raise TestFail("sqlite3 command not found - install it with 'sudo apt install sqlite3'")
+    return "sqlite3 installed"
+
+@timeout(5)
 def test_database_created( tr:TestRunner):
     fname = tr.ctx['labdir'] + "/students.db"
     r = tr.run_command(f"sqlite3 {fname} .schema")
@@ -69,7 +76,7 @@ def test_database_search( tr:TestRunner):
     student_id = s0.get('student_id','n/a')
     r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': student_id }).encode("utf-8"))
     if r.status != 200:
-        raise TestFail(f"could http POST to {url} for {student_id}")
+        raise TestFail(f"could not http POST to {url} for {student_id}")
     assert_contains(r.text, student_id)
     return f"Search for {student_id} found the student"
 
@@ -79,7 +86,7 @@ def test_database_sql_injection_fixed( tr:TestRunner):
     inject = 'asdf" or "a"="a'
     r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': inject }).encode("utf-8"))
     if r.status != 200:
-        raise TestFail(f"could http POST to {url} for SQL Injection {inject}")
+        raise TestFail(f"could not http POST to {url} for SQL Injection {inject}")
     count = r.text.count("<tr>")
     if count>0:
         raise TestFail(f"SQL injection returned {count} records; it should have returned 0.")

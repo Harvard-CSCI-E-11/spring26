@@ -49,7 +49,7 @@ def test_post_message( tr:TestRunner):
                                                   'message': msg
                                                  }).encode("utf-8"))
     if r.status != 200:
-        raise TestFail(f"could http POST to {url} error={r.status} {r.text}")
+        raise TestFail(f"could not http POST to {url} error={r.status} {r.text}")
 
     # Now see if it is in the databsae
     r = tr.run_command(f"sqlite3 {fname} -json 'select * from messages'")
@@ -65,7 +65,7 @@ def test_post_message( tr:TestRunner):
     url2 = f"https://{tr.ctx['labdns']}/api/get-messages"
     r = tr.http_get(url2)
     if r.status != 200:
-        raise TestFail(f"could http POST to {url2} error={r.status} {r.text}")
+        raise TestFail(f"could not http POST to {url2} error={r.status} {r.text}")
     rows = json.loads(r.text)
     for row in rows:
         if row['message']==msg:
