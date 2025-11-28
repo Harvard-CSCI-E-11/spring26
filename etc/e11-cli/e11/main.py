@@ -112,12 +112,12 @@ def do_access_off(args):
     fix_access_permissions()
 
 def do_access_check(args):
-    logger.info("Checking access status for %s:",get_public_ip())
+    logger.debug("Checking access status for %s:",get_public_ip())
     fix_access_permissions()
     if bot_access_check():
-        logger.info("CSCI E-11 Course Admin HAS ACCESS to this instance (based on .ssh/authorized_keys file).")
+        print("CSCI E-11 Course admin and grader HAVE ACCESS to this instance.")
     else:
-        logger.info("CSCI E-11 Course Admin DOES NOT HAVE ACCESS to this instance (based on .ssh/authorized_keys file).")
+        print("CSCI E-11 Course admin and grader DO NOT HAVE ACCESS to this instance.")
 
 def do_access_check_dashboard(args):
     fix_access_permissions()
