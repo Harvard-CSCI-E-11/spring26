@@ -20,7 +20,7 @@ test_nginx_config_syntax_ok = lab_common.test_nginx_config_syntax_okay
 test_gunicorn_running = lab_common.test_gunicorn_running
 test_database_created = lab_common.test_database_created
 test_api_keys_exist = lab_common.test_api_keys_exist
-test_api_keys_work = lab_common.test_api_keys_work
+test_database_tables = lab_common.test_database_tables
 
 @retry(times=3, backoff=0.25)
 @timeout(10)
@@ -34,8 +34,23 @@ def test_https_root_ok( tr:TestRunner):
     return f"Correct webserver running on {url}"
 
 @timeout(5)
+def test_invalid_api_key( tr:TestRunner):
+    # test posting with an invalid API key
+    msg = f'this should not be posted'
+    url = f"https://{tr.ctx.labdns}/api/post-message"
+    r = tr.http_get(url,
+                    method='POST',
+                    data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
+                                                  'api_secret_key' : 'invalid',
+                                                  'message': msg
+                                                 }).encode("utf-8"))
+    if r.status == 200:
+        raise TestFail(f"attempt to post to {url} with invalid API key was successful: error={r.status} {r.text}")
+    return "Cannot post with invalid API key."
+
+@timeout(5)
 def test_post_message( tr:TestRunner):
-    fname = tr.ctx.labdir + "/instance/message_board.db"
+    # post a message and verify it is there
     magic = random.randint(0,10000)
     msg = f'hello from the automatic grader magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-message"
@@ -48,17 +63,16 @@ def test_post_message( tr:TestRunner):
     if r.status != 200:
         raise TestFail(f"could not http POST to {url} error={r.status} {r.text}")
 
-    # Now see if it is in the databsae
-    r = tr.run_command(f"sqlite3 {fname} -json 'select * from messages'")
-    rows = json.loads(r.stdout)
+    # Now see if the posted message is in the databsae
+    lab_common.get_database_tables(tr)
     count = 0
-    for row in rows:
+    for row in tr.ctx.table_rows['messages']:
         if row['message']==msg:
             count += 1
     if count==0:
         raise TestFail("posted message did not get entered into the database")
 
-    # make sure the api works
+    # Make sure the API works to get the posted message
     url2 = f"https://{tr.ctx.labdns}/api/get-messages"
     r = tr.http_get(url2)
     if r.status != 200:
