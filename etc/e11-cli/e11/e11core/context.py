@@ -35,6 +35,7 @@ class E11Context:  # pylint: disable=too-many-instance-attributes
     api_key: Optional[str] = None
     api_secret_key: Optional[str] = None
     database_fname : Optional[str] = None
+    table_rows : Optional[dict] = None
 
     # Dynamic fields (for lab-specific data)
     _extra: dict[str, Any] = field(default_factory=dict)

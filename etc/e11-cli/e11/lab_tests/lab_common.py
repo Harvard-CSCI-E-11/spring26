@@ -105,29 +105,33 @@ def test_api_keys_exist( tr: TestRunner):
     return f"API_KEY <{tr.ctx.api_key}> and API_SECRET_KEY <censored> read from {lab}-answers.yaml"
 
 
-@timeout(5)
-def test_api_keys_work( tr:TestRunner):
+def get_database_tables( tr:TestRunner ):
+    tr.ctx.table_rows = dict()  # clear the .table_rows
     fname = tr.ctx.database_fname
     r = tr.run_command(f"sqlite3 {fname} .schema")
-    for (table,name) in [("api_keys","API Keys"),
+    for (table,_) in [("api_keys","API Keys"),
                          ("messages","messages")]:
         r = tr.run_command(f"sqlite3 {fname} -json 'select * from {table}'")
         if r.exit_code != 0:
             raise TestFail(f"could not select * from {table} for {fname}")
+
         try:
-            rows = json.loads(r.stdout)
+            tr.ctx.table_rows[table] = json.loads(r.stdout) if r.stdout else []
         except json.decoder.JSONDecodeError as e:
             raise TestFail(f"JSONDecodeError {e} could not decode: {r.stdout}")
-        if len(rows)==0:
-            raise TestFail(f"No {name} created")
 
-        # Now make sure that the api_key in the config file is in the database
-        if table=='api_keys':
-            count = 0
-            for row in rows:
-                if row['api_key']==tr.ctx.api_key:
-                    count += 1
-            if count==0:
-                raise TestFail(f"api_key {tr.ctx.api_key} is in answers file but not in {fname}")
 
-    return f"Successfully found API Keys in database and in {CONFIG_FILE}"
+@timeout(5)
+def test_database_tables( tr:TestRunner):
+    fname = tr.ctx.database_fname
+    get_database_tables(tr)
+
+    # Now make sure that the api_key in the config file is in the database
+    count = 0
+    for row in tr.ctx.table_rows['api_keys']:
+        if row['api_key']==tr.ctx.api_key:
+            count += 1
+    if count==0:
+        raise TestFail(f"api_key {tr.ctx.api_key} is in answers file but not table 'api_key' of database {fname}")
+
+    return f"Successfully found API Keys from {CONFIG_FILE} in {fname}"
