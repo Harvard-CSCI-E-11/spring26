@@ -41,10 +41,11 @@ echo AWS Region: $REGION
 echo Setting Ubuntu mirror to $MIRROR
 sudo sed -i "s|http://.*.ubuntu.com/ubuntu/|$MIRROR|g" /etc/apt/sources.list.d/ubuntu.sources
 
-# Install CSCI E-11 pipx, poetry, and the e11 command
+# Install CSCI E-11 pipx, poetry, make, emacs and the e11 command
 echo Install apt items
 sudo apt -y update
-sudo apt -y install pipx python-is-python3
+sudo apt -y install pipx python-is-python3 make
+sudo snap install emacs --classic
 
 # Update PATH at the top of the .bashrc file, before the exit for non-interactive shells.
 grep -q 'export PATH="\$HOME/.local/bin:\$PATH"' ~/.bashrc || \
