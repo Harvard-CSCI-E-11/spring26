@@ -6,7 +6,7 @@ def print_summary(summary, verbose=False):
 
     lab = summary.get("lab")
     print(f"=== {lab} Results ===")
-    print(f"Testing {summary['ctx']['labdns']} public ip address: {summary['ctx']['public_ip']}")
+    print(f"Testing public ip address: {summary['ctx']['public_ip']}")
     print(f"Score: {summary['score']} / 5.0")
     if summary["passes"]:
         print("\n-- PASSES --")
