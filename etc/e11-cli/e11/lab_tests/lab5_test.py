@@ -14,8 +14,6 @@ test_venv_present = lab_common.test_venv_present
 test_nginx_config_syntax_ok = lab_common.test_nginx_config_syntax_okay
 test_gunicorn_running = lab_common.test_gunicorn_running
 test_database_created = lab_common.test_database_created
-test_database_keys = lab_common.test_database_keys
-
 
 @retry(times=3, backoff=0.25)
 @timeout(10)
