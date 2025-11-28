@@ -37,7 +37,7 @@ def test_venv_present( tr:TestRunner):
     labdir = tr.ctx.labdir
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:
-        raise TestFail("lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
+        raise TestFail(f"lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
     return f"virtual environment configured in {labdir}"
 
 @timeout(5)
