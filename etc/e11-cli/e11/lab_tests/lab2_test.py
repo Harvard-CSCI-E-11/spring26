@@ -85,7 +85,7 @@ def test_hostname( tr:TestRunner ):
     r = tr.run_command("hostname")
     if r.exit_code !=0:
         raise TestFail("hostname command does not work")
-    return f"hostname: r.stdout.strip()"
+    return f"hostname: {r.stdout.strip()}"
 
 def test_nginx( tr:TestRunner ):
     """
