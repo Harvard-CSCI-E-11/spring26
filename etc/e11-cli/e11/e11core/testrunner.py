@@ -57,7 +57,7 @@ class TestRunner:
         :param ssh: if True, use ssh. as the mechanism
         """
         self.ssh = ssh
-        self.ctx = ctx
+        self.ctx : E11Context = ctx
 
     def __enter__(self):
         return self

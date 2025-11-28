@@ -52,8 +52,9 @@ wipe-db: $(PYTHON)
 	make init-db
 
 # Generate a new api-key
+# Note the '@' so that the `poetry run flask...` is not included in the output
 new-apikey: $(PYTHON)
-	poetry run flask  --app server.main:app new-apikey
+	@poetry run flask  --app server.main:app new-apikey
 
 # Dump the database
 dump-db: $(PYTHON)

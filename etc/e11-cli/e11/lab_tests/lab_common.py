@@ -5,6 +5,9 @@ import json
 import os.path
 import configparser
 
+import yaml
+
+from e11.e11core.context    import E11Context
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
@@ -61,11 +64,11 @@ def test_gunicorn_running( tr:TestRunner ):
         raise TestFail(f"Could not find {lab} gunicorn running")
     return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
 
-@timeout(5)
 def test_database_created( tr:TestRunner):
     fname = tr.ctx.labdir + "/instance/message_board.db"
-    if not os.path.exists(fname):
-        raise TestFail(f"database file {fname} has not been created. Did you run `make init-db`?")
+    r = tr.run_command(f"stat {fname}")
+    if r.exit_code !=0:
+        raise TestFail(f"database file {fname} has not been created (e. Did you run `make init-db`?")
 
     r = tr.run_command(f"sqlite3 {fname} .schema")
     if r.exit_code != 0:
@@ -75,38 +78,36 @@ def test_database_created( tr:TestRunner):
         raise TestFail(f"{fname} schema does not have a 'CREATE TABLE api_keys' statement. "
                        "Run make wipe-db and then make init-db.")
 
+    tr.ctx.database_fname = fname
     return f"database {fname} created and schema validated"
 
-
-def get_lab_config( tr:TestRunner ):
-    """Gets the [lab4] or [lab5] config and puts the api_key and api_secret_key into the context"""
+@timeout(5)
+def test_api_keys_exist( tr: TestRunner):
     lab = tr.ctx.lab
-    txt = tr.read_file(CONFIG_FILE)
-    cp = configparser.ConfigParser()
+    lab_answers = None
+    for filepath in (f"/home/ubuntu/{lab}-answers.yaml",f"/home/ubuntu/{lab}/{lab}-answers.yaml"):
+        try:
+            lab_answers = tr.read_file(filepath)
+            break
+        except Exception:  # noqa: BLE001 pylint: disable=broad-exception-caught
+            continue
+    if lab_answers is None:
+        raise TestFail(f"Could not find {lab}-answers.yaml. Please create this file and grade again")
+    data = yaml.safe_load(lab_answers)
     try:
-        cp.read_string( txt )
-    except configparser.MissingSectionHeaderError as e:
-        raise TestFail(f"{CONFIG_FILE} is not a valid configuration file") from e
-    try:
-        lab_cp = cp[ lab ]
+        tr.ctx.api_key = data['API_KEY']  # Dynamic field, use dict access
     except KeyError as e:
-        raise TestFail(f"{CONFIG_FILE} does not have a [{lab}] section") from e
+        raise TestFail(f"API_KEY: not in {lab}-answers.yaml {e}") from e
     try:
-        api_key = lab_cp['api_key']
-        api_secret_key = lab_cp['api_secret_key']
+        tr.ctx.api_secret_key = data['API_SECRET_KEY']  # Dynamic field, use dict access
     except KeyError as e:
-        raise TestFail(f"{CONFIG_FILE} [{lab}] section requires both an api_key and an api_secret_key") from e
-    tr.ctx['api_key'] = api_key  # Dynamic field, use dict access
-    tr.ctx['api_secret_key'] = api_secret_key  # Dynamic field, use dict access
-    return (api_key, api_secret_key)
-
+        raise TestFail(f"API_SECRET_KEY: not in {lab}-answers.yaml {e}") from e
+    return f"API_KEY <{tr.ctx.api_key}> and API_SECRET_KEY <censored> read from {lab}-answers.yaml"
 
 
 @timeout(5)
-def test_database_keys( tr:TestRunner):
-    (api_key, _) = get_lab_config( tr )
-
-    fname = tr.ctx.labdir + "/instance/message_board.db"
+def test_api_keys_work( tr:TestRunner):
+    fname = tr.ctx.database_fname
     r = tr.run_command(f"sqlite3 {fname} .schema")
     for (table,name) in [("api_keys","API Keys"),
                          ("messages","messages")]:
@@ -121,9 +122,9 @@ def test_database_keys( tr:TestRunner):
         if table=='api_keys':
             count = 0
             for row in rows:
-                if row['api_key']==api_key:
+                if row['api_key']==tr.ctx.api_key:
                     count += 1
             if count==0:
-                raise TestFail(f"api_key {api_key} is in {CONFIG_FILE} but not in {fname}")
+                raise TestFail(f"api_key {tr.ctx.api_key} is in answers file but not in {fname}")
 
     return f"Successfully found API Keys in database and in {CONFIG_FILE}"
