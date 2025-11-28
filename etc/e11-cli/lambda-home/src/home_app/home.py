@@ -59,7 +59,7 @@ from .sessions import (
 from .sessions import get_user_from_email, delete_session, expire_batch
 from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 LOGGER = get_logger("home")
 CSCIE_BOT = "cscie-bot"
@@ -539,7 +539,8 @@ def api_register(event, payload):
                        course_key=user.course_key,
                        preferred_name=user.preferred_name))
         add_user_log(event, user.user_id, f'Registration email sent to {email}')
-    return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+        return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+    return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
 
 
 def api_heartbeat(event, context):
@@ -560,8 +561,6 @@ def api_heartbeat(event, context):
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
-
-
     ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
     secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
     json_key = secret.get("SecretString")
@@ -571,7 +570,6 @@ def get_pkey_pem(key_name):
     except KeyError:
         LOGGER.error("keys  %s not found", key_name)
         raise
-
 
 def api_grader(event, context, payload):
     """
@@ -585,9 +583,12 @@ def api_grader(event, context, payload):
     public_ip = user.public_ip
     email = user.email
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
-    summary = grader.grade_student_vm(
-        user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT)
-    )
+    summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
+    if summary['error']:
+        LOGGER.error("summary=%s",summary)
+        return resp_json(500, summary)
+    LOGGER.info("summary=%s",summary)
+
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
 
     # Record grades
@@ -788,7 +789,7 @@ def lambda_handler(event, context):
                     return api_heartbeat(event, context)
 
                 # Must be last API call - match all actions
-                case ("POST", "/api/v1", _):
+                case (_, "/api/v1", _):
                     return resp_json(
                         400,
                         {
@@ -797,6 +798,7 @@ def lambda_handler(event, context):
                             "method": method,
                             "path": path,
                             "action": action,
+                            "version": __version__
                         },
                     )
 
@@ -834,6 +836,9 @@ def lambda_handler(event, context):
                     return redirect(LAB_REDIRECTS[7])
                 case ("GET", "/lab8", _):
                     return redirect(LAB_REDIRECTS[8])
+
+                case ("GET", "/version", _):
+                    return resp_text(200, f"version: {__version__}\n")
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript

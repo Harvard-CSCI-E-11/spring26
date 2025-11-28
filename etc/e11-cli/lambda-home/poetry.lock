@@ -974,6 +974,18 @@ files = [
 toml = ["tomli ; python_full_version <= \"3.11.0a6\""]
 
 [[package]]
+name = "crossplane"
+version = "0.5.8"
+description = "Reliable and fast NGINX configuration file parser."
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "crossplane-0.5.8-py2.py3-none-any.whl", hash = "sha256:ede8e83c9e3a58dfc37c69f5ee065d4b3adc44ae42749ced496962a0e7f545b7"},
+    {file = "crossplane-0.5.8.tar.gz", hash = "sha256:b193bd8b963a041d5414ea18dcbb1c55b5424fee3d73bfa1809124605b322101"},
+]
+
+[[package]]
 name = "cryptography"
 version = "46.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
@@ -2401,4 +2413,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "d9bb9285bab3bed57a103084086ef36fc7a7429001168d2e7293bb31d7324bf1"
+content-hash = "25f123f99e481037f6642f00cd45981e9ed8df6e20cb38e9ecdb4ed57ffac30c"

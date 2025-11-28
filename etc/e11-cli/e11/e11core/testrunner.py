@@ -19,9 +19,12 @@ from urllib.error import HTTPError
 
 from dataclasses import dataclass
 from typing import Optional
-from .constants import DEFAULT_NET_TIMEOUT_S
+from .constants import DEFAULT_NET_TIMEOUT_S,DEFAULT_HTTP_TIMEOUT_S
 from .assertions import TestFail  # for nice errors in grader mode
 from .e11ssh import E11Ssh
+from .utils import get_logger
+
+LOGGER = get_logger("testrunner")
 
 @dataclass
 class CommandResult:
@@ -76,21 +79,25 @@ class TestRunner:
     def read_file(self, path: str) -> str:
         # grader: SFTP first, sudo-catat fallback
         if self.ssh:
+            LOGGER.debug("read_file SSH %s",path)
             try:
-                data = self.ssh.sftp_read(path)
-                return data.decode("utf-8", "replace")
+                data = self.ssh.sftp_read(path).decode("utf-8", "replace")
+                LOGGER.debug("read %s bytes",len(data))
+                return data
             except Exception as e:   # pylint: disable=broad-exception-caught
                 rc, out, err = self.ssh.exec(f"sudo -n /bin/cat -- {shlex.quote(path)}", timeout=DEFAULT_NET_TIMEOUT_S)
                 if rc != 0:
                     raise TestFail(f"cannot read {path} (rc={rc})", context=err) from e
                 return out
 
+        LOGGER.debug("read_file %s",path)
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             return f.read()
 
     # pylint: disable=too-many-locals, disable=too-many-positional-arguments
-    def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_NET_TIMEOUT_S) -> HTTPResult:
+    def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_HTTP_TIMEOUT_S) -> HTTPResult:
         # Get from HTTP. This should work from anywhere
+        LOGGER.debug("http_get %s timeout %s",url,timeout)
         if handler:
             opener = build_opener(handler)
         else:
