@@ -43,7 +43,7 @@ curl -sSL "$URL" -o /tmp/lambda.zip
 unzip -l /tmp/lambda.zip | grep -i 'jinja2/' | head
 ```
 
-We were thrown off becuase the default AWS environment contained `boto3` but it did not contain `jinja2`.
+We were thrown off because the default AWS environment contained `boto3` but it did not contain `jinja2`.
 
 Lambdas
 -------
@@ -79,6 +79,6 @@ template.yaml
 
 
 
-Open Quetions
+Open Questions
 =============
 - What happens if the user registers under a different email then is in HarvardKey?

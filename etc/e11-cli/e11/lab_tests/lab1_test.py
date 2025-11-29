@@ -10,7 +10,7 @@ from e11.lab_tests import lab_common
 test_autograder_key_present = lab_common.test_autograder_key_present
 
 @timeout(2)
-def test_journal_retension( tr:TestRunner):
+def test_journal_retention( tr:TestRunner):
     """
     check if the journal retains for 6 months
     """

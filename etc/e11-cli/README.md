@@ -1,6 +1,6 @@
 This directory contains the following:
 * e11/ - The source code for the e11 command
-* lambda-home/ - The code for the the AWS Lambda function at https://csci-e-11.org/ that runs the student dashboard and performs grading
+* lambda-home/ - The code for the AWS Lambda function at https://csci-e-11.org/ that runs the student dashboard and performs grading
 * lambda-users-db/ - The SAM lambda for creating the users-db (it's not really a lambda)
 * tests/ - tests for the e11 and grader system (because nothing should be written without a test)
 
@@ -10,7 +10,7 @@ You will also find in this directory:
 * e11/e11core/assertions.py - misc asserts available for tests
 * e11/e11core/config.py - E11Config object - the object that is passed to the grader functions in the context
 * e11/e11core/constants.py - constants. this is where 'spring26' is defined. Not all uses are fully parameterized
-* e11/e11core/context.py - builds the contaext that is passed. This should be folded into config.py, possibly
+* e11/e11core/context.py - builds the context that is passed. This should be folded into config.py, possibly
 * e11/e11core/decorators.py - defines @timeout and @retry
 * e11/e11core/e11ssh.py - ssh access to student VMs
 * e11/e11core/grader.py - the grader framework
@@ -36,7 +36,7 @@ The command implements these subcommands:
 ## The `e11 access` subcommand
 * `e11 access on` - Allows the class staff to `ssh` into your instance. This is required for grading and is the default mode.
 * `e11 access off` - Disables access to your instance. Your instance lab cannot be graded if access is off.
-* `ell access check` - Reports if access is enabled or disabled.
+* `e11 access check` - Reports if access is enabled or disabled.
 
 ## The `e11 check` subcommand
 * `e11 check [lab1|lab2|lab3|lab4|lab5]` - Runs the lab checker for each lab. Not every aspect of the lab is checked, but many are.

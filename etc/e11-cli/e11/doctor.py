@@ -8,7 +8,7 @@ def run_doctor(_):
     print("e11 doctor:")
 
     if cfg.config_path.exists():
-        print(f"  ✔ ${cfg.config_path} exists")
+        print(f"  ✔ {cfg.config_path} exists")
         if not cfg.email:
             ok = False
             print( "  ✘ ~/e11-config.ini missing cfg.email")
@@ -21,7 +21,7 @@ def run_doctor(_):
             print(f"  ✔ ~/e11-config.ini defines public_ip: {cfg.public_ip}")
     else:
         ok = False
-        print(f"  ✘ ${cfg.config_path} does not exist")
+        print(f"  ✘ {cfg.config_path} does not exist")
 
 
 

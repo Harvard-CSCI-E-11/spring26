@@ -12,7 +12,6 @@ PYTHON = python3.12
 
 lint: .venv/pyvenv.cfg
 	poetry run pylint e11/.
-	poetry run pylint e11/.
 
 check: .venv/pyvenv.cfg
 	make lint

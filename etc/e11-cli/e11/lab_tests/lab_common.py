@@ -1,5 +1,5 @@
 """
-lab_commnon.py: common things for the lab tester.
+lab_common.py: common things for the lab tester.
 """
 import json
 
@@ -59,13 +59,13 @@ def test_gunicorn_running( tr:TestRunner ):
             count += 1
     if count==0:
         raise TestFail(f"Could not find {lab} gunicorn running")
-    return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
+    return f"Found {count} {'copy' if count==1 else 'copies'} of {lab} gunicorn running"
 
 def test_database_created( tr:TestRunner):
     fname = tr.ctx.labdir + "/instance/message_board.db"
     r = tr.run_command(f"stat {fname}")
     if r.exit_code !=0:
-        raise TestFail(f"database file {fname} has not been created (e. Did you run `make init-db`?")
+        raise TestFail(f"database file {fname} has not been created (e.g. Did you run `make init-db`?")
 
     r = tr.run_command(f"sqlite3 {fname} .schema")
     if r.exit_code != 0:

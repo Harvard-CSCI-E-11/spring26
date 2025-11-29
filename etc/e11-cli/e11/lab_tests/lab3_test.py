@@ -65,7 +65,7 @@ def test_database_loaded( tr:TestRunner):
 
     r = tr.run_command(f"sqlite3 {fname} -json 'select * from students'")
     if r.exit_code != 0:
-        raise TestFail(f"could not select * from studnets for {fname}")
+        raise TestFail(f"could not select * from students for {fname}")
     students = json.loads(r.stdout)
     s0 = students[0]
     tr.ctx['s0'] = s0  # Dynamic field, use dict access

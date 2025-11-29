@@ -33,7 +33,7 @@ def get_key(pkey_pem):
             return keycls.from_private_key(io.StringIO(pkey_pem))
         except Exception: # pylint: disable=broad-exception-caught
             continue
-    raise ValueError("could not determine key type from {pkey_pem}")
+    raise ValueError(f"could not determine key type from {pkey_pem}")
 
 class E11Ssh:
     def __init__(self, hostname, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10): # pylint: disable=too-many-positional-arguments
