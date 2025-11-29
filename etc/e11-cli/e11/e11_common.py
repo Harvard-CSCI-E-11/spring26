@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 
-from e11.e11core.constants import COURSE_DOMAIN, COURSE_NAME, COURSE_KEY_LEN
+from e11.e11core.constants import COURSE_KEY_LEN
 
 if TYPE_CHECKING:
     from mypy_boto3_route53.client import Route53Client
@@ -25,7 +25,7 @@ else:
     DynamoDBServiceResource = Any  # pylint: disable=invalid-name
     DynamoDBTable = Any            # pylint: disable=invalid-name
 
-# COURSE_NAME, COURSE_DOMAIN, and COURSE_KEY_LEN are imported from e11.e11core.constants
+# COURSE_KEY_LEN is imported from e11.e11core.constants
 
 
 # DynamoDB config

@@ -13,6 +13,7 @@ import crossplane               # type: ignore // parser for nginx files
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
+from e11.e11core.constants import COURSE_DOMAIN
 from e11.lab_tests import lab_common
 
 from e11.e11core.utils import get_logger
@@ -75,7 +76,6 @@ def get_cert_organization(cert):
     return None
 
 def domain(tr):
-    from e11.e11core.constants import COURSE_DOMAIN
     return f"{tr.ctx.smashedemail}.{COURSE_DOMAIN}"
 
 @timeout(2)
