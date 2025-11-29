@@ -44,8 +44,9 @@ from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
 from e11.e11core import grader
-from e11.e11_common import users_table, sessions_table, A, COURSE_DOMAIN, EmailNotRegistered
+from e11.e11_common import users_table, sessions_table, A, EmailNotRegistered
 from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
+from e11.e11core.constants import COURSE_DOMAIN
 
 from . import oidc
 from . import sessions
