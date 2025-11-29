@@ -133,9 +133,7 @@ class TestRetry:
                 raise ValueError("Retry")
             return "success"
 
-        start_time = time.time()
         result = function_with_backoff()
-        end_time = time.time()
 
         assert result == "success"
         assert len(call_times) == 3
