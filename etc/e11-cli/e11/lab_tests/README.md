@@ -58,7 +58,7 @@ The test context provides information about the lab environment:
 - `ctx.public_ip` - Public IP address of the VM (for grading)
 - `ctx.email` - Student's email address
 - `ctx.smashedemail` - Hashed email for DNS names
-- `ctx.labdns` - DNS name for the lab (e.g., "student-lab3.csci-e-11.org")
+- `ctx.labdns` - DNS name for the lab (e.g., "student-lab3.{COURSE_DOMAIN}")
 - `ctx.course_key` - Student's course key
 
 Tests can access and modify the context as needed (e.g., storing computed values for later tests).

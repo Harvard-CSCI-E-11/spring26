@@ -18,7 +18,7 @@ class E11Context:  # pylint: disable=too-many-instance-attributes
     labnum: int  # e.g., 3
     course_root: str
     labdir: str  # e.g., "/home/ubuntu/spring26/lab3"
-    labdns: Optional[str] = None  # e.g., "smashedemail-lab3.csci-e-11.org"
+    labdns: Optional[str] = None  # e.g., "smashedemail-lab3.{COURSE_DOMAIN}"
 
     # Student info
     course_key: Optional[str] = None
@@ -69,7 +69,7 @@ def build_ctx(lab: str) -> E11Context:
     cfg = E11Config.load()
     labdns = None
     if cfg.smashedemail:
-        labdns = f"{cfg.smashedemail}-{lab}.{constants.DOMAIN}"
+        labdns = f"{cfg.smashedemail}-{lab}.{constants.COURSE_DOMAIN}"
 
     return E11Context(
         version=constants.VERSION,

@@ -11,6 +11,8 @@ from typing import Any, TYPE_CHECKING
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 
+from e11.e11core.constants import COURSE_DOMAIN
+
 if TYPE_CHECKING:
     from mypy_boto3_route53.client import Route53Client
     from mypy_boto3_secretsmanager.client import SecretsManagerClient
@@ -24,7 +26,7 @@ else:
     DynamoDBTable = Any            # pylint: disable=invalid-name
 
 COURSE_NAME   = 'CSCI E-11'
-COURSE_DOMAIN = 'csci-e-11.org'
+# COURSE_DOMAIN is imported from e11.e11core.constants
 COURSE_KEY_LEN = 6
 
 

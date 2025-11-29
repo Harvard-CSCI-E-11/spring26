@@ -75,7 +75,8 @@ def get_cert_organization(cert):
     return None
 
 def domain(tr):
-    return f"{tr.ctx.smashedemail}.csci-e-11.org"
+    from e11.e11core.constants import COURSE_DOMAIN
+    return f"{tr.ctx.smashedemail}.{COURSE_DOMAIN}"
 
 @timeout(2)
 def test_hostname( tr:TestRunner ):
