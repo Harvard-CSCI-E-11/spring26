@@ -15,7 +15,7 @@ This document summarizes the typos, code issues, and refactoring opportunities i
    - **Fixed**: Corrected spelling in module description
 
 3. **README.md** (line 3)
-   - **Issue**: Double word "the the" 
+   - **Issue**: Double word "the the"
    - **Fixed**: Changed to "the AWS Lambda function"
 
 4. **NOTES.md** (line 46)

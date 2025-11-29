@@ -179,7 +179,7 @@ Tests are designed to work in two contexts:
 ### Test Execution Flow
 
 1. **Context Building**: `build_ctx()` creates `E11Context` with lab information
-2. **TestRunner Creation**: 
+2. **TestRunner Creation**:
    - Local: `TestRunner(ctx)` - uses subprocess/file access
    - Remote: `TestRunner(ctx, ssh=E11Ssh(...))` - uses SSH
 3. **Test Discovery**: Module scanner finds all `test_*` functions
@@ -255,7 +255,7 @@ See `TESTING.md` for comprehensive testing documentation. Key points:
 
 - **E11 CLI Tests**: Located in `tests/`, run with `make check`
 - **Lambda-Home Tests**: Located in `lambda-home/tests/`, run with `cd lambda-home && make check`
-- **Test Coverage Goals**: 
+- **Test Coverage Goals**:
   - E11 CLI: 70%+
   - Lambda-Home: 85%+
 
