@@ -15,7 +15,7 @@ from .assertions import TestFail
 from .testrunner import TestRunner
 from .utils import get_logger, smash_email, get_error_location
 from .e11ssh import E11Ssh
-from .constants import DOMAIN
+from .constants import COURSE_DOMAIN
 
 from .context import build_ctx, E11Context
 
@@ -161,7 +161,7 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str|None=None, key
     if smashed:
         ctx.smashedemail = smashed
         # Set labdns based on smashed email for grading
-        ctx.labdns = f"{smashed}-{lab}.{DOMAIN}"
+        ctx.labdns = f"{smashed}-{lab}.{COURSE_DOMAIN}"
     ctx.public_ip = public_ip
     ctx.pkey_pem = pkey_pem
     ctx.key_filename = key_filename

@@ -1,0 +1,23 @@
+[
+  {
+    "regex": "\\b(int|float|double|String|boolean)\\b",
+    "backgroundColor": "#B7410E",
+    "foregroundColor": "White",
+    "underline": false,
+    "description": "Standard Data Types (Dull Rust Red Highlight, White Text)"
+  },
+  {
+    "regex": "(?<=\\.)\\w+",
+    "backgroundColor": "Aqua",
+    "foregroundColor": "Black",
+    "underline": true,
+    "description": "Method Calls (Aqua Highlight, Black Text, Underlined)"
+  },
+  {
+    "regex": "\\/\\/.*",
+    "backgroundColor": null,
+    "foregroundColor": "#006400",
+    "underline": false,
+    "description": "Single-Line Comments (No Highlight, Dark Green Text)"
+  }
+]

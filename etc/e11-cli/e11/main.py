@@ -20,7 +20,7 @@ from email_validator import validate_email, EmailNotValidError
 from . import staff
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
-from .e11core.constants import GRADING_TIMEOUT
+from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN
 from .e11core.context import build_ctx, chdir_to_lab
 from .e11core.render import print_summary
 from .e11core.utils import get_logger,smash_email
@@ -43,7 +43,6 @@ STUDENT_PREFERRED_NAME='preferred_name'
 INSTANCE_PUBLIC_IP='public_ip'
 INSTANCE_ID='instanceId'
 COURSE_KEY='course_key'
-COURSE_KEY_LEN=6
 STUDENT_ATTRIBS = [STUDENT_PREFERRED_NAME,STUDENT_EMAIL,COURSE_KEY,INSTANCE_PUBLIC_IP,INSTANCE_ID]
 ANSWERS = {"lab1":['e11-attacker'],
            "lab4":['api_key','api_secret_key'],
@@ -57,9 +56,6 @@ git pull
 (cd etc/e11-cli; pipx install . --force)
 git stash apply
 """
-
-API_ENDPOINT = 'https://csci-e-11.org/api/v1'
-STAGE_ENDPOINT = 'https://stage.csci-e-11.org/api/v1'
 
 def endpoint(args):
     if args.stage is True:
