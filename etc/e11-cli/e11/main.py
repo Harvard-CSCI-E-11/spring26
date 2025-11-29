@@ -4,10 +4,12 @@ The CSCI E-11 e11 program.
 Note that we use python3.12 because that's what's installed on ubuntu 24.04
 """
 import argparse
-import sys
-import os
+import importlib
+import inspect
 import json
+import os
 import re
+import sys
 
 import dns
 import dns.resolver
@@ -20,8 +22,9 @@ from email_validator import validate_email, EmailNotValidError
 from . import staff
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
 
-from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN
+from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX
 from .e11core.context import build_ctx, chdir_to_lab
+from .e11core.grader import collect_tests_in_definition_order
 from .e11core.render import print_summary
 from .e11core.utils import get_logger,smash_email
 from .e11core import grader
@@ -335,6 +338,65 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     sys.exit(0 if not summary["fails"] else 1)
 
+def do_report_tests(_):
+    """Generate markdown report of all available tests across all labs."""
+    print("# E11 Lab Tests Report\n")
+    print("This document lists all available tests for each lab.\n")
+
+    for lab_num in range(LAB_MAX + 1):
+        lab = f"lab{lab_num}"
+        try:
+            mod_name = f"e11.lab_tests.{lab}_test"
+            mod = importlib.import_module(mod_name)
+        except ModuleNotFoundError:
+            continue
+
+        # Collect tests from the module
+        tests = collect_tests_in_definition_order(mod)
+
+        # Also include imported_tests if present
+        imported = getattr(mod, 'imported_tests', [])
+
+        print(f"## {lab.upper()}\n")
+
+        if not tests and not imported:
+            print("*No tests defined.*\n")
+            continue
+
+        # List all test functions (including imported ones)
+        all_tests = {}  # name -> (function, is_imported)
+
+        # Add imported tests
+        for test_func in imported:
+            func_name = getattr(test_func, '__name__', str(test_func))
+            all_tests[func_name] = (test_func, True)
+
+        # Add locally defined tests
+        for name, test_func in tests:
+            if name not in all_tests:
+                all_tests[name] = (test_func, False)
+
+        # Sort test names for consistent output
+        test_names = sorted(all_tests.keys())
+
+        # Print test list
+        for test_name in test_names:
+            test_func, _ = all_tests[test_name]
+
+            docstring = ""
+            if test_func and inspect.isfunction(test_func):
+                docstring = inspect.getdoc(test_func) or ""
+                # Clean up docstring - take first line only for brevity
+                if docstring:
+                    docstring = docstring.split('\n')[0].strip()
+
+            if docstring:
+                print(f"- **{test_name}**: {docstring}")
+            else:
+                print(f"- **{test_name}**")
+
+        print()  # Blank line between labs
+
 # pylint: disable=too-many-statements
 def main():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
@@ -376,6 +438,12 @@ def main():
     subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
     subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
 
+    # e11 report [tests]
+    report_parser = subparsers.add_parser('report', help='Generate reports')
+    report_parser.set_defaults(func=lambda _: report_parser.print_help())
+    report_subparsers = report_parser.add_subparsers(dest='report_type')
+    report_subparsers.add_parser('tests', help='List all available tests in markdown format').set_defaults(func=do_report_tests)
+
     # e11 answer [lab] - answer solutions
     answer_parser = subparsers.add_parser('answer', help='Answer additional questions for a particular lab prior to grading')
     answer_parser.add_argument(dest='lab', help='Lab for answers')
@@ -403,6 +471,8 @@ def main():
     if not on_ec2():
         if args.command=='grade' and args.direct:
             pass
+        elif args.command=='report':
+            pass  # report commands don't need EC2
         elif staff.enabled():
             pass
         elif args.force:

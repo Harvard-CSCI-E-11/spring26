@@ -8,6 +8,9 @@ from e11.e11core.decorators import timeout
 from e11.e11core.assertions import assert_contains, assert_not_contains, assert_len_between, TestFail
 from e11.e11core.testrunner import TestRunner
 
+# Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
+imported_tests = []  # lab0 has no imported tests
+
 @timeout(5)
 def test_cwd_is_labdir( _:TestRunner ):
     # Runner auto-chdirs to COURSE_ROOT/lab0 before executing tests
