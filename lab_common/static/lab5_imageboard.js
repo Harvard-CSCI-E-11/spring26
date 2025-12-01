@@ -42,27 +42,13 @@ function show_images() {
                     { title: "#", field: "image_id", width: 20 },
                     { title: "Created", field: "created" },
                     { title: "Message", field: "message" },
-                    {
-                        title: "Photo",
-                        field: "image_id",
-                        formatter: (cell) => {
-                            const id = cell.getValue();
-                            if (!id) return "n/a";
-                            const src = `/api/get-image?image_id=${encodeURIComponent(id)}`;
-                            return `<img src="${src}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
-                        },
-                    },
-                    {
-                        title: "Celebrity",
-                        field: "celeb",
-                        formatter: (cell) => {
-                            const celeb = cell.getValue();
-                            const c0 = celeb && celeb[0];
-                            if (!c0) return "n/a";
-                            const href = c0.Urls && c0.Urls[0] ? `https://${c0.Urls[0]}` : "#";
-                            return `Name: <a href="${href}">${c0.Name}</a><br>Match Confidence: ${c0.MatchConfidence}`;
-                        },
-                    },
+                    { title: "Photo", field: "url",
+                      formatter: (cell) => {
+                          const url = cell.getValue();
+                          if (!url) return "n/a";
+                          return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
+                      },
+                    }
                 ],
                 placeholder: "No lab5 messages yet",
             });

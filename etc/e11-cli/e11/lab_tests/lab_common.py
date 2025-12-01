@@ -130,7 +130,6 @@ def test_database_tables( tr:TestRunner):
             count += 1
     if count==0:
         raise TestFail(f"api_key {tr.ctx.api_key} is in answers file but not table 'api_key' of database {fname}")
-
     return f"Successfully found API Keys from {CONFIG_FILE} in {fname}"
 
 
