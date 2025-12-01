@@ -9,12 +9,20 @@ import urllib.parse
 from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
-from e11.lab_tests import lab_common
+from e11.lab_tests.lab_common import (
+    test_autograder_key_present,
+    test_venv_present,
+    test_nginx_config_syntax_okay,
+    test_gunicorn_running,
+)
 
-test_autograder_key_present = lab_common.test_autograder_key_present
-test_venv_present = lab_common.test_venv_present
-test_nginx_config_syntax_okay = lab_common.test_nginx_config_syntax_okay
-test_gunicorn_running = lab_common.test_gunicorn_running
+# Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
+imported_tests = [
+    test_autograder_key_present,
+    test_venv_present,
+    test_nginx_config_syntax_okay,
+    test_gunicorn_running,
+]
 
 @retry(times=3, backoff=0.25)
 @timeout(10)
@@ -65,7 +73,7 @@ def test_database_loaded( tr:TestRunner):
 
     r = tr.run_command(f"sqlite3 {fname} -json 'select * from students'")
     if r.exit_code != 0:
-        raise TestFail(f"could not select * from studnets for {fname}")
+        raise TestFail(f"could not select * from students for {fname}")
     students = json.loads(r.stdout)
     s0 = students[0]
     tr.ctx['s0'] = s0  # Dynamic field, use dict access

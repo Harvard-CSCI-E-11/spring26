@@ -5,12 +5,15 @@ from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_not_contains
 
-from e11.lab_tests import lab_common
+from e11.lab_tests.lab_common import test_autograder_key_present
 
-test_autograder_key_present = lab_common.test_autograder_key_present
+# Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
+imported_tests = [
+    test_autograder_key_present,
+]
 
 @timeout(2)
-def test_journal_retension( tr:TestRunner):
+def test_journal_retention( tr:TestRunner):
     """
     check if the journal retains for 6 months
     """

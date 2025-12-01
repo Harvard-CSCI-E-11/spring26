@@ -60,7 +60,7 @@ class TestPrintSummary:
         """Test basic summary output with passing tests."""
         print_summary(basic_summary, verbose=False)
         captured = capsys.readouterr()
-        
+
         assert "=== lab0 Results ===" in captured.out
         assert "Testing public ip address: 1.2.3.4" in captured.out
         assert "Score: 5.0 / 5.0" in captured.out
@@ -72,7 +72,7 @@ class TestPrintSummary:
         """Test summary output with failing tests."""
         print_summary(summary_with_failures, verbose=False)
         captured = capsys.readouterr()
-        
+
         assert "=== lab0 Results ===" in captured.out
         assert "Score: 2.5 / 5.0" in captured.out
         assert "-- PASSES --" in captured.out
@@ -86,7 +86,7 @@ class TestPrintSummary:
         """Test summary with no passing or failing tests."""
         print_summary(empty_summary, verbose=False)
         captured = capsys.readouterr()
-        
+
         assert "-- PASSES --" not in captured.out
         assert "-- FAILURES --" not in captured.out
         assert "Score: 0.0 / 5.0" in captured.out
@@ -110,7 +110,7 @@ class TestPrintSummary:
         ctx_obj = MagicMock()
         ctx_obj.public_ip = "9.10.11.12"
         basic_summary["ctx"] = ctx_obj
-        
+
         print_summary(basic_summary, verbose=False)
         captured = capsys.readouterr()
         assert "Testing public ip address: 9.10.11.12" in captured.out
@@ -145,10 +145,10 @@ class TestPrintSummary:
             ],
             "ctx": {"public_ip": "1.2.3.4"},
         }
-        
+
         print_summary(summary, verbose=False)
         captured = capsys.readouterr()
-        
+
         for expected in expected_present:
             assert expected in captured.out
         for expected in expected_absent:
@@ -171,7 +171,7 @@ class TestPrintSummary:
             "tests": [{"name": "test_one", **test_data}],
             "ctx": {"public_ip": "1.2.3.4"},
         }
-        
+
         print_summary(summary, verbose=False)
         captured = capsys.readouterr()
         assert "test_one" in captured.out
@@ -180,7 +180,7 @@ class TestPrintSummary:
         """Test verbose mode outputs JSON."""
         print_summary(basic_summary, verbose=True)
         captured = capsys.readouterr()
-        
+
         assert captured.out.strip().startswith("{")
         assert '"lab"' in captured.out
         assert '"score"' in captured.out
@@ -189,10 +189,10 @@ class TestPrintSummary:
     def test_verbose_mode_with_pass_artifacts(self, capsys, basic_summary):
         """Test verbose mode shows pass artifacts with context."""
         basic_summary["tests"][0]["context"] = "Some artifact data"
-        
+
         print_summary(basic_summary, verbose=True)
         captured = capsys.readouterr()
-        
+
         assert "-- PASS ARTIFACTS (verbose) --" in captured.out
         assert "test_one" in captured.out
         assert "Some artifact data" in captured.out
@@ -201,7 +201,7 @@ class TestPrintSummary:
         """Test verbose mode shows artifacts header even when no context."""
         print_summary(basic_summary, verbose=True)
         captured = capsys.readouterr()
-        
+
         # Header prints if there are passes (even if no context)
         assert "-- PASS ARTIFACTS (verbose) --" in captured.out
         assert "-- PASSES --" in captured.out
@@ -213,10 +213,10 @@ class TestPrintSummary:
         empty_summary["tests"] = [
             {"status": "fail", "name": "test_one", "message": "Failed"}
         ]
-        
+
         print_summary(empty_summary, verbose=True)
         captured = capsys.readouterr()
-        
+
         assert "-- PASS ARTIFACTS (verbose) --" not in captured.out
 
     def test_multiple_passes(self, capsys):
@@ -233,10 +233,10 @@ class TestPrintSummary:
             ],
             "ctx": {"public_ip": "1.2.3.4"},
         }
-        
+
         print_summary(summary, verbose=False)
         captured = capsys.readouterr()
-        
+
         assert "test_one" in captured.out
         assert "test_two" in captured.out
         assert "test_three" in captured.out

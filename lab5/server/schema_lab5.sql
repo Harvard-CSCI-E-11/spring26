@@ -9,7 +9,8 @@ CREATE TABLE images (
        linked_message_id INTEGER,
        created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
        created_by INTEGER NOT NULL,
-       celeb_json text(65535),
+       validated INTEGER DEFAULT 0,
+       attribs text(65535),
        FOREIGN KEY(linked_message_id) REFERENCES messages(message_id)
          ON UPDATE RESTRICT
          ON DELETE RESTRICT,

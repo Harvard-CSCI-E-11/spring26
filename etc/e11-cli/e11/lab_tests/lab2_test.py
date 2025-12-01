@@ -14,11 +14,13 @@ from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_contains
 from e11.e11core.constants import COURSE_DOMAIN
-from e11.lab_tests import lab_common
-
 from e11.e11core.utils import get_logger
+from e11.lab_tests.lab_common import test_autograder_key_present
 
-test_autograder_key_present = lab_common.test_autograder_key_present
+# Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
+imported_tests = [
+    test_autograder_key_present,
+]
 LOGGER = get_logger("testrunner")
 STUDENT_USER = 'student'
 STUDENT_AUTH = 'secret'

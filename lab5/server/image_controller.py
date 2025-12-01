@@ -18,12 +18,14 @@ STUDENTS - You do not need to modify this file.
 # pyright: reportUnusedVariable=false
 
 import os
-import json
+import io
 import socket
 import logging
 
 import click
 import boto3
+import PIL                      # Pillow
+
 from botocore.exceptions import BotoCoreError, ClientError
 
 from flask import request, jsonify, current_app, redirect
@@ -33,11 +35,8 @@ from . import message_controller
 
 S3_BUCKET = socket.gethostname().replace(".", "-") + "-lab5-bucket"
 S3_REGION = "us-east-1"
-MAX_IMAGE_SIZE = 10_000_000
+MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
 JPEG_MIME_TYPE = "image/jpeg"
-
-# Initialize the Rekognition client
-rekognition = boto3.client("rekognition", region_name=S3_REGION)
 
 # Define the Cross Origin Resource Sharing Policy for the S3 bucket.
 # This tells the browser that it is safe to retrieve the S3 objects it gets the redirect
@@ -58,31 +57,13 @@ CORS_CONFIGURATION = {
 }
 
 
-def recognize_celebrities(bucket_name, object_key):
-    """
-    Recognizes celebrities in an image stored in an S3 bucket using Amazon Rekognition.
-
-    Args:
-        bucket_name (str): The name of the S3 bucket.
-        object_key (str): The key of the JPEG file in the S3 bucket.
-
-    Returns:
-        list: A list of dictionaries containing information about recognized celebrities.
-    """
-
-    # Call the recognize_celebrities API
+def is_valid_jpeg(byte_array: buf) -> bool:
+    """Simple program to use Pillow to validate a JPEG image"""
     try:
-        current_app.logger.info(
-            "rekognize bucket_name=%s object_key=%s", bucket_name, object_key
-        )
-        response = rekognition.recognize_celebrities(
-            Image={"S3Object": {"Bucket": bucket_name, "Name": object_key}}
-        )
-        # Extract and return details about recognized celebrities as a block of HTML
-        return response.get("CelebrityFaces", [])
-    except BotoCoreError as e:
-        current_app.logger.error("Error: %s", e)
-        return []
+        img = PIL.Image.open(io.BytesIO(buf))
+        return img.format == "JPEG"
+    except (IOError,PIL.UnidentifiedImageError):
+        return False
 
 
 @click.command("init-s3")
@@ -90,6 +71,8 @@ def create_bucket_and_apply_cors():
     """Check to see if the bucket exists and create it if it does not."""
     s3 = boto3.client("s3")
 
+    # Check for S3_BUCKET.
+    # Create the bucket if it does not exist.
     try:
         s3.head_bucket(Bucket=S3_BUCKET)
     except ClientError as e:
@@ -102,26 +85,32 @@ def create_bucket_and_apply_cors():
             print(f"Error checking bucket: {e}")
             raise
 
-    # Apply the CORS policy to the S3 bucket
+    # Apply the CORS policy to the S3 bucket.
+    # If there is an existing CORS policy, this will replace it.
     s3.put_bucket_cors(Bucket=S3_BUCKET, CORSConfiguration=CORS_CONFIGURATION)
     click.echo(f"CORS policy applied to {S3_BUCKET}")
 
-
 def list_images():
     """Return an array of dicts for all the images.
-
     NOTE: For a production system, we would want to include OFFSET and
     LIMIT to restrict to ~100 responses.
-
     """
     conn = db.get_db_conn()
-    return conn.execute(
-        """select message_id,messages.created as created,message,
-                                image_id,celeb_json,s3key
-                         from messages
-                         left join images
-                         where messages.message_id = images.linked_message_id;"""
+    rows = conn.execute(
+        """
+        SELECT message_id,messages.created as created,message, image_id,s3key, validated
+        FROM messages
+        LEFT JOIN images
+        WHERE messages.message_id = images.linked_message_id;
+        """
     ).fetchall()
+
+    # .fetchall() returns a list of SQLIte3 Row objects.
+    # Turn this into an array of dict() objects so that they can be modified.
+    return [dict(row) for row in rows]
+
+
+
 
 
 def get_image_info(image_id):
@@ -147,13 +136,6 @@ def new_image(api_key_id, linked_message_id, s3key):
 
 def init_app(app):
     """Initialize the app and register the paths."""
-
-    def presigned_url_for_s3key(s3key):
-        s3 = boto3.session.Session().client("s3")
-        presigned_url = s3.generate_presigned_url(
-            "get_object", Params={"Bucket": S3_BUCKET, "Key": s3key}, ExpiresIn=3600
-        )  # give an hour
-        return presigned_url
 
     @app.route("/api/post-image", methods=["POST"])
     def api_new_image():
@@ -189,17 +171,16 @@ def init_app(app):
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
         presigned_post = s3.generate_presigned_post(
-            Bucket=S3_BUCKET,
-            Key=s3key,
-            Conditions=[
-                {
-                    "Content-Type": JPEG_MIME_TYPE
-                },  # Explicitly allow Content-Type header
-                ["content-length-range", 1, MAX_IMAGE_SIZE],
+            Bucket = S3_BUCKET,
+            Key = s3key,
+            Conditions = [
+                # Only enforce the Content-Type restriction...
+                { "Content-Type": JPEG_MIME_TYPE },
+                # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
             ],
-            Fields={"Content-Type": JPEG_MIME_TYPE},
-            ExpiresIn=120,
-        )  # in seconds
+            Fields = { "Content-Type": JPEG_MIME_TYPE},
+            ExpiresIn = 120, # in seconds
+        )
 
         # Finally, record the image in the database and get its image_id
         image_id = new_image(api_key_id, message_id, s3key)
@@ -238,49 +219,62 @@ def init_app(app):
 
     @app.route("/api/get-images", methods=["GET"])
     def api_list_images():
-        """List the imsages.
+        """Return an array of JSON records for each image.
+        Transform the s3key into a presigned GET url.
 
-        Note 1: that the function list_images()
-        returns a list of SQLIte3 Row objects. They need to be turned
-        into an array of dict() objects, and each s3key needs to be
-        turned into a url.
-
-        Note 2: This interface returns *all* of the images. A
+        Note: This interface returns *all* of the images. A
         production system would return just some of them.
-
         """
-        # Get all of the images and convert each SQLite3 Row object to a dictionary
-        # (so we can modify it)
 
+        s3 = boto3.session.Session().client("s3")
         app.logger.info("get-images")
         conn = db.get_db_conn()
-        rows = [dict(row) for row in list_images()]
-
-        # Now, for each row:
-        # 1. If we don't celeb info for it, generate the JSON and store that in the database
-        # 2. If we get an error, delete the image from the database
-        # 3. Add a signed url for the s3key
-        ret = []
+        rows = list_images()
+        validated_rows = []
         for row in rows:
-            if row["celeb_json"]:
-                celeb = json.loads(row["celeb_json"])
-                del row["celeb_json"]  # remove undecoded
-            else:
-                # Get the celeb
-                try:
-                    celeb = recognize_celebrities(S3_BUCKET, row["s3key"])
-                    conn.execute(
-                        "UPDATE images set celeb_json=? where s3key=?",
-                        (json.dumps(celeb), row["s3key"]),
-                    )
+            # for each row, add a URL to the s3key
+            row['url'] = s3.generate_presigned_url( "get_object", # the S3 command
+                                                    Params={"Bucket": S3_BUCKET, "Key": row['s3key'}},
+                                                    ExpiresIn=3600 )  # give an hour
+
+            # If row has not been validated yet, we need to validate it.
+            if not row['validated']:
+
+                """
+                STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+
+                you can fetch the data with:
+                r = requests.get(row['url']0
+                r.content             would now be a byte array of byte image.
+
+                You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
+                validated = is_valid_jpeg(r.content)
+
+                For now, we will assume everything is validated
+                """
+                validated = True
+
+                if not validated:
+                    # validation was not successful.
+                    # Delete the s3 object
+                    s3.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
+                    # Delete the database record
+                    c = conn.cursor()
+                    c.execute("DELETE FROM messages where message_id=?",(row['message_id'],))
                     conn.commit()
-                except rekognition.exceptions.InvalidS3ObjectException as e:
-                    current_app.logger.error(
-                        "InvalidS3ObjectException: s3key=%s. e=%s", row["s3key"], str(e)
-                    )  # pylint: disable=line-too-long
                     continue
-            row["celeb"] = celeb
-            ret.append(row)
-        return ret
+
+                # Validation is successful. Save this fact in the database and update the row object
+                c = conn.cursor()
+                c.execute("UPDATE messages set validated=1 where message_id=?",
+                          (row['message_id'],))
+                conn.commit()
+                row['validated'] = 1
+
+            # If we get here, the row is validated. Add it to the list
+            validated_rows.append(row)
+
+        # Now just return the validated rows
+        return validated_rows
 
     app.cli.add_command(create_bucket_and_apply_cors)

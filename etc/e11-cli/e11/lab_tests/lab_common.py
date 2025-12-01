@@ -1,11 +1,11 @@
 """
-lab_commnon.py: common things for the lab tester.
+lab_common.py: common things for the lab tester.
 """
+import re
 import json
-
 import yaml
 
-from e11.e11core.decorators import timeout
+from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
 
@@ -59,13 +59,13 @@ def test_gunicorn_running( tr:TestRunner ):
             count += 1
     if count==0:
         raise TestFail(f"Could not find {lab} gunicorn running")
-    return f"Found {count} {'copy' if count==1 else 'copies'} of lab3 gunicorn running"
+    return f"Found {count} {'copy' if count==1 else 'copies'} of {lab} gunicorn running"
 
 def test_database_created( tr:TestRunner):
     fname = tr.ctx.labdir + "/instance/message_board.db"
     r = tr.run_command(f"stat {fname}")
     if r.exit_code !=0:
-        raise TestFail(f"database file {fname} has not been created (e. Did you run `make init-db`?")
+        raise TestFail(f"database file {fname} has not been created (e.g. Did you run `make init-db`?")
 
     r = tr.run_command(f"sqlite3 {fname} .schema")
     if r.exit_code != 0:
@@ -130,5 +130,16 @@ def test_database_tables( tr:TestRunner):
             count += 1
     if count==0:
         raise TestFail(f"api_key {tr.ctx.api_key} is in answers file but not table 'api_key' of database {fname}")
-
     return f"Successfully found API Keys from {CONFIG_FILE} in {fname}"
+
+
+@retry(times=3, backoff=0.25)
+@timeout(10)
+def test_https_root_ok( tr:TestRunner):
+    lab = tr.ctx.lab
+    url = f"https://{tr.ctx.labdns}/"
+    r = tr.http_get(url, tls_info=True)
+    if r.status != 200:
+        raise TestFail(f"Expected 200 at {url}, got {r.status}", context=r.headers)
+    assert_contains(r.text, re.compile(lab, re.I), context=3)
+    return f"Correct webserver running on {url}"
