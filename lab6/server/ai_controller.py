@@ -5,14 +5,6 @@ STUDENTS - You do not need to modify this file.
 
 """
 
-"""
-image_controller: Controlls all aspects of uploading, downloading,
-listing, and processing JPEG images.
-
-STUDENTS - You do not need to modify this file.
-
-"""
-
 ################################################################
 ##
 # Image APIs. All of these need to only be POST to avoid an api_key
@@ -34,6 +26,8 @@ import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
 from flask import request, jsonify, current_app, redirect
+
+from image_controller import S3_REGION
 
 # Initialize the Rekognition client
 rekognition = boto3.client("rekognition", region_name=S3_REGION)

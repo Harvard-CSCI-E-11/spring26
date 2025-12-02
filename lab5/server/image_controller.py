@@ -2,7 +2,7 @@
 image_controller: Controlls all aspects of uploading, downloading,
 listing, and processing JPEG images.
 
-STUDENTS - You do not need to modify this file.
+STUDENTS - You need to make minor changes to this file to complete labs 5 and 6
 
 """
 
@@ -26,9 +26,9 @@ import click
 import boto3
 import PIL                      # Pillow
 
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 
-from flask import request, jsonify, current_app, redirect
+from flask import request, jsonify
 
 from . import db
 from . import message_controller
@@ -57,10 +57,10 @@ CORS_CONFIGURATION = {
 }
 
 
-def is_valid_jpeg(byte_array: buf) -> bool:
+def is_valid_jpeg(byte_array: bytes) -> bool:
     """Simple program to use Pillow to validate a JPEG image"""
     try:
-        img = PIL.Image.open(io.BytesIO(buf))
+        img = PIL.Image.open(io.BytesIO(byte_array))
         return img.format == "JPEG"
     except (IOError,PIL.UnidentifiedImageError):
         return False
@@ -194,29 +194,6 @@ def init_app(app):
         )
         return jsonify({"presigned_post": presigned_post, "image_id": image_id})
 
-    @app.route("/api/get-image", methods=["POST", "GET"])
-    def api_get_image():
-        """Given a request for an image_id, return a presigned URL that will let the client
-        directly GET the image from S3. NOTE: No authenticaiton.
-        """
-        # Get the URN for the image_id
-        image_id = request.values.get("image_id", type=int, default=0)
-        s3key = get_image_info(image_id)["s3key"]
-        presigned_url = presigned_url_for_s3key(s3key)
-        client_ip = (
-            request.headers.getlist("X-Forwarded-For")[0]
-            if request.headers.getlist("X-Forwarded-For")
-            else request.remote_addr
-        )
-        app.logger.info("%s image_id=%d s3key=%s", client_ip, image_id, s3key)
-        app.logger.debug(
-            "image_id=%d s3key=%s presigned_url=%s", image_id, s3key, presigned_url
-        )
-
-        # Now redirect to it.
-        # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
-        return redirect(presigned_url, code=302)
-
     @app.route("/api/get-images", methods=["GET"])
     def api_list_images():
         """Return an array of JSON records for each image.
@@ -232,10 +209,6 @@ def init_app(app):
         rows = list_images()
         validated_rows = []
         for row in rows:
-            # for each row, add a URL to the s3key
-            row['url'] = s3.generate_presigned_url( "get_object", # the S3 command
-                                                    Params={"Bucket": S3_BUCKET, "Key": row['s3key']},
-                                                    ExpiresIn=3600 )  # give an hour
 
             # If row has not been validated yet, we need to validate it.
             if not row['validated']:
@@ -270,6 +243,13 @@ def init_app(app):
                           (row['message_id'],))
                 conn.commit()
                 row['validated'] = 1
+
+            # for each row, add a URL to the s3key
+            row['url'] = s3.generate_presigned_url(
+                "get_object", # the S3 command
+                Params={"Bucket": S3_BUCKET,
+                        "Key": row['s3key']},
+                ExpiresIn=3600 )  # give an hour
 
             # If we get here, the row is validated. Add it to the list
             validated_rows.append(row)
