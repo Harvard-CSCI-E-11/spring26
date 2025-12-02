@@ -57,7 +57,11 @@ CORS_CONFIGURATION = {
 }
 
 
+<<<<<<< Updated upstream
 def is_valid_jpeg(byte_array: bytes) -> bool:
+=======
+def is_valid_jpeg(buf: bytes) -> bool:
+>>>>>>> Stashed changes
     """Simple program to use Pillow to validate a JPEG image"""
     try:
         img = PIL.Image.open(io.BytesIO(byte_array))
@@ -209,7 +213,6 @@ def init_app(app):
         rows = list_images()
         validated_rows = []
         for row in rows:
-
             # If row has not been validated yet, we need to validate it.
             if not row['validated']:
 
@@ -229,12 +232,15 @@ def init_app(app):
 
                 if not validated:
                     # validation was not successful.
-                    # Delete the s3 object
+                    # 1. Delete the s3 object
                     s3.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
-                    # Delete the database record
+
+                    # 2. Delete the database record
                     c = conn.cursor()
                     c.execute("DELETE FROM messages where message_id=?",(row['message_id'],))
                     conn.commit()
+
+                    # 3. Continue the `for` loop above.
                     continue
 
                 # Validation is successful. Save this fact in the database and update the row object
@@ -244,17 +250,16 @@ def init_app(app):
                 conn.commit()
                 row['validated'] = 1
 
-            # for each row, add a URL to the s3key
+            # Add a signed URL to the s3key.
             row['url'] = s3.generate_presigned_url(
-                "get_object", # the S3 command
-                Params={"Bucket": S3_BUCKET,
-                        "Key": row['s3key']},
-                ExpiresIn=3600 )  # give an hour
+                "get_object",                                      # the S3 command to sign
+                Params={"Bucket": S3_BUCKET, "Key": row['s3key']}, # command parameters
+                ExpiresIn=3600 )                                   # valid for an hour
 
-            # If we get here, the row is validated. Add it to the list
             validated_rows.append(row)
 
         # Now just return the validated rows
         return validated_rows
 
+    # Finally, add the command to the CLI
     app.cli.add_command(create_bucket_and_apply_cors)

@@ -4,7 +4,7 @@ lab5 tester
 # pylint: disable=duplicate-code
 
 import json
-import random
+import time
 import urllib.parse
 from pathlib import Path
 
@@ -38,12 +38,13 @@ imported_tests = [
 
 LINCOLN_JPEG = Path(__file__).parent / "lincoln.jpeg"
 UPLOAD_TIMEOUT_SECONDS = 10
+IMAGE_TOO_BIG = 10_000_000
 
 
 @timeout(5)
 def test_post_image( tr:TestRunner):
     # post a message and verify it is there
-    magic = random.randint(0,1000000)
+    magic = int(time.time())
     msg = f'hello from the automatic grader magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
@@ -129,13 +130,16 @@ def test_post_image( tr:TestRunner):
 @timeout(5)
 def test_too_big_image( tr:TestRunner):
     # post a message and verify it is there
-    msg = 'Trying to post too large an image...'
-    url = f"https://{tr.ctx.labdns}/api/post-message"
-    r = tr.http_get(url,
+    magic = int(time.time())
+    msg = f'hello from the automatic grader magic number {magic}'
+    url = f"https://{tr.ctx.labdns}/api/post-image"
+
+    r1 = tr.http_get(url,
                     method='POST',
                     data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
                                                   'api_secret_key' : tr.ctx.api_secret_key,
-                                                  'message': msg
+                                                  'message': msg,
+                                                  'image_data_length': IMAGE_TOO_BIG
                                                  }).encode("utf-8"))
-    if r.status != 200:
-        raise TestFail(f"could not http POST to {url} error={r.status} {r.text}")
+    if r1.status < 200 or r1.status >= 300:
+        raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
