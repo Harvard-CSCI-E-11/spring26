@@ -388,7 +388,7 @@ def do_report_tests(_):
                 docstring = inspect.getdoc(test_func) or ""
                 # Clean up docstring - take first line only for brevity
                 if docstring:
-                    docstring = docstring.split('\n')[0].strip()
+                    docstring = docstring.split('\n',maxsplit=1)[0].strip()
 
             if docstring:
                 print(f"- **{test_name}**: {docstring}")
