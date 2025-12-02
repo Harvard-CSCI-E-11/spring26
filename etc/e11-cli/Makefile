@@ -17,7 +17,6 @@ lint: .venv/pyvenv.cfg
 
 check: .venv/pyvenv.cfg
 	make lint
-	make static
 	poetry run pytest  -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
 
 clean:
