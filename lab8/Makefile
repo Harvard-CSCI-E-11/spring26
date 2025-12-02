@@ -14,6 +14,7 @@ $(PYTHON):
 
 lint: $(PYTHON)
 	poetry run pylint esp32/
+	poetry run pyright esp32/
 
 distclean:
 	@echo already clean

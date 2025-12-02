@@ -19,6 +19,8 @@ $(PYTHON):
 
 lint: $(PYTHON)
 	poetry run pylint student_data.py simple_flask_application.py
+	poetry run pyright *.py
+
 
 distclean:
 	/bin/rm -rf .venv

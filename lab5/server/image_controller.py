@@ -57,14 +57,10 @@ CORS_CONFIGURATION = {
 }
 
 
-<<<<<<< Updated upstream
-def is_valid_jpeg(byte_array: bytes) -> bool:
-=======
 def is_valid_jpeg(buf: bytes) -> bool:
->>>>>>> Stashed changes
     """Simple program to use Pillow to validate a JPEG image"""
     try:
-        img = PIL.Image.open(io.BytesIO(byte_array))
+        img = PIL.Image.open(io.BytesIO(buf))
         return img.format == "JPEG"
     except (IOError,PIL.UnidentifiedImageError):
         return False
@@ -216,18 +212,18 @@ def init_app(app):
             # If row has not been validated yet, we need to validate it.
             if not row['validated']:
 
-                """
-                STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+                #
+                # STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+                #
+                # you can fetch the data with:
+                # r = requests.get(row['url']0
+                # r.content             would now be a byte array of byte image.
+                #
+                # You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
+                # validated = is_valid_jpeg(r.content)
+                #
+                # For now, we will assume everything is validated
 
-                you can fetch the data with:
-                r = requests.get(row['url']0
-                r.content             would now be a byte array of byte image.
-
-                You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
-                validated = is_valid_jpeg(r.content)
-
-                For now, we will assume everything is validated
-                """
                 validated = True
 
                 if not validated:

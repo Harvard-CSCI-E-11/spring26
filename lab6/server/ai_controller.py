@@ -16,22 +16,17 @@ STUDENTS - You do not need to modify this file.
 # pyright: reportUnusedFunction=false
 # pyright: reportUnusedVariable=false
 
-import os
 import json
-import socket
-import logging
 
-import click
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import BotoCoreError
 
-from flask import request, jsonify, current_app, redirect
+from flask import current_app
 
-from image_controller import S3_REGION
+from .image_controller import S3_REGION,S3_BUCKET
 
 # Initialize the Rekognition client
 rekognition = boto3.client("rekognition", region_name=S3_REGION)
-
 
 
 def recognize_celebrities(bucket_name, object_key):
@@ -61,13 +56,14 @@ def recognize_celebrities(bucket_name, object_key):
         return []
 
 
-
 # The actual celebrity recognizer.
-def annotate_row(row):
-    # Now, for each row:
-    # 1. If we don't celeb info for it, generate the JSON and store that in the database
-    # 2. If we get an error, delete the image from the database
-    # 3. Add a signed url for the s3key
+def annotate_row(db,row):
+    """
+    For each row:
+    1. If we don't celeb info for it, generate the JSON and store that in the database
+    2. If we get an error, delete the image from the database
+    3. Add a signed url for the s3key
+    """
     conn = db.get_db_conn()
     if row["attribs"]:
         celeb = json.loads(row["attribs"])
@@ -85,6 +81,4 @@ def annotate_row(row):
             current_app.logger.error(
                 "InvalidS3ObjectException: s3key=%s. e=%s", row["s3key"], str(e)
             )  # pylint: disable=line-too-long
-            continue
     row["celeb"] = celeb
-    ret.append(row)

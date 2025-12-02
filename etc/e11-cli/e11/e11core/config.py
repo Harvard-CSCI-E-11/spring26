@@ -1,3 +1,7 @@
+"""
+E11 configuration
+"""
+
 import configparser
 from pathlib import Path
 from .constants import CONFIG_FILENAME

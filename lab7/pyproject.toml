@@ -19,6 +19,20 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.8"
+pyright = "^1.1.407"
+circuitpython-stubs = "^10.0.3"
+
+[tool.pylint.main]
+ignored-modules = [
+    "adafruit_display_shapes",
+    "board",
+    "digitalio",
+    "displayio",
+    "microcontroller",
+    "busio",
+    "wifi"
+]
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
