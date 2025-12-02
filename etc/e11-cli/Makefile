@@ -13,12 +13,11 @@ PYTHON = python3.12
 
 lint: .venv/pyvenv.cfg
 	poetry run pylint e11/.
-
-static: .venv/pyvenv.cfg
 	poetry run pyright e11/.
 
 check: .venv/pyvenv.cfg
 	make lint
+	make static
 	poetry run pytest  -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
 
 clean:

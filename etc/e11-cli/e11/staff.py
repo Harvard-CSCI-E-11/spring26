@@ -39,7 +39,7 @@ def do_register_email(args):
     user = create_new_user(email)
     print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
 
-def do_report(args):
+def do_student_report(args):
     session = boto3.session.Session()
     current_profile = session.profile_name
     print(f"Current AWS Profile: {current_profile}\n")
@@ -102,8 +102,8 @@ def add_parsers(parser,subparsers):
     ca.add_argument(dest='email', help='Email address to register')
     ca.set_defaults(func=do_register_email)
 
-    ca = subparsers.add_parser('report', help='E11_STAFF: Generate a report directly from DynamoDB')
-    ca.set_defaults(func=do_report)
+    ca = subparsers.add_parser('student-report', help='E11_STAFF: Generate a report directly from DynamoDB')
+    ca.set_defaults(func=do_student_report)
     ca.add_argument("--dump",help="Dump all information", action='store_true')
 
     parser.add_argument("--keyfile",help="SSH private key file")
