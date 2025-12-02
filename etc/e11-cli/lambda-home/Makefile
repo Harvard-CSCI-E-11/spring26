@@ -26,6 +26,15 @@ install:
 	@echo "--- Installing dependencies with Poetry ---"
 	poetry install --with dev
 
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html
+install-sam-ubuntu:
+	curl -L https://github.com/aws/aws-sam-cli/releases/latest/download/aws-sam-cli-linux-x86_64.zip -o aws-sam-cli-linux-x86_64.zip
+	unzip aws-sam-cli-linux-x86_64.zip -d sam-installation
+	sudo ./sam-installation/install
+	sam --version
+	/bin/rm -rf aws-sam-cli-linux-x86_64.zip sam-installation
+
+
 lint: vend-e11
 	poetry run djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
 	poetry run ruff check --fix
