@@ -1,8 +1,12 @@
 """
 lab_common.py: common things for the lab tester.
 """
-import re
+
+from pathlib import Path
+from uuid import uuid4
 import json
+import mimetypes
+import re
 import yaml
 
 from e11.e11core.decorators import retry, timeout
@@ -15,6 +19,50 @@ AUTO_GRADER_KEY_LINE = (
     "AAAAC3NzaC1lZDI1NTE5AAAAIEK/6zvwwWOO+ui4zbUYN558g+LKh5N8f3KpoyKKrmoR "
     "auto-grader-do-not-delete"
 )
+
+
+def make_multipart_body(fields: dict[str, str], file_field: str, file_path: Path) -> tuple[bytes, str]:
+    """
+    fields: regular form fields (name -> value)
+    file_field: form field name for the file (e.g., "file" or "image")
+    file_path: Path to the file to upload
+
+    Returns (body_bytes, content_type_header_value)
+    """
+    boundary = f"----PythonFormBoundary{uuid4().hex}"
+    boundary_bytes = boundary.encode("ascii")
+    crlf = b"\r\n"
+
+    parts: list[bytes] = []
+
+    # Text fields
+    for name, value in fields.items():
+        parts.append(b"--" + boundary_bytes + crlf)
+        header = f'Content-Disposition: form-data; name="{name}"'.encode("utf-8")
+        parts.append(header + crlf + crlf)
+        parts.append(str(value).encode("utf-8") + crlf)
+
+    # File field
+    filename = file_path.name
+    mime_type, _ = mimetypes.guess_type(filename)
+    if not mime_type:
+        mime_type = "application/octet-stream"
+
+    file_header = (
+        f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"'
+    ).encode("utf-8")
+    parts.append(b"--" + boundary_bytes + crlf)
+    parts.append(file_header + crlf)
+    parts.append(f"Content-Type: {mime_type}".encode("utf-8") + crlf + crlf)
+    parts.append(file_path.read_bytes() + crlf)
+
+    # Closing boundary
+    parts.append(b"--" + boundary_bytes + b"--" + crlf)
+
+    body = b"".join(parts)
+    content_type = f"multipart/form-data; boundary={boundary}"
+    return body, content_type
+
 
 
 @timeout(5)
@@ -122,6 +170,7 @@ def get_database_tables( tr:TestRunner ):
 def test_database_tables( tr:TestRunner):
     fname = tr.ctx.database_fname
     get_database_tables(tr)
+    assert tr.ctx.table_rows is not None
 
     # Now make sure that the api_key in the config file is in the database
     count = 0

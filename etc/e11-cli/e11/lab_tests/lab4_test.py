@@ -68,6 +68,7 @@ def test_post_message( tr:TestRunner):
     # Now see if the posted message is in the databsae
     get_database_tables(tr)
     count = 0
+    assert tr.ctx.table_rows is not  None
     for row in tr.ctx.table_rows['messages']:
         if row['message']==msg:
             count += 1

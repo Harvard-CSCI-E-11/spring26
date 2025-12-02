@@ -234,7 +234,7 @@ def init_app(app):
         for row in rows:
             # for each row, add a URL to the s3key
             row['url'] = s3.generate_presigned_url( "get_object", # the S3 command
-                                                    Params={"Bucket": S3_BUCKET, "Key": row['s3key'}},
+                                                    Params={"Bucket": S3_BUCKET, "Key": row['s3key']},
                                                     ExpiresIn=3600 )  # give an hour
 
             # If row has not been validated yet, we need to validate it.

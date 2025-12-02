@@ -39,7 +39,7 @@ def do_register_email(args):
     user = create_new_user(email)
     print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
 
-def do_report(args):
+def do_student_report(args):
     session = boto3.session.Session()
     current_profile = session.profile_name
     print(f"Current AWS Profile: {current_profile}\n")
@@ -48,7 +48,7 @@ def do_report(args):
     print("DynamoDB Tables:")
     for table_name in response['TableNames']:
         table_description = dynamodb_client.describe_table(TableName=table_name)
-        item_count = table_description['Table']['ItemCount']
+        item_count = table_description['Table'].get('ItemCount',0)
         print(f"Table: {table_name}, Approximate Item Count: {item_count}")
 
         # dump the whole table?
@@ -77,10 +77,17 @@ def do_report(args):
         response = table.scan( **kwargs)
         items.extend(response['Items'])
 
-    pitems = [{"Registered":time.asctime(time.localtime(int(item['user_registered']))),
-               "Email":item.get('email'),
-               "Name":item.get('preferred_name'),
-               'HarvardKey':"YES" if item.get('claims') else "NO"} for item in items]
+    pitems = []
+    for item in items:
+        raw_user_registered = item.get('user_registered',0)
+        if isinstance(raw_user_registered, (int,str)):
+            user_registered = int(raw_user_registered)
+        else:
+            user_registered = 0
+        pitems += {"Registered":time.asctime(time.localtime(user_registered)),
+                   "Email":item.get('email'),
+                   "Name":item.get('preferred_name'),
+                   'HarvardKey':("YES" if item.get('claims') else "NO")}
 
     print(tabulate(pitems,headers='keys'))
 
@@ -95,8 +102,8 @@ def add_parsers(parser,subparsers):
     ca.add_argument(dest='email', help='Email address to register')
     ca.set_defaults(func=do_register_email)
 
-    ca = subparsers.add_parser('report', help='E11_STAFF: Generate a report directly from DynamoDB')
-    ca.set_defaults(func=do_report)
+    ca = subparsers.add_parser('student-report', help='E11_STAFF: Generate a report directly from DynamoDB')
+    ca.set_defaults(func=do_student_report)
     ca.add_argument("--dump",help="Dump all information", action='store_true')
 
     parser.add_argument("--keyfile",help="SSH private key file")

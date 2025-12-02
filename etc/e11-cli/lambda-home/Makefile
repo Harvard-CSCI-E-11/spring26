@@ -30,7 +30,7 @@ lint: vend-e11
 	poetry run djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
 	poetry run ruff check --fix
 	poetry run pylint src
-	poetry run pyright
+	poetry run pyright src
 	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
 	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
 
