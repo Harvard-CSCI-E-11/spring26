@@ -15,7 +15,6 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
     strategy:
       fail-fast: false
       matrix:
