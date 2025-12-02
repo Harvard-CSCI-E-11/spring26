@@ -27,13 +27,14 @@ function show_images() {
             return r.json();
         })
         .then((obj) => {
-            // Update or create Tabulator table
+            // Update existing Tabulator table?
             const existing = Tabulator.findTable("#message-table")[0];
             if (existing) {
                 existing.replaceData(obj);
                 return;
             }
 
+            // Make a new Tabulator table
             new Tabulator("#message-table", {
                 data: obj,
                 layout: "fitColumns",
@@ -104,14 +105,13 @@ function initImagePopups() {
  * Presigned post is provided by the /api/post-image call (see below)
  */
 function upload_image_post(imageFile) {
-    setText("#status-message", "Requesting signed upload...");
-
     const formData = new FormData();
     formData.append("api_key", (document.querySelector("#api-key") || {}).value || "");
     formData.append("api_secret_key", (document.querySelector("#api-secret-key") || {}).value || "");
     formData.append("message", (document.querySelector("#message") || {}).value || "");
     formData.append("image_data_length", imageFile.size);
 
+    setText("#status-message", "Requesting signed upload...");
     fetch("api/post-image", { method: "POST", body: formData })
         .then((r) => {
             if (!r.ok) {
@@ -125,16 +125,14 @@ function upload_image_post(imageFile) {
             if (obj.error) throw new Error(obj.error);
 
             setText("#status-message", `Uploading image ${obj.image_id}...`);
-
             const uploadFormData = new FormData();
             for (const [k, v] of Object.entries(obj.presigned_post.fields)) {
                 uploadFormData.append(k, v);
             }
-            uploadFormData.append("file", imageFile); // order matters
+            uploadFormData.append("file", imageFile);     // order matters
 
             const ctrl = new AbortController();
             const timeout = setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_SECONDS * 1000);
-
             return fetch(obj.presigned_post.url, {
                 method: "POST",
                 body: uploadFormData,
@@ -148,7 +146,7 @@ function upload_image_post(imageFile) {
             }
             setText("#status-message", "Image uploaded.");
             const imageEl = document.querySelector("#image-file");
-            if (imageEl) imageEl.value = ""; // clear selected file
+            if (imageEl) imageEl.value = "";             // clear selected file
         })
         .catch((error) => {
             if (error.name === "AbortError") {

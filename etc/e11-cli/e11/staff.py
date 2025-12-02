@@ -48,7 +48,7 @@ def do_report(args):
     print("DynamoDB Tables:")
     for table_name in response['TableNames']:
         table_description = dynamodb_client.describe_table(TableName=table_name)
-        item_count = table_description['Table']['ItemCount']
+        item_count = table_description['Table'].get('ItemCount',0)
         print(f"Table: {table_name}, Approximate Item Count: {item_count}")
 
         # dump the whole table?
@@ -77,10 +77,17 @@ def do_report(args):
         response = table.scan( **kwargs)
         items.extend(response['Items'])
 
-    pitems = [{"Registered":time.asctime(time.localtime(int(item['user_registered']))),
-               "Email":item.get('email'),
-               "Name":item.get('preferred_name'),
-               'HarvardKey':"YES" if item.get('claims') else "NO"} for item in items]
+    pitems = []
+    for item in items:
+        raw_user_registered = item.get('user_registered',0)
+        if isinstance(raw_user_registered, (int,str)):
+            user_registered = int(raw_user_registered)
+        else:
+            user_registered = 0
+        pitems += {"Registered":time.asctime(time.localtime(user_registered)),
+                   "Email":item.get('email'),
+                   "Name":item.get('preferred_name'),
+                   'HarvardKey':("YES" if item.get('claims') else "NO")}
 
     print(tabulate(pitems,headers='keys'))
 

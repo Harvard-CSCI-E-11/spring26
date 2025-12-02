@@ -9,9 +9,13 @@ PYTHON = python3.12
 .venv/pyvenv.cfg: pyproject.toml Makefile
 	poetry config virtualenvs.in-project true
 	poetry install		# installs the current poetry.lock, do not update
+	poetry install --with dev
 
 lint: .venv/pyvenv.cfg
 	poetry run pylint e11/.
+
+static: .venv/pyvenv.cfg
+	poetry run pyright e11/.
 
 check: .venv/pyvenv.cfg
 	make lint

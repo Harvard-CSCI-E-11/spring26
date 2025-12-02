@@ -13,6 +13,7 @@ import subprocess
 import shlex
 import traceback
 import sys
+import json
 
 import urllib.parse
 from urllib.request import build_opener, Request
@@ -41,14 +42,18 @@ class HTTPResult:
     status: int
     headers: str
     text: str
-    cert: Optional[dict] = None
+    content: bytes | None
+    cert: dict | None = None
+
+    def json(self):
+        return json.loads(self.content or "")
 
 @dataclass
 class PythonEntryResult:
     exit_code: int
     stdout: str
     stderr: str
-    value: Optional[object] = None
+    value: object | None = None
 
 class TestRunner:
     def __init__(self, ctx: E11Context, ssh:Optional[E11Ssh] = None):
@@ -99,28 +104,33 @@ class TestRunner:
             return f.read()
 
     # pylint: disable=too-many-locals, disable=too-many-positional-arguments, disable=too-many-statements
-    def http_get(self, url: str, handler=None, tls_info=True, method='GET', data=None, timeout=DEFAULT_HTTP_TIMEOUT_S) -> HTTPResult:
+    def http_get(self,
+                 url: str, handler=None, tls_info=True, method='GET',
+                 data=None, headers=None,
+                 timeout=DEFAULT_HTTP_TIMEOUT_S) -> HTTPResult:
+
         # Get from HTTP. This should work from anywhere
         LOGGER.debug("http_get %s timeout %s",url,timeout)
+        content = None
+        headers_txt = ""
         if handler:
             opener = build_opener(handler)
         else:
             opener = build_opener()
-        req = Request(url, method=method, data=data)
+        req = Request(url, method=method, data=data, headers=headers or {})
         try:
             with opener.open(req, timeout=timeout) as r:
                 status = r.getcode()
-                headers = "".join(f"{k}: {v}\n" for k, v in r.headers.items())
-                text = r.read().decode("utf-8", errors="replace")
+                headers_txt = "".join(f"{k}: {v}\n" for k, v in r.headers.items())
+                content = r.read()
+                text = content.decode("utf-8", errors="replace")
         except HTTPError as e:
             status = e.code
             if e.headers:
                 if isinstance(e.headers, dict):
-                    headers = "".join(f"{k}: {v}\n" for k, v in e.headers.items())
+                    headers_txt = "".join(f"{k}: {v}\n" for k, v in e.headers.items())
                 else:
-                    headers = str(e.headers)
-            else:
-                headers = ""
+                    headers_txt = str(e.headers)
             text = e.read().decode("utf-8", errors="replace") if e.fp else ""
         except URLError as e:   # more general
             # Get traceback information for detailed logging
@@ -138,7 +148,6 @@ class TestRunner:
             LOGGER.error("http_get failed: %s\nTraceback:\n%s", error_details, tb_str)
 
             status = 0
-            headers = ""
             # Include detailed error information in the text for user reporting
             error_text = f"HTTP request failed - URL: {url}, Error: {e}"
             if filename != "unknown" and line_no != "unknown":
@@ -160,7 +169,7 @@ class TestRunner:
                                 "issuer": pc.get("issuer"),
                                 "dns_names": [v for k, v in pc.get("subjectAltName", []) if k == "DNS"],
                             }
-        return HTTPResult(status=status, headers=headers, text=text, cert=cert_info)
+        return HTTPResult(status=status, headers=headers_txt, content=content, text=text, cert=cert_info)
 
     def port_check(self, host: str, port: int, timeout=3) -> bool:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
