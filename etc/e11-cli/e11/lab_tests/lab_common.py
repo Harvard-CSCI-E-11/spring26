@@ -2,7 +2,6 @@
 lab_common.py: common things for the lab tester.
 """
 
-from pathlib import Path
 from uuid import uuid4
 import json
 import mimetypes

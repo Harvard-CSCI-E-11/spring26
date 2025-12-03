@@ -147,9 +147,9 @@ def test_too_big_image2( tr:TestRunner):
     buf = b"X" * 10_000_000
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if 200 <= r2.status < 300:
-        raise RuntimeError(f"Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
+        raise RuntimeError("Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
 
-    return f"S3 correctly blocked an attempt to upload 10,000,000 bytes."
+    return "S3 correctly blocked an attempt to upload 10,000,000 bytes."
 
 @timeout(5)
 def test_not_a_jpeg( tr:TestRunner):
@@ -172,7 +172,7 @@ def test_not_a_jpeg( tr:TestRunner):
     buf = b"X" * 65536
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if r2.status < 200 or r2.status > 300:
-        raise RuntimeError(f"Presigned post did not upload to S3.")
+        raise RuntimeError("Presigned post did not upload to S3.")
 
     # Let's get the list of files and make sure that it's there there!
     url2 = f"https://{tr.ctx.labdns}/api/get-messages"
@@ -180,7 +180,6 @@ def test_not_a_jpeg( tr:TestRunner):
     if r3.status < 200 or r3.status >= 300:
         raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
     rows = json.loads(r3.text)
-    download_url = None
     count = 0
     for row in rows:
         if row['message']==msg:
