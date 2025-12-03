@@ -21,6 +21,7 @@ $(PYTHON):
 
 lint: $(PYTHON)
 	poetry run pylint *.py
+	poetry run pyright *.py
 
 distclean:
 	@echo already clean

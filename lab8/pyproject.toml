@@ -15,7 +15,28 @@ package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 djlint = "^1.36.4"
+pyright = "^1.1.407"
+circuitpython-stubs = "^10.0.3"
+
+[tool.pylint.main]
+ignored-modules = [
+    "wifi",
+    "socketpool",
+    "adafruit_requests",
+    "adafruit_pycamera"
+]
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pyright]
+# keep type checking on, but don't freak out about CP-only modules
+typeCheckingMode = "standard"
+
+# "wifi" and "socketpool" are stub-only modules -> suppress the missing-source warning
+reportMissingModuleSource = "none"
+
+# If you just want to shut up missing imports entirely (simplest for labs):
+reportMissingImports = "none"

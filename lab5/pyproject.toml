@@ -25,6 +25,7 @@ package-mode = false
 pylint = "^4.0.4"
 djlint = "^1.36.4"
 types-flask = "^1.1.6"
+pyright = "^1.1.407"
 
 [tool.pylint.variables]
 # Allow variable names that start with 'api_' or 'route_' to be unused

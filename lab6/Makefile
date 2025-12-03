@@ -61,6 +61,7 @@ dump-db: $(PYTHON)
 
 lint: $(PYTHON)
 	poetry run pylint server
+	poetry run pyright *.py
 
 distclean:
 	/bin/rm -rf .venv

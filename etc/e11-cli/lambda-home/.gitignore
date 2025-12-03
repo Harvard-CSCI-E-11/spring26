@@ -18,3 +18,5 @@ src/requirements.txt
 
 # Generated template files
 *.whl
+*.zip
+sam-installation

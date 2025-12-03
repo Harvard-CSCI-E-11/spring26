@@ -29,31 +29,39 @@ pool = adafruit_connection_manager.get_radio_socketpool(wifi.radio)
 ssl_context = adafruit_connection_manager.get_radio_ssl_context(wifi.radio)
 requests = adafruit_requests.Session(pool, ssl_context)
 
-if True:
-    url_register = ENDPOINT + "api/register"
-    url_update = ENDPOINT + "api/update"
-    response = requests.get(url_register, timeout=TIMEOUT)
+URL_REGISTER = ENDPOINT + "api/register"
+URL_UPDATE = ENDPOINT + "api/update"
+
+def register():
+    """Register the Momento with the leaderboard"""
+    response = requests.get(URL_REGISTER, timeout=TIMEOUT)
     my_data = response.json()
     name = my_data["name"]
     opaque = my_data["opaque"]
-    print("Name: ", name)
+    print("Registered Name: ", name)
+    return (name,opaque)
 
-run = 0
-while True:
-    run += 1
-    print("\nrun:",run)
-    response = requests.post(url_update, data={"opaque": opaque}, timeout=TIMEOUT)
-    data = response.json()
-    now = int(time.time())
+def run_leaderboard():
+    """Run the leaderboard indefinately."""
+    (name,opaque) = register()
+    run = 0
     count = 0
-    for leader in data["leaderboard"]:
-        if leader.get("active", False) == True:
-            if leader["name"] == name:
-                me = "me -->"
-            else:
-                me = ""
-            age = now - int(leader["first_seen"])
-            if (count < 4) or me:
-                print(count, me, leader["name"], age)
-        count += 1
-    time.sleep(10)
+    while True:
+        run += 1
+        print("\nrun:",run)
+        response = requests.post(URL_UPDATE, data={"opaque": opaque}, timeout=TIMEOUT)
+        data = response.json()
+        now = int(time.time())
+        for leader in data["leaderboard"]:
+            if leader.get("active", False):
+                if leader["name"] == name:
+                    me = "me -->"
+                else:
+                    me = ""
+                age = now - int(leader["first_seen"])
+                if (count < 4) or me:
+                    print(count, me, leader["name"], age)
+            count += 1
+        time.sleep(10)
+
+run_leaderboard()

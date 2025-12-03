@@ -4,7 +4,7 @@ lab4 tester
 # pylint: disable=duplicate-code
 
 import json
-import random
+import time
 import urllib.parse
 
 from e11.e11core.decorators import timeout
@@ -53,7 +53,7 @@ def test_invalid_api_key( tr:TestRunner):
 @timeout(5)
 def test_post_message( tr:TestRunner):
     # post a message and verify it is there
-    magic = random.randint(0,10000)
+    magic = int(time.time())
     msg = f'hello from the automatic grader magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-message"
     r = tr.http_get(url,

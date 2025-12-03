@@ -68,6 +68,7 @@ lint: $(PYTHON)
 	poetry run djlint --profile=jinja --reformat server/templates/*html
 	npx eslint -c tools/eslint.config.mjs server/static
 
+
 distclean:
 	/bin/rm -rf .venv
 	/bin/rm -f instance/message_board.db

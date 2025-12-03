@@ -2,7 +2,7 @@
 image_controller: Controlls all aspects of uploading, downloading,
 listing, and processing JPEG images.
 
-STUDENTS - You do not need to modify this file.
+STUDENTS - You need to make minor changes to this file to complete labs 5 and 6
 
 """
 
@@ -26,9 +26,9 @@ import click
 import boto3
 import PIL                      # Pillow
 
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 
-from flask import request, jsonify, current_app, redirect
+from flask import request, jsonify
 
 from . import db
 from . import message_controller
@@ -57,7 +57,7 @@ CORS_CONFIGURATION = {
 }
 
 
-def is_valid_jpeg(byte_array: buf) -> bool:
+def is_valid_jpeg(buf: bytes) -> bool:
     """Simple program to use Pillow to validate a JPEG image"""
     try:
         img = PIL.Image.open(io.BytesIO(buf))
@@ -108,10 +108,6 @@ def list_images():
     # .fetchall() returns a list of SQLIte3 Row objects.
     # Turn this into an array of dict() objects so that they can be modified.
     return [dict(row) for row in rows]
-
-
-
-
 
 def get_image_info(image_id):
     """Return a dict for a specific image."""
@@ -194,29 +190,6 @@ def init_app(app):
         )
         return jsonify({"presigned_post": presigned_post, "image_id": image_id})
 
-    @app.route("/api/get-image", methods=["POST", "GET"])
-    def api_get_image():
-        """Given a request for an image_id, return a presigned URL that will let the client
-        directly GET the image from S3. NOTE: No authenticaiton.
-        """
-        # Get the URN for the image_id
-        image_id = request.values.get("image_id", type=int, default=0)
-        s3key = get_image_info(image_id)["s3key"]
-        presigned_url = presigned_url_for_s3key(s3key)
-        client_ip = (
-            request.headers.getlist("X-Forwarded-For")[0]
-            if request.headers.getlist("X-Forwarded-For")
-            else request.remote_addr
-        )
-        app.logger.info("%s image_id=%d s3key=%s", client_ip, image_id, s3key)
-        app.logger.debug(
-            "image_id=%d s3key=%s presigned_url=%s", image_id, s3key, presigned_url
-        )
-
-        # Now redirect to it.
-        # Code 302 is a temporary redirect, so the next time it will need to get a new presigned URL
-        return redirect(presigned_url, code=302)
-
     @app.route("/api/get-images", methods=["GET"])
     def api_list_images():
         """Return an array of JSON records for each image.
@@ -232,36 +205,34 @@ def init_app(app):
         rows = list_images()
         validated_rows = []
         for row in rows:
-            # for each row, add a URL to the s3key
-            row['url'] = s3.generate_presigned_url( "get_object", # the S3 command
-                                                    Params={"Bucket": S3_BUCKET, "Key": row['s3key']},
-                                                    ExpiresIn=3600 )  # give an hour
-
             # If row has not been validated yet, we need to validate it.
             if not row['validated']:
 
-                """
-                STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+                #
+                # STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+                #
+                # you can fetch the data with:
+                # r = requests.get(row['url']0
+                # r.content             would now be a byte array of byte image.
+                #
+                # You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
+                # validated = is_valid_jpeg(r.content)
+                #
+                # For now, we will assume everything is validated
 
-                you can fetch the data with:
-                r = requests.get(row['url']0
-                r.content             would now be a byte array of byte image.
-
-                You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
-                validated = is_valid_jpeg(r.content)
-
-                For now, we will assume everything is validated
-                """
                 validated = True
 
                 if not validated:
                     # validation was not successful.
-                    # Delete the s3 object
+                    # 1. Delete the s3 object
                     s3.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
-                    # Delete the database record
+
+                    # 2. Delete the database record
                     c = conn.cursor()
                     c.execute("DELETE FROM messages where message_id=?",(row['message_id'],))
                     conn.commit()
+
+                    # 3. Continue the `for` loop above.
                     continue
 
                 # Validation is successful. Save this fact in the database and update the row object
@@ -271,10 +242,16 @@ def init_app(app):
                 conn.commit()
                 row['validated'] = 1
 
-            # If we get here, the row is validated. Add it to the list
+            # Add a signed URL to the s3key.
+            row['url'] = s3.generate_presigned_url(
+                "get_object",                                      # the S3 command to sign
+                Params={"Bucket": S3_BUCKET, "Key": row['s3key']}, # command parameters
+                ExpiresIn=3600 )                                   # valid for an hour
+
             validated_rows.append(row)
 
         # Now just return the validated rows
         return validated_rows
 
+    # Finally, add the command to the CLI
     app.cli.add_command(create_bucket_and_apply_cors)

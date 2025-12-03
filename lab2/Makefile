@@ -23,6 +23,7 @@ $(PYTHON):
 
 lint: $(PYTHON)
 	poetry run python -m djlint .
+	poetry run pyright *.py
 
 distclean:
 	@echo already clean
