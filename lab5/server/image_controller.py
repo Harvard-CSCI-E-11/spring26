@@ -109,10 +109,6 @@ def list_images():
     # Turn this into an array of dict() objects so that they can be modified.
     return [dict(row) for row in rows]
 
-
-
-
-
 def get_image_info(image_id):
     """Return a dict for a specific image."""
     conn = db.get_db_conn()

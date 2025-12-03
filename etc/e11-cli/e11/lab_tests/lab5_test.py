@@ -12,7 +12,7 @@ from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
 from e11.lab_tests.lab_common import (
-    make_multipart_body,
+    do_presigned_post,
     get_database_tables,
     test_autograder_key_present,
     test_venv_present,
@@ -37,7 +37,6 @@ imported_tests = [
 ]
 
 LINCOLN_JPEG = Path(__file__).parent / "lincoln.jpeg"
-UPLOAD_TIMEOUT_SECONDS = 10
 IMAGE_TOO_BIG = 10_000_000
 
 
@@ -60,27 +59,7 @@ def test_post_image( tr:TestRunner):
     if r1.status < 200 or r1.status >= 300:
         raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
 
-    # Did we get a presigned post?
-    obj = r1.json()
-    if "error" in obj and obj["error"]:
-        raise RuntimeError(f"api/post-image returned error: {obj['error']}")
-
-    presigned_post = obj["presigned_post"]
-    s3_url = presigned_post["url"]
-    s3_fields = presigned_post["fields"]
-
-    body, content_type = make_multipart_body(s3_fields, file_field="file", file_path=image)
-
-    r2 = tr.http_get(s3_url,
-                      method='POST',
-                      data = body,
-                      timeout = UPLOAD_TIMEOUT_SECONDS,
-                      headers = {
-                          'Content-Type':content_type,
-                          'Content-Length': str(len(body)),
-                      })
-
-
+    r2 = do_presigned_post(r1, tr, image.name, image.read_bytes()))
     if r2.status < 200 or r2.status >= 300:
         raise RuntimeError(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
 
@@ -99,9 +78,10 @@ def test_post_image( tr:TestRunner):
     url2 = f"https://{tr.ctx.labdns}/api/get-messages"
     r3 = tr.http_get(url2)
     if r3.status < 200 or r3.status >= 300:
-        raise TestFail(f"could not http POST to {url2} error={r3.status} {r3.text}")
+        raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
     rows = json.loads(r3.text)
     download_url = None
+    count = 0
     for row in rows:
         if row['message']==msg:
             download_url = row['url']
@@ -128,8 +108,8 @@ def test_post_image( tr:TestRunner):
     return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
 
 @timeout(5)
-def test_too_big_image( tr:TestRunner):
-    # post a message and verify it is there
+def test_too_big_image1( tr:TestRunner):
+    """Ask to post an image that is too big."""
     magic = int(time.time())
     msg = f'hello from the automatic grader magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
@@ -141,5 +121,72 @@ def test_too_big_image( tr:TestRunner):
                                                   'message': msg,
                                                   'image_data_length': IMAGE_TOO_BIG
                                                  }).encode("utf-8"))
+    if 200 <= r1.status < 300:
+        raise TestFail(f"{url} does not reject posting an image of {IMAGE_TOO_BIG} bytes")
+
+    return f"Image API correctly rejects attempt to upload image of {IMAGE_TOO_BIG} bytes"
+
+@timeout(5)
+def test_too_big_image2( tr:TestRunner):
+    """Ask to post an image that is small but send one through that is too big."""
+    magic = int(time.time())
+    msg = f'hello from the automatic grader magic number {magic}'
+    url = f"https://{tr.ctx.labdns}/api/post-image"
+
+    r1 = tr.http_get(url,
+                    method='POST',
+                    data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
+                                                  'api_secret_key' : tr.ctx.api_secret_key,
+                                                  'message': msg,
+                                                  'image_data_length': 65536
+                                                 }).encode("utf-8"))
     if r1.status < 200 or r1.status >= 300:
-        raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
+        raise TestFail(f"POST to {url} rejects posting of image that is 65536 bytes: error={r1.status} {r1.text}")
+
+    # But now, post actually something that is 10 mbytes
+    buf = b"X" * 10_000_000
+    r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
+    if 200 <= r2.status < 300:
+        raise RuntimeError(f"Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
+
+    return f"S3 correctly blocked an attempt to upload 10,000,000 bytes."
+
+@timeout(5)
+def test_not_a_jpeg( tr:TestRunner):
+    """Ask to post an image that is small but then send through bogus data."""
+    magic = int(time.time())
+    msg = f'hello from the automatic grader magic number {magic}'
+    url = f"https://{tr.ctx.labdns}/api/post-image"
+
+    r1 = tr.http_get(url,
+                    method='POST',
+                    data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
+                                                  'api_secret_key' : tr.ctx.api_secret_key,
+                                                  'message': msg,
+                                                  'image_data_length': 65536
+                                                 }).encode("utf-8"))
+    if r1.status < 200 or r1.status >= 300:
+        raise TestFail(f"POST to {url} rejects posting of image that is 65536 bytes: error={r1.status} {r1.text}")
+
+    # Now send bogus data
+    buf = b"X" * 65536
+    r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
+    if r2.status < 200 or r2.status > 300:
+        raise RuntimeError(f"Presigned post did not upload to S3.")
+
+    # Let's get the list of files and make sure that it's there there!
+    url2 = f"https://{tr.ctx.labdns}/api/get-messages"
+    r3 = tr.http_get(url2)
+    if r3.status < 200 or r3.status >= 300:
+        raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
+    rows = json.loads(r3.text)
+    download_url = None
+    count = 0
+    for row in rows:
+        if row['message']==msg:
+            count += 1
+
+    if count!=0:
+        raise TestFail(f"posted message with bogus JPEG is still in in database and returned by {url2}")
+
+    return "Bogus JPEG that was uploaded is no longer in database"

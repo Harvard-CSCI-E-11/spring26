@@ -19,13 +19,15 @@ AUTO_GRADER_KEY_LINE = (
     "AAAAC3NzaC1lZDI1NTE5AAAAIEK/6zvwwWOO+ui4zbUYN558g+LKh5N8f3KpoyKKrmoR "
     "auto-grader-do-not-delete"
 )
+UPLOAD_TIMEOUT_SECONDS = 10
 
 
-def make_multipart_body(fields: dict[str, str], file_field: str, file_path: Path) -> tuple[bytes, str]:
+def make_multipart_body(fields: dict[str, str], file_field: str, file_name:str, file_bytes:bytes) -> tuple[bytes, str]:
     """
     fields: regular form fields (name -> value)
     file_field: form field name for the file (e.g., "file" or "image")
-    file_path: Path to the file to upload
+    file_name: name for upload
+    file_bytes: the data itself
 
     Returns (body_bytes, content_type_header_value)
     """
@@ -43,18 +45,15 @@ def make_multipart_body(fields: dict[str, str], file_field: str, file_path: Path
         parts.append(str(value).encode("utf-8") + crlf)
 
     # File field
-    filename = file_path.name
-    mime_type, _ = mimetypes.guess_type(filename)
+    mime_type, _ = mimetypes.guess_type(file_name)
     if not mime_type:
         mime_type = "application/octet-stream"
 
-    file_header = (
-        f'Content-Disposition: form-data; name="{file_field}"; filename="{filename}"'
-    ).encode("utf-8")
+    file_header = ( f'Content-Disposition: form-data; name="{file_field}"; filename="{file_name}"' ).encode("utf-8")
     parts.append(b"--" + boundary_bytes + crlf)
     parts.append(file_header + crlf)
     parts.append(f"Content-Type: {mime_type}".encode("utf-8") + crlf + crlf)
-    parts.append(file_path.read_bytes() + crlf)
+    parts.append(file_bytes + crlf)
 
     # Closing boundary
     parts.append(b"--" + boundary_bytes + b"--" + crlf)
@@ -62,6 +61,29 @@ def make_multipart_body(fields: dict[str, str], file_field: str, file_path: Path
     body = b"".join(parts)
     content_type = f"multipart/form-data; boundary={boundary}"
     return body, content_type
+
+
+def do_presigned_post(r1, tr, file_name, file_bytes):
+    # Did we get a presigned post?
+    obj = r1.json()
+    if "error" in obj and obj["error"]:
+        raise RuntimeError(f"api/post-image returned error: {obj['error']}")
+
+    presigned_post = obj["presigned_post"]
+    s3_url = presigned_post["url"]
+    s3_fields = presigned_post["fields"]
+
+    body, content_type = make_multipart_body(s3_fields, file_field="file", file_name=file_name, file_bytes=file_bytes)
+
+    r2 = tr.http_get(s3_url,
+                      method='POST',
+                      data = body,
+                      timeout = UPLOAD_TIMEOUT_SECONDS,
+                      headers = { 'Content-Type':content_type,
+                                  'Content-Length': str(len(body))
+                                 })
+
+    return r2
 
 
 
