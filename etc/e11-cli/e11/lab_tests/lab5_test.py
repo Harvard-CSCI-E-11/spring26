@@ -59,7 +59,7 @@ def test_post_image( tr:TestRunner):
     if r1.status < 200 or r1.status >= 300:
         raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
 
-    r2 = do_presigned_post(r1, tr, image.name, image.read_bytes()))
+    r2 = do_presigned_post(r1, tr, image.name, image.read_bytes())
     if r2.status < 200 or r2.status >= 300:
         raise RuntimeError(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
 
