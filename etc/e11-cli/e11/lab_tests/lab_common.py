@@ -195,7 +195,7 @@ def get_database_tables( tr:TestRunner ):
 @timeout(5)
 def test_database_tables( tr:TestRunner):
     if tr.ctx.api_key is None:
-        raise TestFail(f"Could not complete test because api_key cannot be read from {lab}-answers.yaml")
+        raise TestFail(f"Could not complete test because api_key cannot be read from {tr.ctx.lab}-answers.yaml")
 
     fname = tr.ctx.database_fname
     get_database_tables(tr)
