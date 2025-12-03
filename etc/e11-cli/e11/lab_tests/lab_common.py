@@ -107,7 +107,12 @@ def test_venv_present( tr:TestRunner):
     r = tr.run_command(f"test -x {labdir}/.venv/bin/python")
     if r.exit_code != 0:
         raise TestFail(f"lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
-    return f"virtual environment configured in {labdir}"
+
+    r = tr.run_command(f"cd {labdir}; poetry run print -c 'print(0)'")
+    if r.exit_code != 0:
+        raise TestFail(f"'poetry run python' does not work {labdir}")
+
+    return f"virtual environment configured in {labdir} and 'poetry run python' command works."
 
 @timeout(5)
 def test_nginx_config_syntax_okay( tr:TestRunner):
@@ -189,6 +194,9 @@ def get_database_tables( tr:TestRunner ):
 
 @timeout(5)
 def test_database_tables( tr:TestRunner):
+    if tr.ctx.api_key is None:
+        raise TestFail(f"Could not complete test because api_key cannot be read from {lab}-answers.yaml")
+
     fname = tr.ctx.database_fname
     get_database_tables(tr)
     assert tr.ctx.table_rows is not None
