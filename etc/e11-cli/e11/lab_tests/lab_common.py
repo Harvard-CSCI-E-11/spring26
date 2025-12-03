@@ -108,9 +108,9 @@ def test_venv_present( tr:TestRunner):
     if r.exit_code != 0:
         raise TestFail(f"lab directory {labdir} does not contain virtual environment (expected .venv/bin/python)")
 
-    r = tr.run_command(f"cd {labdir}; poetry run print -c 'print(0)'")
+    r = tr.run_command(f"cd {labdir}; poetry run python -c 'print(0)'")
     if r.exit_code != 0:
-        raise TestFail(f"'poetry run python' does not work {labdir}")
+        raise TestFail(f"'cd {labdir}; poetry run python' does not work {labdir}")
 
     return f"virtual environment configured in {labdir} and 'poetry run python' command works."
 
