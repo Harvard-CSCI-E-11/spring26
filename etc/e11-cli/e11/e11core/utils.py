@@ -4,6 +4,8 @@ import os
 import re
 import socket
 
+import boto3
+
 @functools.cache                # singleton
 def _configure_root_once():
     level_name = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -54,7 +56,6 @@ def tcp_peek_banner(host: str, port: int, timeout_s: float = 2.0, nbytes: int = 
         # Connection refused/timeout => definitely not an SSH banner
         return ""
 
-
 def get_error_location(exc_traceback, test_file_pattern='_test.py', exclude_pattern=None):
     """
     Extract filename and line number from traceback where error occurred in test files.
@@ -80,3 +81,12 @@ def get_error_location(exc_traceback, test_file_pattern='_test.py', exclude_patt
                 break
             tb = tb.tb_next
     return filename, line_no
+
+def read_s3(bucket,key):
+    S3 = boto3.client( 's3' )
+    try:
+        fileobj = S3.get_object( Bucket=bucket, Key=key)
+    except client.exceptions.NoSuchKey as e:
+        raise FileNotFoundError(str(bucket,key)) from e
+    fileData = fileobj['Body'].read()
+    return fileData

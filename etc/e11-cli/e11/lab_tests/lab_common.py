@@ -133,7 +133,7 @@ def test_gunicorn_running( tr:TestRunner ):
             count += 1
     if count==0:
         raise TestFail(f"Could not find {lab} gunicorn running")
-    return f"Found {count} {'copy' if count==1 else 'copies'} of {lab} gunicorn running"
+    return f"Found {count} {'copy' if count==1 else 'copies'} of {lab} gunicorn process running (1 or more are required)"
 
 def test_database_created( tr:TestRunner):
     fname = tr.ctx.labdir + "/instance/message_board.db"

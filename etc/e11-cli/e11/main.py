@@ -24,8 +24,7 @@ from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_pat
 
 from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX
 from .e11core.context import build_ctx, chdir_to_lab
-from .e11core.grader import collect_tests_in_definition_order
-from .e11core.render import print_summary
+from .e11core.grader import collect_tests_in_definition_order,print_summary
 from .e11core.utils import get_logger,smash_email
 from .e11core import grader
 
