@@ -65,6 +65,7 @@ fi
 # Update .bashrc so that it runs e11 version and e11 access on login
 echo "e11 version" >> $HOME/.bashrc
 echo "e11 access check" >> $HOME/.bashrc
+echo "free -h" >> $HOME/.bashrc
 
 
 ################################################################

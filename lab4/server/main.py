@@ -12,7 +12,6 @@ STUDENTS - You do not need to modify this file.
 
 import os
 import logging
-import re
 
 from flask import Flask, render_template, send_from_directory
 
@@ -41,11 +40,7 @@ def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)
     app.logger.setLevel(LOG_LEVEL)
 
-    m = re.search(r"lab(\d)", __file__)
-    if m:
-        lab_number = m.group(1)
-    else:
-        lab_number = "?"
+    lab_number = db.get_lab_number()
 
     # See https://flask.palletsprojects.com/en/stable/config/
     app.config.from_mapping(
