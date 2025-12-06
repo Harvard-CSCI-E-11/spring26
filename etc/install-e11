@@ -60,11 +60,12 @@ if [ ! -r $SCRIPT_DIR/e11-cli ]; then
     echo Error: $SCRIPT_DIR/e11-cli not found.
     exit 1
 fi
-(cd $SCRIPT_DIR/e11-cli; pipx install . --force)
+(cd $SCRIPT_DIR/e11-cli; pipx install . --force; make man)
 
 # Update .bashrc so that it runs e11 version and e11 access on login
 echo "e11 version" >> $HOME/.bashrc
 echo "e11 access check" >> $HOME/.bashrc
+echo "free -h" >> $HOME/.bashrc
 
 
 ################################################################

@@ -11,6 +11,7 @@ install: $(PYTHON)
 $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# installs the current poetry.lock, do not update
+	poetry install --with dev
 
 lint:
 	poetry run pylint *.py

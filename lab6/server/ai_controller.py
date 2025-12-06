@@ -23,10 +23,10 @@ from botocore.exceptions import BotoCoreError
 
 from flask import current_app
 
-from .image_controller import S3_REGION,S3_BUCKET
+from .image_controller import S3_BUCKET
 
 # Initialize the Rekognition client
-rekognition = boto3.client("rekognition", region_name=S3_REGION)
+rekognition = boto3.client("rekognition")
 
 
 def recognize_celebrities(bucket_name, object_key):

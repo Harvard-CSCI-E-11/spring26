@@ -17,6 +17,7 @@ STUDENTS - You need to make minor changes to this file to complete labs 5 and 6
 # pyright: reportUnusedFunction=false
 # pyright: reportUnusedVariable=false
 
+import sys
 import os
 import io
 import socket
@@ -33,9 +34,11 @@ from flask import request, jsonify
 from . import db
 from . import message_controller
 
-S3_BUCKET = socket.gethostname().replace(".", "-") + "-lab5-bucket"
-S3_REGION = "us-east-1"
-MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
+S3_BUCKET_PREFIX = socket.gethostname().replace(".", "-")
+S3_BUCKET_SUFFIX = "-images-bucket"
+S3_BUCKET = S3_BUCKET_PREFIX + db.get_lab_name() + S3_BUCKET_SUFFIX
+
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 JPEG_MIME_TYPE = "image/jpeg"
 
 # Define the Cross Origin Resource Sharing Policy for the S3 bucket.
@@ -77,13 +80,24 @@ def create_bucket_and_apply_cors():
         s3.head_bucket(Bucket=S3_BUCKET)
     except ClientError as e:
         error_code = int(e.response["Error"]["Code"])
-        if error_code == 404:
-            # Bucket does not exist; create it
-            s3.create_bucket(Bucket=S3_BUCKET)
-            click.echo(f"Created bucket {S3_BUCKET}")
-        else:
-            print(f"Error checking bucket: {e}")
-            raise
+        match error_code:
+            case 403:
+                click.echo("")
+                click.echo("****************************************************************")
+                click.echo(f"Cannot create bucket {S3_BUCKET}: Permission Denied")
+                click.echo(f"Bucket {S3_BUCKET} exists and is owned by another AWS account")
+                click.echo(f"Edit the file {__file__} and change the definition for S3_BUCKET")
+                click.echo("****************************************************************")
+                click.echo("")
+                sys.exit(1)
+            case 404:
+                # Bucket does not exist; create it
+                click.echo(f"Trying to create bucket {S3_BUCKET}")
+                s3.create_bucket(Bucket=S3_BUCKET)
+                click.echo(f"Created bucket {S3_BUCKET}")
+            case ec:
+                print(f"Error code {ec} checking bucket {S3_BUCKET}: {e}")
+                sys.exit(1)
 
     # Apply the CORS policy to the S3 bucket.
     # If there is an existing CORS policy, this will replace it.

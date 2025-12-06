@@ -1,9 +1,9 @@
-"""Tests for e11.e11core.render module."""
+"""Tests for e11.e11core.grader module."""
 from unittest.mock import MagicMock
 
 import pytest
 
-from e11.e11core.render import print_summary
+from e11.e11core.grader import print_summary
 
 
 @pytest.fixture

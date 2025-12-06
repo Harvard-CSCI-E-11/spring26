@@ -1,21 +1,25 @@
 """
 Display a bouncing ball
 """
-
 import time
 import displayio
-from adafruit_display_shapes.circle import Circle
 import board
+from adafruit_display_shapes.circle import Circle
 
-# Release any previously initialized displays
-displayio.release_displays()
 
-# Setup the TFT display
-spi = board.SPI()
-tft_cs = board.D9  # Chip select
-tft_dc = board.D10  # Data/command
-display_bus = displayio.FourWire(spi, command=tft_dc, chip_select=tft_cs)
-display = displayio.Display(display_bus, width=240, height=135)
+def get_display():
+    """Release any previously initialized displays and return a new display object"""
+    displayio.release_displays()
+
+    # Setup the TFT display
+    spi = board.SPI()
+    tft_cs = board.D9               # Chip select
+    tft_dc = board.D10              # Data/command
+
+    display_bus = displayio.FourWire(spi, command=tft_dc, chip_select=tft_cs)
+    return displayio.Display(display_bus, width=240, height=135)
+
+display = get_display()
 
 # Create a display group
 group = displayio.Group()

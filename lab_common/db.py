@@ -14,6 +14,7 @@ STUDENTS - You do not need to modify this file.
 
 """
 
+import re
 import os
 import sqlite3
 import glob
@@ -32,6 +33,20 @@ DBFILE_NAME = "message_board.db"
 #
 sqlite3.register_converter("timestamp", lambda v: datetime.fromisoformat(v.decode()))
 
+def get_lab_number():
+    """Return the lab number as a string from the file name"""
+    m = re.search(r"lab(\d)", __file__)
+    if m:
+        return m.group(1)
+    return "?"                  # give a valid response
+
+
+def get_lab_name():
+    """Return the lab name from the file name"""
+    m = re.search(r"(lab\d)", __file__)
+    if m:
+        return m.group(1)
+    return ""                   # no lab name
 
 def get_db_conn():
     """Return either a new database connection or the cached

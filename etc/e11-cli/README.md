@@ -13,8 +13,7 @@ You will also find in this directory:
 * e11/e11core/context.py - builds the context that is passed. This should be folded into config.py, possibly
 * e11/e11core/decorators.py - defines @timeout and @retry
 * e11/e11core/e11ssh.py - ssh access to student VMs
-* e11/e11core/grader.py - the grader framework
-* e11/e11core/render.py - renders  a grade report. should be moved into grader?
+* e11/e11core/grader.py - the grader framework including renderers for print and email the grading summary
 * e11/e11core/testrunner.py - Defines the testrunner class, which actually runs all of the tests in each test program
 * e11/e11core/utils.py - various utilities. Merge with constants.py into common.py?
 * e11/lab_tests - the actual tests for your labs.
