@@ -164,7 +164,18 @@ def test_api_keys_exist( tr: TestRunner):
             continue
     if lab_answers is None:
         raise TestFail(f"Could not find {lab}-answers.yaml. Please create this file and grade again")
-    data = yaml.safe_load(lab_answers)
+    try:
+        data = yaml.safe_load(lab_answers)
+    except yaml.scanner.ScannerError as e:
+        raise TestFail(f"""
+        ***********************************
+        *** INVALID YAML FOUND IN {filepath}
+        ***********************************
+
+        Invalid content:
+
+        {lab_answers}
+        """) from e
     try:
         tr.ctx.api_key = data['API_KEY']  # Dynamic field, use dict access
     except KeyError as e:
