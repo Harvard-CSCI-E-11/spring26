@@ -88,4 +88,4 @@ def read_s3(bucket,key):
     try:
         return s3.get_object( Bucket=bucket, Key=key)['Body'].read()
     except ClientError as e:
-        raise FileNotFoundError(str(bucket,key)) from e
+        return f"s3://{bucket}/{key} not found"
