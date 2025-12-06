@@ -4,6 +4,7 @@ All tests for a lab reside in a single file called labx_test.py
 Tests are located in csci-e-11/etc/e11-cli/e11/lab_tests/
 """
 
+import json
 import importlib
 import traceback
 import sys

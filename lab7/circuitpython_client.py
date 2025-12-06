@@ -4,7 +4,7 @@ ESP32 Leaderboard Client
 
 import os
 import time
-import wifi
+import wifi                     # pyright: ignore[reportMissingModuleSource]
 import adafruit_connection_manager
 import adafruit_requests
 

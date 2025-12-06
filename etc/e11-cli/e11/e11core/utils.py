@@ -5,6 +5,7 @@ import re
 import socket
 
 import boto3
+from botocore.exceptions import ClientError
 
 @functools.cache                # singleton
 def _configure_root_once():
@@ -83,10 +84,8 @@ def get_error_location(exc_traceback, test_file_pattern='_test.py', exclude_patt
     return filename, line_no
 
 def read_s3(bucket,key):
-    S3 = boto3.client( 's3' )
+    s3 = boto3.client( 's3' )
     try:
-        fileobj = S3.get_object( Bucket=bucket, Key=key)
-    except client.exceptions.NoSuchKey as e:
+        return s3.get_object( Bucket=bucket, Key=key)['Body'].read()
+    except ClientError as e:
         raise FileNotFoundError(str(bucket,key)) from e
-    fileData = fileobj['Body'].read()
-    return fileData
