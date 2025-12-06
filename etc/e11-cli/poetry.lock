@@ -13,6 +13,20 @@ files = [
 ]
 
 [[package]]
+name = "argparse-manpage"
+version = "4.7"
+description = "Build manual page from python's ArgumentParser object."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "argparse_manpage-4.7.tar.gz", hash = "sha256:1deab76b212ac8753cbb67b9d2d2bc0949bbc338bb1cc3547f0890cb34108b32"},
+]
+
+[package.extras]
+setuptools = ["setuptools"]
+
+[[package]]
 name = "astroid"
 version = "3.3.11"
 description = "An abstract syntax tree for Python with inference support."
@@ -2815,4 +2829,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "ee56ae51682958060eec6e77f28efc75133f9b29bb6190f232f3a3e9711090d9"
+content-hash = "75145192100bc17553d5dcec1409535ba50ebfa079a87e96eaff6e830a4c9472"
