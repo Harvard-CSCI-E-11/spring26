@@ -396,8 +396,7 @@ def do_report_tests(_):
 
         print()  # Blank line between labs
 
-# pylint: disable=too-many-statements
-def main():
+def get_parser():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
@@ -419,8 +418,8 @@ def main():
     access_parser.set_defaults(func=lambda _: access_parser.print_help())
     access_subparsers = access_parser.add_subparsers(dest='action')
 
-    access_subparsers.add_parser('on', help='Enable SSH access').set_defaults(func=do_access_on)
-    access_subparsers.add_parser('off', help='Disable SSH access').set_defaults(func=do_access_off)
+    access_subparsers.add_parser('on', help='Enable SSH access to grading bot and staff').set_defaults(func=do_access_on)
+    access_subparsers.add_parser('off', help='Disable SSH access to grading bot and staff').set_defaults(func=do_access_off)
     access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
     access_subparsers.add_parser('check-dashboard',
                                  help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
@@ -466,6 +465,11 @@ def main():
     if staff.enabled():
         staff.add_parsers(parser,subparsers)
 
+    return parser
+
+# pylint: disable=too-many-statements
+def main():
+    parser = get_parser()
     args = parser.parse_args()
     if not on_ec2():
         if args.command=='grade' and args.direct:

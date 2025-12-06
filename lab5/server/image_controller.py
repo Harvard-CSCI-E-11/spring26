@@ -17,6 +17,7 @@ STUDENTS - You need to make minor changes to this file to complete labs 5 and 6
 # pyright: reportUnusedFunction=false
 # pyright: reportUnusedVariable=false
 
+import sys
 import os
 import io
 import socket
@@ -84,11 +85,11 @@ def create_bucket_and_apply_cors():
                 click.echo("")
                 click.echo("****************************************************************")
                 click.echo(f"Cannot create bucket {S3_BUCKET}: Permission Denied")
-                click.echo(f"This bucket exists and is owned by another AWS account")
+                click.echo(f"Bucket {S3_BUCKET} exists and is owned by another AWS account")
                 click.echo(f"Edit the file {__file__} and change the definition for S3_BUCKET")
                 click.echo("****************************************************************")
                 click.echo("")
-                exit(1)
+                sys.exit(1)
             case 404:
                 # Bucket does not exist; create it
                 click.echo(f"Trying to create bucket {S3_BUCKET}")
@@ -96,7 +97,7 @@ def create_bucket_and_apply_cors():
                 click.echo(f"Created bucket {S3_BUCKET}")
             case ec:
                 print(f"Error code {ec} checking bucket {S3_BUCKET}: {e}")
-                exit(1)
+                sys.exit(1)
 
     # Apply the CORS policy to the S3 bucket.
     # If there is an existing CORS policy, this will replace it.

@@ -11,11 +11,15 @@ dependencies = [
              "circup",
              "adafruit-ampy",
              "pylint",
-             "adafruit-blinka"
+             "adafruit-blinka",
+             "requests (>=2.32.5,<3.0.0)"
 ]
 
 [tool.poetry]
 package-mode = false
+
+[tool.pylint.basic]
+good-names = ["VELOCITY_X", "VELOCITY_Y"]
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.8"

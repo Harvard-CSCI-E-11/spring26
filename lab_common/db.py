@@ -14,6 +14,7 @@ STUDENTS - You do not need to modify this file.
 
 """
 
+import re
 import os
 import sqlite3
 import glob

@@ -40,7 +40,7 @@ ruff = "*"
 types-boto3 = "^1.42.1"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
+requires = ["poetry-core>=1.0.0","argparse-manpage>=^4.7"]
 build-backend = "poetry.core.masonry.api"
 
 
@@ -99,3 +99,7 @@ pythonpath = [
  ]
 addopts = "-ra -q"
 python_files = ["test_*.py"]
+
+
+[tool.build_manpages]
+manpages = ["man/e11.1:function=get_parser:pyfile=e11/main.py:author=Simson L. Garfinkel"]
