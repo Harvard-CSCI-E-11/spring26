@@ -213,7 +213,7 @@ def do_register(args):
         else:
             print(f"ERROR: This instance does not have the public IP address {public_ip}.")
             errors += 1
-    if STUDENT_EMAIL in cp[STUDENT];
+    if STUDENT_EMAIL in cp[STUDENT]:
         email = cp[STUDENT][STUDENT_EMAIL]
         try:
             validate_email(email, check_deliverability=False)
