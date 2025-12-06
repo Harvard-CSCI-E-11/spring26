@@ -213,21 +213,23 @@ def do_register(args):
         else:
             print(f"ERROR: This instance does not have the public IP address {public_ip}.")
             errors += 1
-    email = cp[STUDENT][STUDENT_EMAIL]
-    try:
-        validate_email(email, check_deliverability=False)
-    except EmailNotValidError as e:
-        print(f"ERROR: '{email}' is not a valid email address: {e}")
-        errors += 1
-    instanceId = get_instanceId()
-    if cp[STUDENT].get(INSTANCE_ID) != instanceId:
-        print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
-        errors += 1
+    if STUDENT_EMAIL in cp[STUDENT];
+        email = cp[STUDENT][STUDENT_EMAIL]
+        try:
+            validate_email(email, check_deliverability=False)
+        except EmailNotValidError as e:
+            print(f"ERROR: '{email}' is not a valid email address: {e}")
+            errors += 1
+        instanceId = get_instanceId()
+        if cp[STUDENT].get(INSTANCE_ID) != instanceId:
+            print(f"ERROR: '{instanceId}' is not the instanceId of this EC2 instance.")
+            errors += 1
 
-    preferred_name = cp[STUDENT].get(STUDENT_PREFERRED_NAME,"").strip()
-    if len(preferred_name)==0:
-        print(f"ERROR: '{preferred_name}' is not a valid student preferred name.")
-        errors += 1
+    if STUDENT_PREFERRED_NAME in cp[STUDENT]:
+        preferred_name = cp[STUDENT].get(STUDENT_PREFERRED_NAME,"").strip()
+        if len(preferred_name)==0:
+            print(f"ERROR: '{preferred_name}' is not a valid student preferred name.")
+            errors += 1
 
     course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
     if len(course_key)!=COURSE_KEY_LEN:
@@ -286,7 +288,6 @@ def do_grade(args):
         return
 
     ep = endpoint(args)
-    print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     cp = get_config()
     try:
         auth = {STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
@@ -295,6 +296,7 @@ def do_grade(args):
         print("You must run the e11 register command before using the grade command.",file=sys.stderr)
         sys.exit(1)
 
+    print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     r = requests.post(ep, json={'action':'grade',
                                 'auth':auth,
                                 'lab': lab},
