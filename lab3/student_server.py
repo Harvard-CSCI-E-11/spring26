@@ -63,9 +63,9 @@ HTML_TEMPLATE = '''
 def lookup(student_id:str):
     """Lookup a student by id"""
     cur = student_database_connection().cursor()
-    cmd = f'SELECT * FROM students WHERE student_id = "{student_id}"'   # SQL statement
+    cmd = f'SELECT * FROM students WHERE student_id = ?'   # SQL statement
     app.logger.info("cmd=%s student_id=%s",cmd,student_id)
-    return cur.execute(cmd).fetchall()
+    return cur.execute(cmd,(student_id,)).fetchall()
 
 # Build the database
 @app.route('/', methods=['GET', 'POST'])

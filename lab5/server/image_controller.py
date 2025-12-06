@@ -143,6 +143,13 @@ def new_image(api_key_id, linked_message_id, s3key):
     conn.commit()
     return cur.lastrowid  # return the row inserted into images
 
+def presign_get(s3key):
+    s3 = boto3.session.Session().client("s3")
+    url = s3.generate_presigned_url(
+        "get_object",                                # the S3 command to sign
+        Params={"Bucket": S3_BUCKET, "Key": s3key}, # command parameters
+        ExpiresIn=3600 )                             # valid for an hour
+    return url
 
 def init_app(app):
     """Initialize the app and register the paths."""
@@ -251,16 +258,13 @@ def init_app(app):
 
                 # Validation is successful. Save this fact in the database and update the row object
                 c = conn.cursor()
-                c.execute("UPDATE messages set validated=1 where message_id=?",
-                          (row['message_id'],))
+                c.execute("UPDATE images set validated=1 where image_id=?",
+                          (row['image_id'],))
                 conn.commit()
                 row['validated'] = 1
 
             # Add a signed URL to the s3key.
-            row['url'] = s3.generate_presigned_url(
-                "get_object",                                      # the S3 command to sign
-                Params={"Bucket": S3_BUCKET, "Key": row['s3key']}, # command parameters
-                ExpiresIn=3600 )                                   # valid for an hour
+            row['url'] = presign_get(row['s3key'])
 
             validated_rows.append(row)
 
