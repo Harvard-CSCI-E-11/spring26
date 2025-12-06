@@ -19,16 +19,17 @@ check: .venv/pyvenv.cfg
 	make lint
 	poetry run pytest  -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
 
-man:  .venv/pyvenv.cfg
+doc/e11.1:  .venv/pyvenv.cfg
 	poetry run argparse-manpage --module e11.main --function get_parser \
 		--author "Simson L. Garfinkel" \
 		--project-name e11 \
-		--url https://github.com/Harvard-CSCI-E-11/spring26.git > e11.1
+		--url https://github.com/Harvard-CSCI-E-11/spring26.git > doc/e11.1
+
+man: doc/e11.1
 	install -d $$HOME/.local/share/man/man1/
-	install -m 0644 e11.1 $$HOME/.local/share/man/man1/
+	install -m 0644 doc/e11.1 $$HOME/.local/share/man/man1/
 	gzip -f $$HOME/.local/share/man/man1/e11.1
-	 /usr/libexec/makewhatis $$HOME/.local/share/man
-	/bin/rm -f e11.1
+	mandb --quiet
 
 clean:
 	rm -f .coverage coverage.xml
