@@ -200,6 +200,7 @@ def do_register(args):
         if at not in cp[STUDENT]:
             print(f"ERROR: {at} not in configuration file.")
             errors += 1
+            continue
         if cp[STUDENT][at] == "":
             print(f"ERROR: {at} is empty in configuration file.")
             errors += 1
@@ -287,9 +288,15 @@ def do_grade(args):
     ep = endpoint(args)
     print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     cp = get_config()
+    try:
+        auth = {STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
+                COURSE_KEY:cp[STUDENT][COURSE_KEY]}
+    except KeyError:
+        print("You must run the e11 register command before using the grade command.",file=sys.stderr)
+        sys.exit(1)
+
     r = requests.post(ep, json={'action':'grade',
-                                'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
-                                        COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+                                'auth':auth,
                                 'lab': lab},
         timeout = args.timeout )
     result = r.json()
