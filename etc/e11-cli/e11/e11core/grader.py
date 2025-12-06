@@ -220,8 +220,6 @@ def print_summary(summary, verbose=False):
                 print(f"\n✓ {t['name']}")
                 print(t["context"])
 
-    if summary.get('message'):
-        print(summary['message'])
 
 
 def create_email(summary):
@@ -237,7 +235,5 @@ def create_email(summary):
                 body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
                 if t.get("context"):
                     body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
-    if summary.get('message'):
-        body_lines += summary['message']
     body = "\n".join(body_lines)
     return (subject,body)
