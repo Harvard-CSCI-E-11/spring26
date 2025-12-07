@@ -66,6 +66,7 @@ fi
 echo "e11 version" >> $HOME/.bashrc
 echo "e11 access check" >> $HOME/.bashrc
 echo "free -h|grep -v Swap" >> $HOME/.bashrc
+echo "systemctl status -n 0 --no-pager 'lab*'" >> $HOME/.bashrc
 
 
 ################################################################

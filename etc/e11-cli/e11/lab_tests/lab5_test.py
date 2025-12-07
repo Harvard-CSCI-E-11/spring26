@@ -72,7 +72,7 @@ def test_post_image( tr:TestRunner):
         if row['message']==msg:
             count += 1
     if count==0:
-        raise TestFail("posted message did not get entered into the database")
+        raise TestFail("posted image with magic number {magic} in the database but message not found.")
 
     # Make sure the API works to get the posted message
     url2 = f"https://{tr.ctx.labdns}/api/get-messages"
@@ -83,7 +83,7 @@ def test_post_image( tr:TestRunner):
     download_url = None
     count = 0
     for row in rows:
-        if row['message']==msg:
+        if row['message']==msg and row.get('url'):
             download_url = row['url']
             count += 1
 
@@ -111,7 +111,7 @@ def test_post_image( tr:TestRunner):
 def test_too_big_image1( tr:TestRunner):
     """Ask to post an image that is too big."""
     magic = int(time.time())
-    msg = f'hello from the automatic grader magic number {magic}'
+    msg = f'Request to post image that is {IMAGE_TOO_BIG} bytes. Magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
     r1 = tr.http_get(url,
@@ -130,7 +130,7 @@ def test_too_big_image1( tr:TestRunner):
 def test_too_big_image2( tr:TestRunner):
     """Ask to post an image that is small but send one through that is too big."""
     magic = int(time.time())
-    msg = f'hello from the automatic grader magic number {magic}'
+    msg = f'Requesting to post 65536 bytes but actually posting {IMAGE_TOO_BIG} bytes. Magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
     r1 = tr.http_get(url,
@@ -144,7 +144,7 @@ def test_too_big_image2( tr:TestRunner):
         raise TestFail(f"POST to {url} rejects posting of image that is 65536 bytes: error={r1.status} {r1.text}")
 
     # But now, post actually something that is 10 mbytes
-    buf = b"X" * 10_000_000
+    buf = b"X" * IMAGE_TOO_BIG
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if 200 <= r2.status < 300:
         raise RuntimeError("Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
@@ -155,7 +155,7 @@ def test_too_big_image2( tr:TestRunner):
 def test_not_a_jpeg( tr:TestRunner):
     """Ask to post an image that is small but then send through bogus data."""
     magic = int(time.time())
-    msg = f'hello from the automatic grader magic number {magic}'
+    msg = f'Attempt to post an image that is not a JPEG. Magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
     r1 = tr.http_get(url,
