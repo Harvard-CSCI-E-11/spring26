@@ -61,7 +61,7 @@ def test_post_image( tr:TestRunner):
 
     r2 = do_presigned_post(r1, tr, image.name, image.read_bytes())
     if r2.status < 200 or r2.status >= 300:
-        raise RuntimeError(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
+        raise TestFail(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
 
     # Now see if the posted message is in the databsae
     get_database_tables(tr)
@@ -147,7 +147,7 @@ def test_too_big_image2( tr:TestRunner):
     buf = b"X" * IMAGE_TOO_BIG
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if 200 <= r2.status < 300:
-        raise RuntimeError("Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
+        raise TestFail("Presigned post for S3 allowed uploading 10,000,000 bytes. Whoops.")
 
     return "S3 correctly blocked an attempt to upload 10,000,000 bytes."
 
@@ -172,7 +172,7 @@ def test_not_a_jpeg( tr:TestRunner):
     buf = b"X" * 65536
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if r2.status < 200 or r2.status > 300:
-        raise RuntimeError("Presigned post did not upload to S3.")
+        raise TestFail("Presigned post did not upload to S3.")
 
     # Let's get the list of files and make sure that it's there there!
     url2 = f"https://{tr.ctx.labdns}/api/get-messages"
