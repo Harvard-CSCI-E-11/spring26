@@ -145,14 +145,15 @@ class TestRunner:
             error_details = f"URL: {url}, Error: {e}"
             if filename != "unknown" and line_no != "unknown":
                 error_details += f", File: {filename}, Line: {line_no}"
-            LOGGER.error("http_get failed: %s\nTraceback:\n%s", error_details, tb_str)
-
+            LOGGER.error("http_get failed: %s", error_details)
+            #LOGGER.error("http_get Traceback:\n====== START OF TRACEBACK=======\n%s\n=========END OF TRACEBACK=========", tb_str)
             status = 0
             # Include detailed error information in the text for user reporting
             error_text = f"HTTP request failed - URL: {url}, Error: {e}"
             if filename != "unknown" and line_no != "unknown":
                 error_text += f", File: {filename}, Line: {line_no}"
             text = error_text
+
         cert_info = None
         if tls_info and url.lower().startswith("https://"):
             host = urllib.parse.urlparse(url).hostname

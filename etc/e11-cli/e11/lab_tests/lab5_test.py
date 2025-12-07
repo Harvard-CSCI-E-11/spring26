@@ -75,7 +75,7 @@ def test_post_image( tr:TestRunner):
         raise TestFail("posted image with magic number {magic} in the database but message not found.")
 
     # Make sure the API works to get the posted message
-    url2 = f"https://{tr.ctx.labdns}/api/get-messages"
+    url2 = f"https://{tr.ctx.labdns}/api/get-images"
     r3 = tr.http_get(url2)
     if r3.status < 200 or r3.status >= 300:
         raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
@@ -83,6 +83,7 @@ def test_post_image( tr:TestRunner):
     download_url = None
     count = 0
     for row in rows:
+        print("row=",row)
         if row['message']==msg and row.get('url'):
             download_url = row['url']
             count += 1
@@ -93,7 +94,8 @@ def test_post_image( tr:TestRunner):
     if download_url is None:
         raise TestFail(f"posted message in database but no download url is returned by {url2}")
 
-    # Finally, download the
+    # Finally, download the image
+    print("******* DOWNLOAD URL:",download_url)
     r4 = tr.http_get(download_url)
     if r4.status < 200 or r3.status >= 300:
         raise TestFail(f"Could not download image from {download_url} rr={r4}")
@@ -175,7 +177,7 @@ def test_not_a_jpeg( tr:TestRunner):
         raise RuntimeError("Presigned post did not upload to S3.")
 
     # Let's get the list of files and make sure that it's there there!
-    url2 = f"https://{tr.ctx.labdns}/api/get-messages"
+    url2 = f"https://{tr.ctx.labdns}/api/get-images"
     r3 = tr.http_get(url2)
     if r3.status < 200 or r3.status >= 300:
         raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
