@@ -21,7 +21,6 @@ import sys
 import os
 import io
 import socket
-import logging
 
 import click
 import boto3
@@ -40,6 +39,8 @@ S3_BUCKET = S3_BUCKET_PREFIX + db.get_lab_name() + S3_BUCKET_SUFFIX
 
 MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
 JPEG_MIME_TYPE = "image/jpeg"
+
+s3_client = boto3.client("s3")
 
 # Define the Cross Origin Resource Sharing Policy for the S3 bucket.
 # This tells the browser that it is safe to retrieve the S3 objects it gets the redirect
@@ -72,12 +73,11 @@ def is_valid_jpeg(buf: bytes) -> bool:
 @click.command("init-s3")
 def create_bucket_and_apply_cors():
     """Check to see if the bucket exists and create it if it does not."""
-    s3 = boto3.client("s3")
 
     # Check for S3_BUCKET.
     # Create the bucket if it does not exist.
     try:
-        s3.head_bucket(Bucket=S3_BUCKET)
+        s3_client.head_bucket(Bucket=S3_BUCKET)
     except ClientError as e:
         error_code = int(e.response["Error"]["Code"])
         match error_code:
@@ -93,7 +93,7 @@ def create_bucket_and_apply_cors():
             case 404:
                 # Bucket does not exist; create it
                 click.echo(f"Trying to create bucket {S3_BUCKET}")
-                s3.create_bucket(Bucket=S3_BUCKET)
+                s3_client.create_bucket(Bucket=S3_BUCKET)
                 click.echo(f"Created bucket {S3_BUCKET}")
             case ec:
                 print(f"Error code {ec} checking bucket {S3_BUCKET}: {e}")
@@ -101,7 +101,7 @@ def create_bucket_and_apply_cors():
 
     # Apply the CORS policy to the S3 bucket.
     # If there is an existing CORS policy, this will replace it.
-    s3.put_bucket_cors(Bucket=S3_BUCKET, CORSConfiguration=CORS_CONFIGURATION)
+    s3_client.put_bucket_cors(Bucket=S3_BUCKET, CORSConfiguration=CORS_CONFIGURATION)
     click.echo(f"CORS policy applied to {S3_BUCKET}")
 
 def list_images():
@@ -112,7 +112,10 @@ def list_images():
     conn = db.get_db_conn()
     rows = conn.execute(
         """
-        SELECT message_id,messages.created as created,message, image_id,s3key, validated
+        SELECT message_id,messages.created AS created,
+               messages.message AS message, image_id,s3key, validated,
+               strftime('%s', 'now') - strftime('%s', messages.created) AS message_age_seconds,
+               strftime('%s', 'now') - strftime('%s', images.created) AS image_age_seconds
         FROM messages
         LEFT JOIN images
         WHERE messages.message_id = images.linked_message_id;
@@ -122,6 +125,7 @@ def list_images():
     # .fetchall() returns a list of SQLIte3 Row objects.
     # Turn this into an array of dict() objects so that they can be modified.
     return [dict(row) for row in rows]
+
 
 def get_image_info(image_id):
     """Return a dict for a specific image."""
@@ -145,8 +149,7 @@ def new_image(api_key_id, linked_message_id, s3key):
 
 def presign_get(s3key):
     """For an s3key, created a presigned GET URL"""
-    s3 = boto3.session.Session().client("s3")
-    url = s3.generate_presigned_url(
+    url = s3_client.generate_presigned_url(
         "get_object",                                # the S3 command to sign
         Params={"Bucket": S3_BUCKET, "Key": s3key}, # command parameters
         ExpiresIn=3600 )                             # valid for an hour
@@ -154,6 +157,61 @@ def presign_get(s3key):
 
 def init_app(app):
     """Initialize the app and register the paths."""
+
+    def validate_images(rows):
+        """Given a row of images from the database query above, delete rows that do not have valid images."""
+        conn = db.get_db_conn()
+        validated_rows = []
+        for row in rows:
+            # If row has not been validated yet, we need to validate it.
+            if not row['validated']:
+                #
+                # STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
+                #
+                # you can fetch the data with:
+                # r = requests.get(row['url'])
+                # data = r.content             # would now be a byte array of byte image.
+                #
+                # Alternatively, you can fetch the data directly from S3:
+                # r = s3_client.get_object(Bucket=S3_BUCKET, Key=row['s3key'])
+                # data = r['Body'].read()       #
+                #
+                # Remember - in both cases you need to handle missing data/errors.
+                #
+                #
+                # You can check to see if it is valid with is_valid_jpeg():
+                # validated = is_valid_jpeg(data)
+                #
+                # For now, we will assume everything is validated
+
+                validated = True
+
+                #
+                # If the row did not validate, delete it in the database
+                if not validated:
+                    # validation was not successful.
+                    # 1. Delete the s3 object
+                    app.logger.info("message_id=%s image_id=%s image is not validated. Deleting S3 object and database entry.",
+                                    row['message_id'],row['image_id'])
+
+                    s3_client.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
+
+                    # 2. Delete the database record
+                    c = conn.cursor()
+                    c.execute("DELETE FROM messages where message_id=?",(row['message_id'],))
+                    conn.commit()
+
+                    # 3. Continue the `for` loop above.
+                    continue
+
+                # Validation is successful. Save this fact in the database and update the row object
+                app.logger.info("message_id=%s image_id=%s validated",row['message_id'],row['image_id'])
+                c = conn.cursor()
+                c.execute("UPDATE images set validated=1 where image_id=?", (row['image_id'],))
+                conn.commit()
+                row['validated'] = 1
+                validated_rows.append(row)
+        return validated_rows
 
     @app.route("/api/post-image", methods=["POST"])
     def api_new_image():
@@ -167,16 +225,15 @@ def init_app(app):
         """
 
         # If the bucket does not exist, tell the user
-        s3 = boto3.session.Session().client("s3")
         try:
-            s3.head_bucket(Bucket=S3_BUCKET)
+            s3_client.head_bucket(Bucket=S3_BUCKET)
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
                 error_message = "S3 bucket does not exist"
             else:
                 # Log the detailed error server-side, return generic error to user.
-                logging.error("S3 error occurred: %s", e, exc_info=True)
+                app.logger.error("S3 error occurred: %s", e, exc_info=True)
                 error_message = "An internal S3 error has occurred"
             return {"error": error_message}
 
@@ -184,11 +241,11 @@ def init_app(app):
         api_key_id = message_controller.validate_api_key_request()
         message = request.values.get("message")
         message_id = message_controller.post_message(api_key_id, message)
-        logging.info("Message %s posted. message_id=%s", message, message_id)
+        app.logger.info("Message %s posted. message_id=%s", message, message_id)
 
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
-        presigned_post = s3.generate_presigned_post(
+        presigned_post = s3_client.generate_presigned_post(
             Bucket = S3_BUCKET,
             Key = s3key,
             Conditions = [
@@ -221,56 +278,16 @@ def init_app(app):
         production system would return just some of them.
         """
 
-        s3 = boto3.session.Session().client("s3")
         app.logger.info("get-images")
         conn = db.get_db_conn()
         rows = list_images()
-        validated_rows = []
+        rows = validate_images(rows)
+
+        # Add a signed URL to the s3key.
         for row in rows:
-            # If row has not been validated yet, we need to validate it.
-            if not row['validated']:
-
-                #
-                # STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
-                #
-                # you can fetch the data with:
-                # r = requests.get(row['url']0
-                # r.content             would now be a byte array of byte image.
-                #
-                # You can use the is_valid_jpeg() function above to validate if it is a JPEG or not:
-                # validated = is_valid_jpeg(r.content)
-                #
-                # For now, we will assume everything is validated
-
-                validated = True
-
-                if not validated:
-                    # validation was not successful.
-                    # 1. Delete the s3 object
-                    s3.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
-
-                    # 2. Delete the database record
-                    c = conn.cursor()
-                    c.execute("DELETE FROM messages where message_id=?",(row['message_id'],))
-                    conn.commit()
-
-                    # 3. Continue the `for` loop above.
-                    continue
-
-                # Validation is successful. Save this fact in the database and update the row object
-                c = conn.cursor()
-                c.execute("UPDATE images set validated=1 where image_id=?",
-                          (row['image_id'],))
-                conn.commit()
-                row['validated'] = 1
-
-            # Add a signed URL to the s3key.
             row['url'] = presign_get(row['s3key'])
 
-            validated_rows.append(row)
-
-        # Now just return the validated rows
-        return validated_rows
+        return rows
 
     # Finally, add the command to the CLI
     app.cli.add_command(create_bucket_and_apply_cors)

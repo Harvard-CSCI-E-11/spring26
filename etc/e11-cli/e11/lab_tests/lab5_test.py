@@ -8,6 +8,7 @@ import time
 import urllib.parse
 from pathlib import Path
 
+from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
@@ -39,12 +40,13 @@ imported_tests = [
 LINCOLN_JPEG = Path(__file__).parent / "lincoln.jpeg"
 IMAGE_TOO_BIG = 10_000_000
 
+logger = get_logger()
 
 @timeout(5)
 def test_post_image( tr:TestRunner):
     # post a message and verify it is there
     magic = int(time.time())
-    msg = f'hello from the automatic grader magic number {magic}'
+    msg = f'test post Lincoln image magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
     image = LINCOLN_JPEG
@@ -59,23 +61,28 @@ def test_post_image( tr:TestRunner):
     if r1.status < 200 or r1.status >= 300:
         raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
 
+    # Now upload Lincoln to S3
     r2 = do_presigned_post(r1, tr, image.name, image.read_bytes())
     if r2.status < 200 or r2.status >= 300:
         raise TestFail(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
 
-    # Now see if the posted message is in the databsae
+    # Verify that the posted message is in the databsae
     get_database_tables(tr)
     assert tr.ctx.table_rows is not None
 
     count = 0
     for row in tr.ctx.table_rows['messages']:
         if row['message']==msg:
+            logger.info('message match: %s',row['message'])
             count += 1
+        else:
+            logger.debug('no match: %s',row['message'])
+
     if count==0:
         raise TestFail("posted image with magic number {magic} in the database but message not found.")
 
-    # Make sure the API works to get the posted message
-    url2 = f"https://{tr.ctx.labdns}/api/get-messages"
+    # Verify that get-images returns Lincoln
+    url2 = f"https://{tr.ctx.labdns}/api/get-images"
     r3 = tr.http_get(url2)
     if r3.status < 200 or r3.status >= 300:
         raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
@@ -88,22 +95,25 @@ def test_post_image( tr:TestRunner):
             count += 1
 
     if count==0:
-        raise TestFail(f"posted message in database but not returned by {url2}")
+        raise TestFail(f"posted message magic number {magic} in database but not returned by {url2}")
 
     if download_url is None:
-        raise TestFail(f"posted message in database but no download url is returned by {url2}")
+        raise TestFail(f"posted message magic number {magic} in database but no download url is returned by {url2}")
 
-    # Finally, download the
+    # Finally, test the download URL
     r4 = tr.http_get(download_url)
     if r4.status < 200 or r3.status >= 300:
         raise TestFail(f"Could not download image from {download_url} rr={r4}")
 
-    # Make sure that it's the right size
+    # Make sure that it's the right image
     if not r4.content:
         raise TestFail("Could not download content from S3")
 
     if len(r4.content) !=image_size:
         raise TestFail(f"Downloaded content is {len(r4.content)} bytes; expected {image_size}")
+
+    if r4.content != image.read_bytes():
+        raise TestFail(f"Downloaded content is the right size but wrong content???")
 
     return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
 
