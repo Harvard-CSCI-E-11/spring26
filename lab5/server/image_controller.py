@@ -144,6 +144,7 @@ def new_image(api_key_id, linked_message_id, s3key):
     return cur.lastrowid  # return the row inserted into images
 
 def presign_get(s3key):
+    """For an s3key, created a presigned GET URL"""
     s3 = boto3.session.Session().client("s3")
     url = s3.generate_presigned_url(
         "get_object",                                # the S3 command to sign
