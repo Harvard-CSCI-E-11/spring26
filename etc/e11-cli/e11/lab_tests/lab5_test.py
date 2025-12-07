@@ -38,7 +38,7 @@ imported_tests = [
 ]
 
 LINCOLN_JPEG = Path(__file__).parent / "lincoln.jpeg"
-IMAGE_TOO_BIG = 10_000_000
+IMAGE_TOO_BIG = 5_000_000
 
 logger = get_logger()
 
@@ -73,7 +73,7 @@ def test_post_image( tr:TestRunner):
     count = 0
     for row in tr.ctx.table_rows['messages']:
         if row['message']==msg:
-            logger.info('message match: %s',row['message'])
+            logger.info('message_id %s match: %s',row['message_id'],row['message'])
             count += 1
         else:
             logger.debug('no match: %s',row['message'])
@@ -124,13 +124,15 @@ def test_too_big_image1( tr:TestRunner):
     msg = f'Request to post image that is {IMAGE_TOO_BIG} bytes. Magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
+    args = { 'api_key': tr.ctx.api_key,
+             'api_secret_key' : tr.ctx.api_secret_key,
+             'message': msg,
+             'image_data_length': IMAGE_TOO_BIG
+            }
     r1 = tr.http_get(url,
                     method='POST',
-                    data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
-                                                  'api_secret_key' : tr.ctx.api_secret_key,
-                                                  'message': msg,
-                                                  'image_data_length': IMAGE_TOO_BIG
-                                                 }).encode("utf-8"))
+                    data=urllib.parse.urlencode(args).encode("utf-8"))
+
     if 200 <= r1.status < 300:
         raise TestFail(f"{url} does not reject posting an image of {IMAGE_TOO_BIG} bytes")
 
@@ -185,7 +187,8 @@ def test_not_a_jpeg( tr:TestRunner):
         raise TestFail("Presigned post did not upload to S3.")
 
     # Let's get the list of files and make sure that it's there there!
-    url2 = f"https://{tr.ctx.labdns}/api/get-messages"
+    # Give this 4 tries, each 0.5 seconds apart (sometimes it takes a whiel to delete)
+    url2 = f"https://{tr.ctx.labdns}/api/get-images"
     r3 = tr.http_get(url2)
     if r3.status < 200 or r3.status >= 300:
         raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
@@ -193,9 +196,9 @@ def test_not_a_jpeg( tr:TestRunner):
     count = 0
     for row in rows:
         if row['message']==msg:
+            logger.debug("Should not be present: %s",row)
             count += 1
 
     if count!=0:
-        raise TestFail(f"posted message with bogus JPEG is still in in database and returned by {url2}")
-
+        raise TestFail(f"posted message magic number {magic} with bogus JPEG is still in in database and returned by {url2}")
     return "Bogus JPEG that was uploaded is no longer in database"
