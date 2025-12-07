@@ -158,6 +158,7 @@ function upload_image_post(imageFile) {
         })
         .finally(() => {
             enable_disable_submit_button();
+            // Note - do not show_images() until the image is uploaded! Otherwise the database will be cleared.
             show_images();
         });
 }

@@ -72,7 +72,11 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     s3_url = presigned_post["url"]
     s3_fields = presigned_post["fields"]
 
+    print("file_name=",file_name,"len(file_bytes)=",len(file_bytes))
+
     body, content_type = make_multipart_body(s3_fields, file_field="file", file_name=file_name, file_bytes=file_bytes)
+
+    print("**** do_presigned_post len(body)=",len(body))
 
     r2 = tr.http_get(s3_url,
                       method='POST',
