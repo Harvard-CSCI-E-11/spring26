@@ -24,11 +24,11 @@ import socket
 
 import click
 import boto3
-import PIL                      # Pillow
+from PIL import Image,UnidentifiedImageError
 
 from botocore.exceptions import ClientError
 
-from flask import request, jsonify
+from flask import request, jsonify, abort, make_response, jsonify
 
 from . import db
 from . import message_controller
@@ -37,7 +37,7 @@ S3_BUCKET_PREFIX = socket.gethostname().replace(".", "-")
 S3_BUCKET_SUFFIX = "-images-bucket"
 S3_BUCKET = S3_BUCKET_PREFIX + db.get_lab_name() + S3_BUCKET_SUFFIX
 
-MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024
+MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
 JPEG_MIME_TYPE = "image/jpeg"
 
 s3_client = boto3.client("s3")
@@ -60,15 +60,20 @@ CORS_CONFIGURATION = {
     ]
 }
 
-
 def is_valid_jpeg(buf: bytes) -> bool:
     """Simple program to use Pillow to validate a JPEG image"""
     try:
-        img = PIL.Image.open(io.BytesIO(buf))
+        img = Image.open(io.BytesIO(buf))
         return img.format == "JPEG"
-    except (IOError,PIL.UnidentifiedImageError):
+    except (IOError,UnidentifiedImageError):
         return False
 
+def safe_get_object(bucket, s3key):
+    try:
+        r = s3_client.get_object(Bucket=S3_BUCKET, Key=s3key)
+    except s3_client.exceptions.NoSuchKey:
+        return None
+    return r['Body'].read()
 
 @click.command("init-s3")
 def create_bucket_and_apply_cors():
@@ -163,21 +168,17 @@ def init_app(app):
         conn = db.get_db_conn()
         validated_rows = []
         for row in rows:
-            # If row has not been validated yet, we need to validate it.
-            if not row['validated']:
+            if row['validated']:
+                validated_rows.append(row)
+            else:
+                # Row has not yet been validated, so validate it here....
+
+                # First get the data. Note that if the object does not exist, data is None
+                data = safe_get_object(S3_BUCKET, row['s3key'])
+
                 #
-                # STUDENTS: PERFORM ADDITIONAL VALIDATION HERE...
-                #
-                # you can fetch the data with:
-                # r = requests.get(row['url'])
-                # data = r.content             # would now be a byte array of byte image.
-                #
-                # Alternatively, you can fetch the data directly from S3:
-                # r = s3_client.get_object(Bucket=S3_BUCKET, Key=row['s3key'])
-                # data = r['Body'].read()       #
-                #
-                # Remember - in both cases you need to handle missing data/errors.
-                #
+                # STUDENTS: Right now this just validates everything that is in S3.
+                # Change this so that the JPEGs are on validated if they are valid JPEGs.
                 #
                 # You can check to see if it is valid with is_valid_jpeg():
                 # validated = is_valid_jpeg(data)
@@ -186,8 +187,14 @@ def init_app(app):
 
                 validated = True
 
+                # STUDENTS - your code goes here
+
+                # STUDENTS - end of your code
                 #
-                # If the row did not validate, delete it in the database
+                # If the row did not validate:
+                # 1 - delete the image from S3
+                # 2 - delete the corresponding message in the database
+
                 if not validated:
                     # validation was not successful.
                     # 1. Delete the s3 object
@@ -237,11 +244,23 @@ def init_app(app):
                 error_message = "An internal S3 error has occurred"
             return {"error": error_message}
 
-        # Validate the API key and post the message
+        # Validate the API key
         api_key_id = message_controller.validate_api_key_request()
         message = request.values.get("message")
+        try:
+            image_data_length = int(request.values.get("image_data_length",0))
+        except (ValueError,TypeError):
+            abort( 404 )
+
+        app.logger.debug("/api/post-image image_data_length=%s",image_data_length)
+
+        # STUDENTS --- validate the image_data_length and abort() if it is too large
+        if image_data_length > MAX_IMAGE_SIZE_BYTES:
+            abort( 404 )
+
+        # Post the message
         message_id = message_controller.post_message(api_key_id, message)
-        app.logger.info("Message %s posted. message_id=%s", message, message_id)
+        app.logger.info("Message '%s' posted. image_data_length=%d message_id=%s", message, image_data_length, message_id)
 
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
@@ -251,6 +270,7 @@ def init_app(app):
             Conditions = [
                 # Only enforce the Content-Type restriction...
                 { "Content-Type": JPEG_MIME_TYPE },
+                # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES restriction by uncommenting the next line:
                 # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
             ],
             Fields = { "Content-Type": JPEG_MIME_TYPE},
@@ -286,7 +306,6 @@ def init_app(app):
         # Add a signed URL to the s3key.
         for row in rows:
             row['url'] = presign_get(row['s3key'])
-
         return rows
 
     # Finally, add the command to the CLI
