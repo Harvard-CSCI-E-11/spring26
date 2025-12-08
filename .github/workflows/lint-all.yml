@@ -1,4 +1,4 @@
-name: CI for e11-cli
+name: Lint all
 
 on:
   push:

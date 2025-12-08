@@ -87,5 +87,5 @@ def read_s3(bucket,key):
     s3 = boto3.client( 's3' )
     try:
         return s3.get_object( Bucket=bucket, Key=key)['Body'].read()
-    except ClientError as e:
+    except ClientError:
         return f"s3://{bucket}/{key} not found"

@@ -7,6 +7,7 @@ import json
 import mimetypes
 import re
 import yaml
+import yaml.scanner
 
 from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
@@ -71,6 +72,8 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     presigned_post = obj["presigned_post"]
     s3_url = presigned_post["url"]
     s3_fields = presigned_post["fields"]
+
+    print("file_name=",file_name,"len(file_bytes)=",len(file_bytes))
 
     body, content_type = make_multipart_body(s3_fields, file_field="file", file_name=file_name, file_bytes=file_bytes)
 

@@ -9,3 +9,9 @@ a.disabled {
 #image-popup {
     cursor: pointer;
 }
+
+/* All cells wrap */
+.tabulator .tabulator-row .tabulator-cell {
+    white-space: normal;        /* allow wrapping */
+    overflow-wrap: break-word;  /* break long words */
+}

@@ -41,7 +41,7 @@ help: $(PYTHON)
 
 # Create a new database
 init-db: $(PYTHON)
-	poetry run flask --app server.main:app init-db
+	@poetry run flask --app server.main:app init-db
 
 # Wipe the database and start over
 wipe-db: $(PYTHON)
