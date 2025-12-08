@@ -74,8 +74,6 @@ function show_images() {
 
             const hasCeleb = hasNonEmptyField(obj, "celeb");
             const hasDetectedText = hasNonEmptyField(obj, "detected_text");
-            console.log("obj=",obj);
-
             const celebFormatter = (cell) => {
                 const v = cell.getValue();
                 if (!v) return "";
@@ -95,9 +93,18 @@ function show_images() {
             const detectedTextFormatter = (cell) => {
                 const v = cell.getValue();
                 if (!v) return "";
-                const s = String(v);
-                const maxLen = 200;
-                return s.length <= maxLen ? s : s.slice(0, maxLen) + "…";
+                try {
+                    const arr = Array.isArray(v) ? v : JSON.parse(v);
+                    console.log("arr=",arr);
+                    console.log("arr.length=",arr.length);
+                    if (!arr.length) return "";
+                    const c = arr[0].Confidence;
+                    const conf = (c !== undefined) ? ` (${c.toFixed(1)}%)` : "";
+                    console.log("conf=",conf);
+                    return `${arr[0].DetectedText}${conf}`;
+                } catch (e) {
+                    return String(v);
+                }
             };
 
             const columns = [

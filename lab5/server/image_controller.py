@@ -224,13 +224,15 @@ def init_app(app):
 
             try:
                 row['celeb'] = json.loads(row['celeb_json'])
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError) as e:
+                app.logger.error("celeb_json error: %s",e)
                 pass
             del row['celeb_json']
 
             try:
                 row['detected_text'] = json.loads(row['detected_text_json'])
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError) as e:
+                app.logger.error("detected_text_json error: %s",e)
                 pass
             del row['detected_text_json']
         return rows

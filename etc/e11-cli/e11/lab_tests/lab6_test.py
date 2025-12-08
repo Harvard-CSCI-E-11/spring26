@@ -80,8 +80,7 @@ def test_rekognition_text( tr:TestRunner ):
     if r.status < 200 or r.status >= 300:
         raise TestFail(f"could not http GET to {url} error={r.status} {r.text}")
     for row in r.json():
-        print(row)
-        for detected_text in row.get('detected_text',[]):
-            if "harvard" in detected_text.get('Text','').lower():
+        for dt in row.get('detected_text',[]):
+            if "harvard" in dt.get("DetectedText","").lower():
                 return "Found Harvard"
     raise TestFail("Could not find Harvard")

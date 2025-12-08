@@ -77,9 +77,10 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     s3_url = presigned_post["url"]
     s3_fields = presigned_post["fields"]
 
-    print("file_name=",file_name,"len(file_bytes)=",len(file_bytes))
-
-    body, content_type = make_multipart_body(s3_fields, file_field="file", file_name=file_name, file_bytes=file_bytes)
+    body, content_type = make_multipart_body(s3_fields,
+                                             file_field="file",
+                                             file_name=file_name,
+                                             file_bytes=file_bytes)
 
     r2 = tr.http_get(s3_url,
                       method='POST',
@@ -276,7 +277,7 @@ def post_image( tr:TestRunner, image_bytes, image_name):
             logger.debug('no match: %s',row['message'])
 
     if count==0:
-        raise TestFail("posted image with magic number {magic} in the database but message not found.")
+        raise TestFail(f"posted {image_name} with magic number {magic} in the database but message not found.")
 
     # Verify that get-images returns Lincoln
     url2 = f"https://{tr.ctx.labdns}/api/get-images"
@@ -286,7 +287,6 @@ def post_image( tr:TestRunner, image_bytes, image_name):
     download_url = None
     count = 0
     for row in r3.json():
-        print("row=",row)
         if row['message']==msg and row.get('url'):
             download_url = row['url']
             count += 1
