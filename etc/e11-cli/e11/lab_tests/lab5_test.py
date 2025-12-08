@@ -15,6 +15,7 @@ from e11.lab_tests.lincoln import lincoln_jpeg
 from e11.lab_tests.lab_common import (
     do_presigned_post,
     get_database_tables,
+    post_image,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
@@ -43,81 +44,7 @@ logger = get_logger()
 
 @timeout(5)
 def test_post_image( tr:TestRunner):
-    # post a message and verify it is there
-    magic = int(time.time())
-    msg = f'test post Lincoln image magic number {magic}'
-    url = f"https://{tr.ctx.labdns}/api/post-image"
-
-    image_bytes = lincoln_jpeg()
-    image_size = len(image_bytes)
-    image_name = "lincoln.jpeg"
-    r1 = tr.http_get(url,
-                    method='POST',
-                    data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
-                                                  'api_secret_key' : tr.ctx.api_secret_key,
-                                                  'message': msg,
-                                                  'image_data_length': image_size
-                                                 }).encode("utf-8"))
-    if r1.status < 200 or r1.status >= 300:
-        raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
-
-    # Now upload Lincoln to S3
-    r2 = do_presigned_post(r1, tr, image_name, image_bytes)
-    if r2.status < 200 or r2.status >= 300:
-        raise TestFail(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
-
-    # Verify that the posted message is in the databsae
-    get_database_tables(tr)
-    assert tr.ctx.table_rows is not None
-
-    count = 0
-    for row in tr.ctx.table_rows['messages']:
-        if row['message']==msg:
-            logger.info('message_id %s match: %s',row['message_id'],row['message'])
-            count += 1
-        else:
-            logger.debug('no match: %s',row['message'])
-
-    if count==0:
-        raise TestFail("posted image with magic number {magic} in the database but message not found.")
-
-    # Verify that get-images returns Lincoln
-    url2 = f"https://{tr.ctx.labdns}/api/get-images"
-    r3 = tr.http_get(url2)
-    if r3.status < 200 or r3.status >= 300:
-        raise TestFail(f"could not http GET to {url2} error={r3.status} {r3.text}")
-    rows = json.loads(r3.text)
-    download_url = None
-    count = 0
-    for row in rows:
-        print("row=",row)
-        if row['message']==msg and row.get('url'):
-            download_url = row['url']
-            count += 1
-
-    if count==0:
-        raise TestFail(f"posted message magic number {magic} in database but not returned by {url2}")
-
-    if download_url is None:
-        raise TestFail(f"posted message magic number {magic} in database but no download url is returned by {url2}")
-
-
-    # Finally, download the image
-    r4 = tr.http_get(download_url)
-    if r4.status < 200 or r3.status >= 300:
-        raise TestFail(f"Could not download image from {download_url} rr={r4}")
-
-    # Make sure that it's the right image
-    if not r4.content:
-        raise TestFail("Could not download content from S3")
-
-    if len(r4.content) !=image_size:
-        raise TestFail(f"Downloaded content is {len(r4.content)} bytes; expected {image_size}")
-
-    if r4.content != image_bytes:
-        raise TestFail("Downloaded content is the right size but wrong content???")
-
-    return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
+    return post_image( tr, lincoln_jpeg(), "lincoln.jpeg")
 
 @timeout(5)
 def test_too_big_image1( tr:TestRunner):

@@ -36,6 +36,8 @@ class CommandResult:
     stdout: str
     stderr: str
     text: str  # alias for stdout
+    def json(self):
+        return json.loads(self.stdout or "")
 
 @dataclass
 class HTTPResult:
