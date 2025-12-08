@@ -98,7 +98,8 @@ def list_images():
     rows = conn.execute(
         """
         SELECT message_id,messages.created AS created,
-               messages.message AS message, image_id,s3key, validated, celeb_json, recognized_text_json,
+               messages.message AS message, image_id,s3key, validated,
+               celeb_json, recognized_text_json,
                strftime('%s', 'now') - strftime('%s', messages.created) AS message_age_seconds,
                strftime('%s', 'now') - strftime('%s', images.created) AS image_age_seconds
         FROM messages
