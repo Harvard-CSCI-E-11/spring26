@@ -1,7 +1,7 @@
 "use strict";
 console.log("start");
 
-/* lab5: imageboard.js
+/* lab5 and lab6: imageboard.js
  * Code for uploading and displaying images.
  */
 
@@ -14,7 +14,34 @@ function setText(selector, text) {
     if (el) el.textContent = text;
 }
 
-/** lab5 show_images() function. */
+function escapeHtml(str) {
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+function prettyJsonFormatter(cell) {
+    const v = cell.getValue();
+    if (!v) return "";
+
+    let obj = v;
+    if (typeof v === "string") {
+        try {
+            obj = JSON.parse(v);
+        } catch (e) {
+            // If it's not valid JSON, just show the raw string
+            return `<pre class="json-cell">${escapeHtml(v)}</pre>`;
+        }
+    }
+
+    const pretty = JSON.stringify(obj, null, 2);
+    return `<pre class="json-cell">${escapeHtml(pretty)}</pre>`;
+}
+
+
+/** lab5 and lab6 show_images() function. */
+/** lab5 and lab6 show_images() function. */
 function show_images() {
     console.log("lab5 show_images");
 
@@ -27,30 +54,92 @@ function show_images() {
             return r.json();
         })
         .then((obj) => {
-            // Update existing Tabulator table?
+            // Destroy existing table so we can change column definitions
             const existing = Tabulator.findTable("#message-table")[0];
             if (existing) {
-                existing.replaceData(obj);
-                return;
+                existing.destroy();
             }
 
-            // Make a new Tabulator table
+            const hasNonEmptyField = (rows, field) =>
+                rows.some((row) => {
+                    const v = row[field];
+                    if (v === null || v === undefined) return false;
+                    if (typeof v === "string") return v.trim() !== "";
+                    // Arrays/objects: treat non-empty as present
+                    if (Array.isArray(v)) return v.length > 0;
+                    if (typeof v === "object") return Object.keys(v).length > 0;
+                    // numbers/booleans/etc.: treat as present
+                    return true;
+                });
+
+            const hasCeleb = hasNonEmptyField(obj, "celeb");
+            const hasRecognizedText = hasNonEmptyField(obj, "recognized_text");
+
+            const celebFormatter = (cell) => {
+                const v = cell.getValue();
+                if (!v) return "";
+
+                // Accept either already-parsed arrays or JSON strings
+                try {
+                    const arr = Array.isArray(v) ? v : JSON.parse(v);
+                    if (!arr.length || !arr[0].Name) return "";
+                    const c = arr[0].MatchConfidence;
+                    const conf = (c !== undefined) ? ` (${c.toFixed(1)}%)` : "";
+                    return `${arr[0].Name}${conf}`;
+                } catch (e) {
+                    return String(v);
+                }
+            };
+
+            const recognizedTextFormatter = (cell) => {
+                const v = cell.getValue();
+                if (!v) return "";
+                const s = String(v);
+                const maxLen = 200;
+                return s.length <= maxLen ? s : s.slice(0, maxLen) + "…";
+            };
+
+            const columns = [
+                { title: "#", field: "image_id", width: 50 },
+                { title: "Created", field: "created" },
+                { title: "Message", field: "message" },
+            ];
+
+            if (hasCeleb) {
+                columns.push({
+                    title: "Celeb",
+                    field: "celeb",
+                    formatter: celebFormatter,
+                    headerTooltip: "First Rekognition celebrity match (if any)",
+                    widthGrow: 1,
+                });
+            }
+
+            if (hasRecognizedText) {
+                columns.push({
+                    title: "Recognized Text",
+                    field: "recognized_text",
+                    formatter: recognizedTextFormatter,
+                    headerTooltip: "OCR / recognized text (if any)",
+                    widthGrow: 2,
+                });
+            }
+
+            columns.push({
+                title: "Photo",
+                field: "url",
+                formatter: (cell) => {
+                    const url = cell.getValue();
+                    if (!url) return "n/a";
+                    return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
+                },
+            });
+
             new Tabulator("#message-table", {
                 data: obj,
                 layout: "fitColumns",
                 rowHeight: 120,
-                columns: [
-                    { title: "#", field: "image_id", width: 20 },
-                    { title: "Created", field: "created" },
-                    { title: "Message", field: "message" },
-                    { title: "Photo", field: "url",
-                      formatter: (cell) => {
-                          const url = cell.getValue();
-                          if (!url) return "n/a";
-                          return `<img src="${url}" alt="Image" style="width:auto; height:115px;" class="clickable-image">`;
-                      },
-                    }
-                ],
+                columns,
                 placeholder: "No lab5 messages yet",
             });
 
