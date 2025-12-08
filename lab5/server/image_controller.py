@@ -28,7 +28,7 @@ from PIL import Image,UnidentifiedImageError
 
 from botocore.exceptions import ClientError
 
-from flask import request, jsonify, abort, make_response, jsonify
+from flask import request, jsonify, abort
 
 from . import db
 from . import message_controller
@@ -69,8 +69,9 @@ def is_valid_jpeg(buf: bytes) -> bool:
         return False
 
 def safe_get_object(bucket, s3key):
+    """Get an S3 object's contents or return None"""
     try:
-        r = s3_client.get_object(Bucket=S3_BUCKET, Key=s3key)
+        r = s3_client.get_object(Bucket=bucket, Key=s3key)
     except s3_client.exceptions.NoSuchKey:
         return None
     return r['Body'].read()
@@ -160,11 +161,14 @@ def presign_get(s3key):
         ExpiresIn=3600 )                             # valid for an hour
     return url
 
+# pylint: disable=too-many-statements
 def init_app(app):
     """Initialize the app and register the paths."""
 
     def validate_images(rows):
-        """Given a row of images from the database query above, delete rows that do not have valid images."""
+        """Given a row of images from the database query above,
+        delete rows that do not have valid images."""
+
         conn = db.get_db_conn()
         validated_rows = []
         for row in rows:
@@ -175,6 +179,7 @@ def init_app(app):
 
                 # First get the data. Note that if the object does not exist, data is None
                 data = safe_get_object(S3_BUCKET, row['s3key'])
+                app.logger.info("read %s bytes from s3key=%s",len(data), row['s3key'])
 
                 #
                 # STUDENTS: Right now this just validates everything that is in S3.
@@ -198,7 +203,7 @@ def init_app(app):
                 if not validated:
                     # validation was not successful.
                     # 1. Delete the s3 object
-                    app.logger.info("message_id=%s image_id=%s image is not validated. Deleting S3 object and database entry.",
+                    app.logger.info("message_id=%s image_id=%s image is not validated. Deleting.",
                                     row['message_id'],row['image_id'])
 
                     s3_client.delete_object(Bucket=S3_BUCKET,  Key=row['s3key'])
@@ -212,7 +217,8 @@ def init_app(app):
                     continue
 
                 # Validation is successful. Save this fact in the database and update the row object
-                app.logger.info("message_id=%s image_id=%s validated",row['message_id'],row['image_id'])
+                app.logger.info("message_id=%s image_id=%s validated",
+                                row['message_id'],row['image_id'])
                 c = conn.cursor()
                 c.execute("UPDATE images set validated=1 where image_id=?", (row['image_id'],))
                 conn.commit()
@@ -260,7 +266,8 @@ def init_app(app):
 
         # Post the message
         message_id = message_controller.post_message(api_key_id, message)
-        app.logger.info("Message '%s' posted. image_data_length=%d message_id=%s", message, image_data_length, message_id)
+        app.logger.info("Message '%s' posted. image_data_length=%d message_id=%s",
+                        message, image_data_length, message_id)
 
         # Now get params for the signed S3 POST
         s3key = "images/" + os.urandom(8).hex() + ".jpeg"
@@ -270,7 +277,8 @@ def init_app(app):
             Conditions = [
                 # Only enforce the Content-Type restriction...
                 { "Content-Type": JPEG_MIME_TYPE },
-                # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES restriction by uncommenting the next line:
+                # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES restriction
+                #              by uncommenting the next line:
                 # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
             ],
             Fields = { "Content-Type": JPEG_MIME_TYPE},
@@ -299,7 +307,6 @@ def init_app(app):
         """
 
         app.logger.info("get-images")
-        conn = db.get_db_conn()
         rows = list_images()
         rows = validate_images(rows)
 

@@ -135,8 +135,6 @@ class TestRunner:
         except URLError as e:   # more general
             # Get traceback information for detailed logging
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            tb_str = "".join(tb_lines)
 
             # Find the line number in the test file where http_get was called
             filename, line_no = get_error_location(exc_traceback, exclude_pattern='testrunner.py')
@@ -145,9 +143,14 @@ class TestRunner:
             error_details = f"URL: {url}, Error: {e}"
             if filename != "unknown" and line_no != "unknown":
                 error_details += f", File: {filename}, Line: {line_no}"
-            LOGGER.error("http_get failed: %s", error_details)
-            #LOGGER.error("http_get Traceback:\n====== START OF TRACEBACK=======\n%s\n=========END OF TRACEBACK=========", tb_str)
+            LOGGER.info("http_get failed: %s", error_details)
+
+            # Log the traceback itself?
+            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+            tb_str = "".join(tb_lines)
+            LOGGER.debug("http_get Traceback:\n====== START OF TRACEBACK=======\n%s\n=========END OF TRACEBACK=========", tb_str)
             status = 0
+
             # Include detailed error information in the text for user reporting
             error_text = f"HTTP request failed - URL: {url}, Error: {e}"
             if filename != "unknown" and line_no != "unknown":

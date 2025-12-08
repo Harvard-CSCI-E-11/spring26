@@ -6,7 +6,6 @@ lab5 tester
 import json
 import time
 import urllib.parse
-from pathlib import Path
 
 from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
@@ -116,7 +115,7 @@ def test_post_image( tr:TestRunner):
         raise TestFail(f"Downloaded content is {len(r4.content)} bytes; expected {image_size}")
 
     if r4.content != image_bytes:
-        raise TestFail(f"Downloaded content is the right size but wrong content???")
+        raise TestFail("Downloaded content is the right size but wrong content???")
 
     return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
 
