@@ -52,7 +52,7 @@ def test_post_image2( tr:TestRunner):
     return post_image( tr, harvard_jpeg(), "harvard.jpeg")
 
 @timeout(5)
-def verify_rekognition_enabled( tr:TestRunner ):
+def test_rekognition_enabled( tr:TestRunner ):
     r = tr.run_command("aws rekognition list-collections")
     if r.exit_code != 0:
         raise TestFail("AWS Rekognition API not authorized")
@@ -62,7 +62,7 @@ def verify_rekognition_enabled( tr:TestRunner ):
     return "AWS Rekognition API authorized for Instance"
 
 @timeout(5)
-def verify_rekognition_celeb( tr:TestRunner ):
+def test_rekognition_celeb( tr:TestRunner ):
     url = f"https://{tr.ctx.labdns}/api/get-images"
     r = tr.http_get(url)
     if r.status < 200 or r.status >= 300:
@@ -72,3 +72,16 @@ def verify_rekognition_celeb( tr:TestRunner ):
             if celeb.get('Name','')=="Nichelle Nichols":
                 return "Found Nichelle Nichols"
     raise TestFail("Could not find Nichelle Nichols")
+
+@timeout(5)
+def test_rekognition_text( tr:TestRunner ):
+    url = f"https://{tr.ctx.labdns}/api/get-images"
+    r = tr.http_get(url)
+    if r.status < 200 or r.status >= 300:
+        raise TestFail(f"could not http GET to {url} error={r.status} {r.text}")
+    for row in r.json():
+        print(row)
+        for detected_text in row.get('detected_text',[]):
+            if "harvard" in detected_text.get('Text','').lower():
+                return "Found Harvard"
+    raise TestFail("Could not find Harvard")

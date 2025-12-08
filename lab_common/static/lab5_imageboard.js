@@ -73,7 +73,8 @@ function show_images() {
                 });
 
             const hasCeleb = hasNonEmptyField(obj, "celeb");
-            const hasRecognizedText = hasNonEmptyField(obj, "recognized_text");
+            const hasDetectedText = hasNonEmptyField(obj, "detected_text");
+            console.log("obj=",obj);
 
             const celebFormatter = (cell) => {
                 const v = cell.getValue();
@@ -91,7 +92,7 @@ function show_images() {
                 }
             };
 
-            const recognizedTextFormatter = (cell) => {
+            const detectedTextFormatter = (cell) => {
                 const v = cell.getValue();
                 if (!v) return "";
                 const s = String(v);
@@ -115,12 +116,12 @@ function show_images() {
                 });
             }
 
-            if (hasRecognizedText) {
+            if (hasDetectedText) {
                 columns.push({
-                    title: "Recognized Text",
-                    field: "recognized_text",
-                    formatter: recognizedTextFormatter,
-                    headerTooltip: "OCR / recognized text (if any)",
+                    title: "Detected Text",
+                    field: "detected_text",
+                    formatter: detectedTextFormatter,
+                    headerTooltip: "OCR / detected text (if any)",
                     widthGrow: 2,
                 });
             }
@@ -307,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * We use setTimeout() rather than setInterval() so we don't need to deal with overlapping calls.
  */
 function loop() {
-    show_messages();
+    show_images();
     setTimeout(loop, REFRESH_RATE);
 }
 

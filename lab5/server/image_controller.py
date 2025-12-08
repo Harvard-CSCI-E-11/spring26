@@ -220,16 +220,19 @@ def init_app(app):
 
         # Add a signed URL to the s3key and expand the JSON if present
         for row in rows:
-            print("row=",row)
             row['url'] = presign_get(row['s3key'])
 
-            if 'celeb_json' in row:
+            try:
                 row['celeb'] = json.loads(row['celeb_json'])
-                del row['celeb_json']
+            except (KeyError, TypeError, ValueError):
+                pass
+            del row['celeb_json']
 
-            if 'detected_text_json' in row:
+            try:
                 row['detected_text'] = json.loads(row['detected_text_json'])
-                del row['detected_text_json']
+            except (KeyError, TypeError, ValueError):
+                pass
+            del row['detected_text_json']
         return rows
 
     # Finally, add the command to the CLI
