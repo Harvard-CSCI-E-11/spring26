@@ -1,5 +1,6 @@
 # /etc/systemd/system/e11-register.service
 # After reboot, wait 60 seconds and then re-register. This is useful if the ip address changed.
+# When the system shuts down, we run `e11 shutdown` to notify that the system has halted.
 [Unit]
 Description=E11 register script on reboot
 After=network-online.target
@@ -7,9 +8,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+RemainAfterExit=yes
 User=ubuntu
 ExecStartPre=/bin/sleep 60
 ExecStart=/home/ubuntu/.local/bin/e11 register --quiet --fixip
+ExecStop=/home/ubuntu/.local/bin/e11 shutdown
+
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 [Install]
