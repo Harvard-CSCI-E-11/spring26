@@ -98,7 +98,7 @@ def list_images():
     rows = conn.execute(
         """
         SELECT message_id,messages.created AS created,
-               messages.message AS message, image_id,s3key, validated, celeb_json, recognized_text_json,
+               messages.message AS message, image_id,s3key, validated, celeb_json, detected_text_json,
                strftime('%s', 'now') - strftime('%s', messages.created) AS message_age_seconds,
                strftime('%s', 'now') - strftime('%s', images.created) AS image_age_seconds
         FROM messages
@@ -227,9 +227,9 @@ def init_app(app):
                 row['celeb'] = json.loads(row['celeb_json'])
                 del row['celeb_json']
 
-            if 'recognized_test_json' in row:
-                row['recognized_text'] = json.loads(row['recognized_text_json'])
-                del row['recognized_text_json']
+            if 'detected_text_json' in row:
+                row['detected_text'] = json.loads(row['detected_text_json'])
+                del row['detected_text_json']
         return rows
 
     # Finally, add the command to the CLI

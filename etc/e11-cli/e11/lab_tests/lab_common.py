@@ -9,7 +9,9 @@ import mimetypes
 import re
 import yaml
 import yaml.scanner
+import time
 
+from e11.e11core.utils import get_logger
 from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
@@ -22,6 +24,7 @@ AUTO_GRADER_KEY_LINE = (
 )
 UPLOAD_TIMEOUT_SECONDS = 10
 
+logger = get_logger()
 
 def make_multipart_body(fields: dict[str, str], file_field: str, file_name:str, file_bytes:bytes) -> tuple[bytes, str]:
     """

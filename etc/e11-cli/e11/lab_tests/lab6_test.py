@@ -1,5 +1,5 @@
 """
-lab5 tester
+lab6 tester
 """
 # pylint: disable=duplicate-code
 
@@ -12,6 +12,7 @@ from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
 from e11.lab_tests.nicols import nicols_jpeg
+from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
     do_presigned_post,
     get_database_tables,

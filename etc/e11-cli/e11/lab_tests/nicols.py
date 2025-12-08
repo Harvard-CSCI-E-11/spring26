@@ -1280,4 +1280,4 @@ s8v0rI5pH//Z
 """
 
 def nicols_jpeg():
-    return base64.b64decode(LINCOLN_BASE64)
+    return base64.b64decode(NICOLS_BASE64)
