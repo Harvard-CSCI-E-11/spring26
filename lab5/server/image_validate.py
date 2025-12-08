@@ -56,10 +56,12 @@ def delete_row(app, conn, row):
 
 def validate_image_data_length(app, image_data_length):
     """Return True if the image_data_length is acceptable"""
-
-    # STUDENTS --- fix this:
     app.logger.info("validate_image_data_length(%s)",image_data_length)
-    return image_data_length <= MAX_IMAGE_SIZE_BYTES
+
+    # STUDENTS --- fix this so that image_data_length returns True
+    #              only if it is <= MAX_IMAGE_SIZE
+    # return image_data_length <= MAX_IMAGE_SIZE_BYTES
+    return True
 
 def validate_image_table_row(app, conn, row):
     """Given a row of images from the database query above,
@@ -93,9 +95,9 @@ def validate_image_table_row(app, conn, row):
 
     #
     # == STUDENTS - START LAB5 MODIFICATIONS ==
-    #
+    # Fix this so that validated is set to True only if is_valid_jepg(image) is True
 
-    validated = is_valid_jpeg(image)
+    validated = True
 
     #
     # == STUDENTS - END LAB5 MODIFICATIONS ==
@@ -103,26 +105,20 @@ def validate_image_table_row(app, conn, row):
 
     # For Lab6, Do the AI on the image after it is validated.
     # Store the results in 'notes'
-    # == STUDENTS - START LAB6 MODIFICATIONS ==
 
     if validated:
-        try:
-            response = rekognition_client.recognize_celebrities( Image={"Bytes": image} )
-            celeb = response.get("CelebrityFaces", [])
-            app.logger.info("celeb=%s",celeb)
-        except BotoCoreError as e:
-            celeb = []
-            app.logger.error("rekognition error: %s",e)
+        celeb = []
+        detected_text = []
 
         # Update the database and the row
         celeb_json = json.dumps(celeb,default=str)
+        detected_text = json.dumps(detected_text,default=str)
         c = conn.cursor()
-        c.execute("UPDATE images set celeb_json=? where image_id=?",
-                  (celeb_json,image_id))
+        c.execute("UPDATE images set celeb_json=?,detected_text_json=? where image_id=?",
+                  (celeb_json,detected_text,image_id))
         conn.commit()
-        row['celeb_json'] = celeb
-
-    # == STUDENTS - END LAB6 MODIFICATIONS ==
+        row['celeb_json'] = celeb_json
+        row['detected_text_json'] = detecterd_text_json
 
     #
     # If the row did not validate, delete it in the database
@@ -148,7 +144,7 @@ def make_presigned_post(s3_bucket,s3key):
             { "Content-Type": JPEG_MIME_TYPE },
             # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES
             # restriction by uncommenting the next line:
-            [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
+            # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
         ],
         Fields = { "Content-Type": JPEG_MIME_TYPE},
         ExpiresIn = 120, # in seconds
