@@ -99,7 +99,7 @@ def list_images():
         """
         SELECT message_id,messages.created AS created,
                messages.message AS message, image_id,s3key, validated,
-               celeb_json, recognized_text_json,
+               celeb_json, detected_text_json,
                strftime('%s', 'now') - strftime('%s', messages.created) AS message_age_seconds,
                strftime('%s', 'now') - strftime('%s', images.created) AS image_age_seconds
         FROM messages
@@ -221,16 +221,19 @@ def init_app(app):
 
         # Add a signed URL to the s3key and expand the JSON if present
         for row in rows:
-            print("row=",row)
             row['url'] = presign_get(row['s3key'])
 
-            if 'celeb_json' in row:
+            try:
                 row['celeb'] = json.loads(row['celeb_json'])
-                del row['celeb_json']
+            except (KeyError, TypeError, ValueError) as e:
+                app.logger.error("celeb_json error: %s",e)
+            del row['celeb_json']
 
-            if 'recognized_test_json' in row:
-                row['recognized_text'] = json.loads(row['recognized_text_json'])
-                del row['recognized_text_json']
+            try:
+                row['detected_text'] = json.loads(row['detected_text_json'])
+            except (KeyError, TypeError, ValueError) as e:
+                app.logger.error("detected_text_json error: %s",e)
+            del row['detected_text_json']
         return rows
 
     # Finally, add the command to the CLI

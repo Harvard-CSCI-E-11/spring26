@@ -14,7 +14,6 @@ from e11.e11core.assertions import TestFail
 from e11.lab_tests.lincoln import lincoln_jpeg
 from e11.lab_tests.lab_common import (
     do_presigned_post,
-    get_database_tables,
     post_image,
     test_autograder_key_present,
     test_venv_present,

@@ -344,7 +344,9 @@ def do_check(args):
     chdir_to_lab(ctx)
     summary = grader.discover_and_run(ctx)
     print_summary(summary, verbose=getattr(args, "verbose", False))
-    sys.exit(0 if not summary["fails"] else 1)
+    if summary.get('error',None) or summary.get('fails',0):
+        sys.exit(1)
+    sys.exit(0)
 
 def do_report_tests(_):
     """Generate markdown report of all available tests across all labs."""

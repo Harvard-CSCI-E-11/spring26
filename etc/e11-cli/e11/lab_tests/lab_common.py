@@ -3,6 +3,7 @@ lab_common.py: common things for the lab tester.
 """
 
 from uuid import uuid4
+import time
 import urllib
 import json
 import mimetypes
@@ -10,6 +11,7 @@ import re
 import yaml
 import yaml.scanner
 
+from e11.e11core.utils import get_logger
 from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
@@ -22,6 +24,7 @@ AUTO_GRADER_KEY_LINE = (
 )
 UPLOAD_TIMEOUT_SECONDS = 10
 
+logger = get_logger()
 
 def make_multipart_body(fields: dict[str, str], file_field: str, file_name:str, file_bytes:bytes) -> tuple[bytes, str]:
     """
@@ -74,9 +77,10 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     s3_url = presigned_post["url"]
     s3_fields = presigned_post["fields"]
 
-    print("file_name=",file_name,"len(file_bytes)=",len(file_bytes))
-
-    body, content_type = make_multipart_body(s3_fields, file_field="file", file_name=file_name, file_bytes=file_bytes)
+    body, content_type = make_multipart_body(s3_fields,
+                                             file_field="file",
+                                             file_name=file_name,
+                                             file_bytes=file_bytes)
 
     r2 = tr.http_get(s3_url,
                       method='POST',
@@ -241,7 +245,7 @@ def test_https_root_ok( tr:TestRunner):
 def post_image( tr:TestRunner, image_bytes, image_name):
     # post a message and verify it is there
     magic = int(time.time())
-    msg = f'test post Lincoln image magic number {magic}'
+    msg = f'test post {image_name} image magic number {magic}'
     url = f"https://{tr.ctx.labdns}/api/post-image"
 
     image_size = len(image_bytes)
@@ -255,7 +259,7 @@ def post_image( tr:TestRunner, image_bytes, image_name):
     if r1.status < 200 or r1.status >= 300:
         raise TestFail(f"POST to {url} error={r1.status} {r1.text}")
 
-    # Now upload Lincoln to S3
+    # Now upload image to S3
     r2 = do_presigned_post(r1, tr, image_name, image_bytes)
     if r2.status < 200 or r2.status >= 300:
         raise TestFail(f"Error uploading image to S3: status={r2.status}, body={r2.text!r}")
@@ -273,7 +277,7 @@ def post_image( tr:TestRunner, image_bytes, image_name):
             logger.debug('no match: %s',row['message'])
 
     if count==0:
-        raise TestFail("posted image with magic number {magic} in the database but message not found.")
+        raise TestFail(f"posted {image_name} with magic number {magic} in the database but message not found.")
 
     # Verify that get-images returns Lincoln
     url2 = f"https://{tr.ctx.labdns}/api/get-images"
@@ -283,7 +287,6 @@ def post_image( tr:TestRunner, image_bytes, image_name):
     download_url = None
     count = 0
     for row in r3.json():
-        print("row=",row)
         if row['message']==msg and row.get('url'):
             download_url = row['url']
             count += 1

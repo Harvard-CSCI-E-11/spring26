@@ -1,6 +1,6 @@
 import base64
 
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines, disable=duplicate-code
 
 NICOLS_BASE64 = """
 /9j/4Q/+RXhpZgAATU0AKgAAAAgABwEGAAMAAAABAAIAAAESAAMAAAABAAEAAAEaAAUAAAABAAAAYgEb
@@ -1280,4 +1280,4 @@ s8v0rI5pH//Z
 """
 
 def nicols_jpeg():
-    return base64.b64decode(LINCOLN_BASE64)
+    return base64.b64decode(NICOLS_BASE64)

@@ -73,8 +73,7 @@ function show_images() {
                 });
 
             const hasCeleb = hasNonEmptyField(obj, "celeb");
-            const hasRecognizedText = hasNonEmptyField(obj, "recognized_text");
-
+            const hasDetectedText = hasNonEmptyField(obj, "detected_text");
             const celebFormatter = (cell) => {
                 const v = cell.getValue();
                 if (!v) return "";
@@ -91,12 +90,21 @@ function show_images() {
                 }
             };
 
-            const recognizedTextFormatter = (cell) => {
+            const detectedTextFormatter = (cell) => {
                 const v = cell.getValue();
                 if (!v) return "";
-                const s = String(v);
-                const maxLen = 200;
-                return s.length <= maxLen ? s : s.slice(0, maxLen) + "…";
+                try {
+                    const arr = Array.isArray(v) ? v : JSON.parse(v);
+                    console.log("arr=",arr);
+                    console.log("arr.length=",arr.length);
+                    if (!arr.length) return "";
+                    const c = arr[0].Confidence;
+                    const conf = (c !== undefined) ? ` (${c.toFixed(1)}%)` : "";
+                    console.log("conf=",conf);
+                    return `${arr[0].DetectedText}${conf}`;
+                } catch (e) {
+                    return String(v);
+                }
             };
 
             const columns = [
@@ -115,12 +123,12 @@ function show_images() {
                 });
             }
 
-            if (hasRecognizedText) {
+            if (hasDetectedText) {
                 columns.push({
-                    title: "Recognized Text",
-                    field: "recognized_text",
-                    formatter: recognizedTextFormatter,
-                    headerTooltip: "OCR / recognized text (if any)",
+                    title: "Detected Text",
+                    field: "detected_text",
+                    formatter: detectedTextFormatter,
+                    headerTooltip: "OCR / detected text (if any)",
                     widthGrow: 2,
                 });
             }
@@ -307,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
  * We use setTimeout() rather than setInterval() so we don't need to deal with overlapping calls.
  */
 function loop() {
-    show_messages();
+    show_images();
     setTimeout(loop, REFRESH_RATE);
 }
 

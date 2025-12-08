@@ -1,20 +1,15 @@
 """
-lab5 tester
+lab6 tester
 """
 # pylint: disable=duplicate-code
-
-import json
-import time
-import urllib.parse
 
 from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
 from e11.lab_tests.nicols import nicols_jpeg
+from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
-    do_presigned_post,
-    get_database_tables,
     post_image,
     test_autograder_key_present,
     test_venv_present,
@@ -51,7 +46,7 @@ def test_post_image2( tr:TestRunner):
     return post_image( tr, harvard_jpeg(), "harvard.jpeg")
 
 @timeout(5)
-def verify_rekognition_enabled( tr:TestRunner ):
+def test_rekognition_enabled( tr:TestRunner ):
     r = tr.run_command("aws rekognition list-collections")
     if r.exit_code != 0:
         raise TestFail("AWS Rekognition API not authorized")
@@ -61,7 +56,7 @@ def verify_rekognition_enabled( tr:TestRunner ):
     return "AWS Rekognition API authorized for Instance"
 
 @timeout(5)
-def verify_rekognition_celeb( tr:TestRunner ):
+def test_rekognition_celeb( tr:TestRunner ):
     url = f"https://{tr.ctx.labdns}/api/get-images"
     r = tr.http_get(url)
     if r.status < 200 or r.status >= 300:
@@ -71,3 +66,15 @@ def verify_rekognition_celeb( tr:TestRunner ):
             if celeb.get('Name','')=="Nichelle Nichols":
                 return "Found Nichelle Nichols"
     raise TestFail("Could not find Nichelle Nichols")
+
+@timeout(5)
+def test_rekognition_text( tr:TestRunner ):
+    url = f"https://{tr.ctx.labdns}/api/get-images"
+    r = tr.http_get(url)
+    if r.status < 200 or r.status >= 300:
+        raise TestFail(f"could not http GET to {url} error={r.status} {r.text}")
+    for row in r.json():
+        for dt in row.get('detected_text',[]):
+            if "harvard" in dt.get("DetectedText","").lower():
+                return "Found Harvard"
+    raise TestFail("Could not find Harvard")

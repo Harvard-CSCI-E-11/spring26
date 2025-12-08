@@ -1,6 +1,6 @@
 import base64
 
-# pylint: disable=too-many-lines
+# pylint: disable=too-many-lines, disable=duplicate-code
 
 LINCOLN_BASE64 = """
 /9j/4Q/+RXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEo
