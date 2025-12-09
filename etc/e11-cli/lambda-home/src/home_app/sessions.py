@@ -8,7 +8,9 @@ import time
 
 from typing import Optional
 
+from boto3.dynamodb.conditions import Key
 
+from e11.e11core.utils import get_logger
 from e11.e11_common import (
     A,
     EmailNotRegistered,
@@ -16,7 +18,6 @@ from e11.e11_common import (
     convert_dynamodb_item,
     create_new_user,
     sessions_table,
-    get_logger,
     get_user_from_email
 )
 
