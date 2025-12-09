@@ -474,7 +474,7 @@ def get_parser():
 
     # e11 staff commands
     if staff.enabled():
-        staff.add_parsers(parser,subparsers)
+        staff.add_staff_parsers(parser,subparsers)
 
     return parser
 
