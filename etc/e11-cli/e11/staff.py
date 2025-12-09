@@ -6,7 +6,6 @@ e11 staff commands.
 import sys
 import os
 import time
-import json
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -17,9 +16,7 @@ from botocore.exceptions import ClientError
 
 
 from .e11core.e11ssh import E11Ssh
-from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table
-
-from home_app import sessions
+from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -145,7 +142,7 @@ def do_student_grades_lab(lab):
 
 def do_student_grades_email(email):
     print("Grades for: ",email)
-    user = sessions.get_user_from_email(email)
+    user = get_user_from_email(email)
     for (k,v) in sorted(dict(user).items()):
         print(f"{k}:{v}")
 

@@ -11,6 +11,8 @@ CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
 DEFAULT_TIMEOUT = 3
 STUDENT='student'               # section
 
+################################################################
+
 def home():
     """Returns home directory. Do not cache, because that breaks monkeypatching"""
     return Path(os.getenv('HOME',''))

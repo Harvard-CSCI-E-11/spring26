@@ -364,12 +364,10 @@ def apply_all_aws_mocks(monkeypatch):
     # Import after base mocks are set so we bind to the mocked objects
     import e11.e11_common as e11_common
     import home_app.home as home
-    import home_app.sessions as sessions
     import home_app.common as common
 
     # Ensure consumer modules reference the same mocked tables/clients
     monkeypatch.setattr(home, "users_table", e11_common.users_table)
-    monkeypatch.setattr(sessions, "users_table", e11_common.users_table)
     monkeypatch.setattr(common, "users_table", e11_common.users_table)
     monkeypatch.setattr(home, "route53_client", e11_common.route53_client)
     monkeypatch.setattr(home, "secretsmanager_client", e11_common.secretsmanager_client)

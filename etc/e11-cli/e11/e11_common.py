@@ -1,10 +1,14 @@
 """
-Common includes for E11 DynamoDB
+Common includes for E11 DynamoDB.
+Defines datamodel and simple access routines.
+Used by both AWS Lambda and by e11 running in E11_STAFF mode (where staff interact directly with DynamoDB table using their AWS credentials.)
 """
 
 import os
 import time
 import uuid
+import functools
+import logging
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
 
@@ -42,6 +46,36 @@ users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
+
+################################################################
+### Logger
+@functools.cache                # singleton
+def _configure_root_once():
+    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+
+    # Configure a dedicated app logger; avoid touching the root logger.
+    app_logger = logging.getLogger("e11")
+    app_logger.setLevel(level)
+
+    if not app_logger.handlers:
+        handler = logging.StreamHandler()
+        fmt = "%(asctime)s %(levelname)s [%(name)s %(filename)s:%(lineno)d %(funcName)s] %(message)s"
+        handler.setFormatter(logging.Formatter(fmt))
+        app_logger.addHandler(handler)
+
+    # Prevent bubbling to root (stops double logs)
+    app_logger.propagate = False
+
+    # If this code is used as a library elsewhere, avoid “No handler” warnings:
+    logging.getLogger(__name__).addHandler(logging.NullHandler())
+
+def get_logger(name: str | None = None) -> logging.Logger:
+    """Get a logger under the 'e11' namespace (e.g., e11.grader)."""
+    _configure_root_once()
+    return logging.getLogger("e11" + ("" if not name else f".{name}"))
+################################################################
+
 
 # Classes
 
@@ -147,3 +181,23 @@ def create_new_user(email, claims=None):
     }
     users_table.put_item(Item=user)  # USER CREATION POINT
     return user
+
+def get_user_from_email(email) -> User:
+    """Given an email address, get the DynamoDB user record from the users_table.
+    Note - when the first session is created, we don't know the user-id.
+    """
+    logger = get_logger()
+    logger.debug("get_user_from_email: looking for email=%s", email)
+    resp = users_table.query(
+        IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email)
+    )
+    logger.debug("get_user_from_email: query result count=%s", resp["Count"])
+    if resp["Count"] > 1:
+        raise DatabaseInconsistency(
+            f"multiple database entries with the same email: {resp}"
+        )
+    if resp["Count"] != 1:
+        raise EmailNotRegistered(email)
+    item = resp["Items"][0]
+    logger.debug("get_user_from_email - item=%s", item)
+    return User(**convert_dynamodb_item(item))
