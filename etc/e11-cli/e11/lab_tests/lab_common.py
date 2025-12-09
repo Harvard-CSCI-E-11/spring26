@@ -5,6 +5,7 @@ lab_common.py: common things for the lab tester.
 from uuid import uuid4
 import time
 import urllib
+import urllib.parse
 import json
 import mimetypes
 import re
