@@ -35,8 +35,8 @@ def get_logger(name: str | None = None) -> logging.Logger:
 
 def smash_email(email):
     """Convert an email into the CSCI E-11 smashed email.
-    Remove underbars"""
-    email    = re.sub(r'[^-a-zA-Z0-9@.+]', '', email).lower().strip()
+    Remove underbars and plus signs"""
+    email    = re.sub(r'[^-a-zA-Z0-9@.]', '', email).lower().strip()
     smashed_email = "".join(email.replace("@",".").split(".")[0:2])
     return smashed_email
 
