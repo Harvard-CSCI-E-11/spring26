@@ -20,8 +20,7 @@ $(PYTHON):
 	poetry install		# installs the current poetry.lock, do not update
 
 lint: $(PYTHON)
-	poetry run pylint *.py
-	poetry run pyright *.py
+	@echo nothing to lint here
 
 distclean:
 	@echo already clean

@@ -51,7 +51,7 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
     try:
         mod = _import_tests_module(lab)
     except ModuleNotFoundError as e:
-        # Convert ctx to dict for JSON serialization
+        # Create the error dict
         ctx_dict = {
             "version": ctx.version,
             "lab": ctx.lab,
@@ -193,18 +193,22 @@ def print_summary(summary, verbose=False):
     if verbose:
         print(json.dumps(summary,default=str,indent=4))
 
+    if summary.get("error",None):
+        print("Error: ",summary['error'])
+        return
+
     lab = summary.get("lab")
     print(f"=== {lab} Results ===")
     ctx = summary['ctx']
     public_ip = ctx.public_ip if hasattr(ctx, 'public_ip') else ctx.get('public_ip', 'unknown')
     print(f"Testing public ip address: {public_ip}")
     print(f"Score: {summary['score']} / 5.0")
-    if summary["passes"]:
+    if summary.get("passes",None):
         print("\n-- PASSES --")
         for t in summary["tests"]:
             if t["status"] == "pass":
                 print(f"  ✔ {t['name']:20}  -- {t.get('message','')}  ")
-    if summary["fails"]:
+    if summary.get("fails",None):
         print("\n-- FAILURES --")
         for t in summary["tests"]:
             if t["status"] == "fail":
@@ -213,7 +217,7 @@ def print_summary(summary, verbose=False):
                 if ctx:
                     print("----- context -----")
                     print(ctx)
-    if verbose and summary["passes"]:
+    if verbose and summary.get("passes",None):
         print("\n-- PASS ARTIFACTS (verbose) --")
         for t in summary["tests"]:
             if t["status"] == "pass" and "context" in t and t["context"]:
@@ -224,6 +228,9 @@ def print_summary(summary, verbose=False):
 
 def create_email(summary):
     """Create email message for user. See also print_summary above"""
+
+    if summary.get("error",None):
+        return ("Error",f"Error: {summary['error']}")
 
     subject = f"[E11] {summary['lab']} score {summary['score']}/5.0"
     body_lines = [subject, "", "Passes:"]
