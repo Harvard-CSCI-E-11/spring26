@@ -48,6 +48,7 @@ from e11.e11_common import users_table, sessions_table, A, EmailNotRegistered
 from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.main import __version__
+from e11.e11core.utils import get_logger
 
 from . import oidc
 from . import sessions
@@ -59,7 +60,7 @@ from .sessions import (
     delete_session_from_event,
 )
 from .sessions import get_user_from_email, delete_session, expire_batch
-from .common import get_logger, add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
+from .common import add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
 
 
 LOGGER = get_logger("home")

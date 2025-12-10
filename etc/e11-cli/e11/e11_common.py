@@ -1,5 +1,7 @@
 """
-Common includes for E11 DynamoDB
+Common includes for E11 DynamoDB.
+Defines datamodel and simple access routines.
+Used by both AWS Lambda and by e11 running in E11_STAFF mode (where staff interact directly with DynamoDB table using their AWS credentials.)
 """
 
 import os
@@ -10,8 +12,10 @@ from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
+from boto3.dynamodb.conditions import Key
 
 from e11.e11core.constants import COURSE_KEY_LEN
+from e11.e11core.utils import get_logger
 
 if TYPE_CHECKING:
     from mypy_boto3_route53.client import Route53Client
@@ -42,6 +46,7 @@ users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
+
 
 # Classes
 
@@ -147,3 +152,23 @@ def create_new_user(email, claims=None):
     }
     users_table.put_item(Item=user)  # USER CREATION POINT
     return user
+
+def get_user_from_email(email) -> User:
+    """Given an email address, get the DynamoDB user record from the users_table.
+    Note - when the first session is created, we don't know the user-id.
+    """
+    logger = get_logger()
+    logger.debug("get_user_from_email: looking for email=%s", email)
+    resp = users_table.query(
+        IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email)
+    )
+    logger.debug("get_user_from_email: query result count=%s", resp["Count"])
+    if resp["Count"] > 1:
+        raise DatabaseInconsistency(
+            f"multiple database entries with the same email: {resp}"
+        )
+    if resp["Count"] != 1:
+        raise EmailNotRegistered(email)
+    item = resp["Items"][0]
+    logger.debug("get_user_from_email - item=%s", item)
+    return User(**convert_dynamodb_item(item))

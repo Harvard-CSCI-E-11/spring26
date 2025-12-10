@@ -15,10 +15,11 @@ import requests
 import jwt
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
+from e11.e11core.utils import get_logger
 from e11 import e11_common
 
 from . import common
-LOGGER = common.get_logger("grader")
+LOGGER = get_logger("grader")
 
 
 # Secrets Manager

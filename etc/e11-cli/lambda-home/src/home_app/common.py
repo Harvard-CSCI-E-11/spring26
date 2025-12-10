@@ -3,15 +3,13 @@ Common includes for lambda-home.
 """
 
 import os
-import os.path
 import sys
-import logging
-import functools
 import datetime
 from os.path import dirname, join, isdir
 
 from e11.e11_common import users_table, A
 from e11.e11core.constants import COURSE_DOMAIN
+from e11.e11core.utils import get_logger
 
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 DNS_TTL = 30
@@ -31,35 +29,6 @@ if isdir(join(NESTED, "e11")):
 
 TEMPLATE_DIR = join(MY_DIR,"templates")
 STATIC_DIR = join(MY_DIR,"static")
-
-
-################################################################
-### Logger
-@functools.cache                # singleton
-def _configure_root_once():
-    level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-    level = getattr(logging, level_name, logging.INFO)
-
-    # Configure a dedicated app logger; avoid touching the root logger.
-    app_logger = logging.getLogger("e11")
-    app_logger.setLevel(level)
-
-    if not app_logger.handlers:
-        handler = logging.StreamHandler()
-        fmt = "%(asctime)s %(levelname)s [%(name)s %(filename)s:%(lineno)d %(funcName)s] %(message)s"
-        handler.setFormatter(logging.Formatter(fmt))
-        app_logger.addHandler(handler)
-
-    # Prevent bubbling to root (stops double logs)
-    app_logger.propagate = False
-
-    # If this code is used as a library elsewhere, avoid “No handler” warnings:
-    logging.getLogger(__name__).addHandler(logging.NullHandler())
-
-def get_logger(name: str | None = None) -> logging.Logger:
-    """Get a logger under the 'e11' namespace (e.g., e11.grader)."""
-    _configure_root_once()
-    return logging.getLogger("e11" + ("" if not name else f".{name}"))
 
 ################################################################
 ## Add to user log

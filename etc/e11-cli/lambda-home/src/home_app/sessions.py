@@ -10,19 +10,18 @@ from typing import Optional
 
 from boto3.dynamodb.conditions import Key
 
+from e11.e11core.utils import get_logger
 from e11.e11_common import (
     A,
-    DatabaseInconsistency,
     EmailNotRegistered,
     Session,
-    User,
     convert_dynamodb_item,
     create_new_user,
     sessions_table,
-    users_table,
+    get_user_from_email
 )
 
-from .common import get_logger, add_user_log, SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
+from .common import add_user_log, SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
 
 LOGGER = get_logger("home")
 
@@ -43,26 +42,6 @@ def parse_cookies(event) -> dict:
             k, v = c.split("=", 1)
             cookies[k] = v
     return cookies
-
-def get_user_from_email(email) -> User:
-    """Given an email address, get the DynamoDB user record from the users_table.
-    Note - when the first session is created, we don't know the user-id.
-    """
-    LOGGER.debug("get_user_from_email: looking for email=%s", email)
-    resp = users_table.query(
-        IndexName="GSI_Email", KeyConditionExpression=Key("email").eq(email)
-    )
-    LOGGER.debug("get_user_from_email: query result count=%s", resp["Count"])
-    if resp["Count"] > 1:
-        raise DatabaseInconsistency(
-            f"multiple database entries with the same email: {resp}"
-        )
-    if resp["Count"] != 1:
-        raise EmailNotRegistered(email)
-    item = resp["Items"][0]
-    LOGGER.debug("get_user_from_email: found item with keys=%s", list(item.keys()))
-    LOGGER.debug("get_user_from_email - item=%s", item)
-    return User(**convert_dynamodb_item(item))
 
 def new_session(event, claims) -> Session:
     """Create a new session from the OIDC claims and store in the DyanmoDB table.
