@@ -87,7 +87,11 @@ def do_student_report(args):
     pitems = []
     for item in items:
         try:
-            user_registered = item.get('user_registered',0)
+            raw = item.get('user_registered',0)
+            if isinstance(raw, (str,int,Decimal)):
+                user_registered = int(raw)
+            else:
+                user_registered = 0
         except TypeError:
             user_registered = 0
         pitems.append({"Registered":time.asctime(time.localtime(user_registered)),
@@ -95,7 +99,9 @@ def do_student_report(args):
                        "Name":item.get('preferred_name',""),
                        'HarvardKey':("YES" if item.get('claims') else "NO")})
 
-    print(tabulate( sorted(pitems,key=lambda a:str(a['Name']) + "~" + str(a['Email'])), headers='keys'))
+    def sortkey(a):
+        return a.get('Name','') + "~" + a.get('Email','')
+    print(tabulate( sorted(pitems,key=sortkey), headers='keys'))
 
 def get_class_list():
     """Get the entire class list"""
