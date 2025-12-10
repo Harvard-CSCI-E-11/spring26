@@ -7,13 +7,12 @@ Used by both AWS Lambda and by e11 running in E11_STAFF mode (where staff intera
 import os
 import time
 import uuid
-import functools
-import logging
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
+from boto3.dynamodb.conditions import Key
 
 from e11.e11core.constants import COURSE_KEY_LEN
 from e11.e11core.utils import get_logger
