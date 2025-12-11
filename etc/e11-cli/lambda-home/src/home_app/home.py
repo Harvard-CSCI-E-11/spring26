@@ -44,8 +44,19 @@ from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
 from e11.e11core import grader
-from e11.e11_common import users_table, sessions_table, A, EmailNotRegistered
-from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
+from e11.e11_common import (
+    A,
+    EmailNotRegistered,
+    User,
+    add_grade,
+    add_user_log,
+    convert_dynamodb_item,
+    route53_client,
+    secretsmanager_client,
+    sessions_table,
+    users_table,
+)
+
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.main import __version__
 from e11.e11core.utils import get_logger
@@ -60,7 +71,16 @@ from .sessions import (
     delete_session_from_event,
 )
 from .sessions import get_user_from_email, delete_session, expire_batch
-from .common import add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
+from .common import (
+    make_cookie,
+    get_cookie_domain,
+    COOKIE_NAME,
+    SESSION_TTL_SECS,
+    DNS_TTL,
+    TEMPLATE_DIR,
+    STATIC_DIR,
+    NESTED
+    )
 
 
 LOGGER = get_logger("home")
@@ -592,21 +612,7 @@ def api_grader(event, context, payload):
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-
-    # Record grades
-    now = datetime.datetime.now().isoformat()
-    item = {
-        A.USER_ID: user.user_id,
-        A.SK: f"{A.SK_GRADE_PREFIX}#{lab}#{now}",
-        A.LAB: lab,
-        A.PUBLIC_IP: public_ip,
-        "score": str(summary["score"]),
-        "pass_names": summary["passes"],
-        "fail_names": summary["fails"],
-        "raw": json.dumps(summary, default=str)[:35000],
-    }
-    users_table.put_item(Item=item)
-    LOGGER.info("DDB put_item to %s", users_table)
+    add_grade(user, lab, public_ip, summary)
 
     # Send email
     (subject, body) = grader.create_email(summary)

@@ -16,7 +16,14 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
+from e11.
+
 __version__ = '0.9.3'
+
+BASE_SCORE = 4.5
+SCORE_WITH_MAGIC = 5.
+MAGIC = 'magic'
+LAB='lab7'
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
@@ -213,8 +220,40 @@ def root():
                          FAVICO=icon_data)
 
 @app.route('/api/register', methods=['GET'])
-def api_register():
+def api_get_register():
     """Return the registration of the name and secret key. Store hashed key in database"""
+    return  jsonify(new_registration())
+
+@app.route('/api/register', methods=['POST'])
+def api_post_register():
+    """Check the posted email and class key. If they are correct, grade the assignment.
+    Then return the registration of the name and secret key. Store hashed key in database"""
+    email = request.form.get('email','')
+    course_key = request.form.get('course_key','')
+
+    user = get_user_from_email(email)
+    if not User:
+        abort(404, 'invalid email')
+    if user.course_key != course_key:
+        abort(404, 'invalid course_key')
+
+    user_agent = str(request.user_agent)
+    pass_names = ['test_user_key']
+    if MAGIC.lower() in user_agent.lower():
+        score = SCORE_WITH_MAGIC
+        pass_names = ['test_agent_string']
+        fail_names = []
+    else:
+        score = BASE_SCORE
+        fail_names = ['test_agent_string']
+
+    summary = {'score':score,
+               'pass_names':pass_names,
+               'fail_names':fail_names,
+               'raw':''}
+
+    add_grade(user, LAB, request.remote_addr, summary)
+
     return  jsonify(new_registration())
 
 @app.route('/api/update', methods=['POST'])

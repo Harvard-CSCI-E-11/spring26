@@ -74,6 +74,7 @@ class A:                        # pylint: disable=too-few-public-methods
     SESSION_EXPIRE = 'session_expire'    # time_t
     SK = 'sk'                   # sort key
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
+    SK_GRADE_PATTERN = "{A.SK_GRADE_PREFIX}#{lab}#{now}"
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_USER = '#'               # sort key for the user record
     USER_ID = 'user_id'
@@ -172,3 +173,39 @@ def get_user_from_email(email) -> User:
     item = resp["Items"][0]
     logger.debug("get_user_from_email - item=%s", item)
     return User(**convert_dynamodb_item(item))
+
+
+def add_user_log(event, user_id, message, **extra):
+    """
+    :param user_id: user_id
+    :param message: Message to add to log
+    """
+    if event is not None:
+        client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
+    else:
+        client_ip = extra.get('client_ip')
+    now = datetime.datetime.now().isoformat()
+    logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
+    ret = users_table.put_item(Item={A.USER_ID:user_id,
+                                     'sk':f'{A.SK_LOG_PREFIX}{now}',
+                                     'client_ip':client_ip,
+                                     'message':message,
+                                     **extra})
+    logger.debug("put_table=%s",ret)
+
+
+def add_grade(user, lab, public_ip, summary):
+    # Record grades
+    now = datetime.datetime.now().isoformat()
+    item = {
+        A.USER_ID: user.user_id,
+        A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
+        A.LAB: lab,
+        A.PUBLIC_IP: public_ip,
+        "score": str(summary["score"]),
+        "pass_names": summary["passes"],
+        "fail_names": summary["fails"],
+        "raw": json.dumps(summary, default=str)[:35000],
+    }
+    users_table.put_item(Item=item)
+    logger.info("DDB put_item to %s", users_table)
