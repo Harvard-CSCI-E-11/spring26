@@ -257,8 +257,6 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
             "Body": {"Text": {"Data": email_body}},
         },
     )
-
-    LOGGER.info(
-        "send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r
-    )
+    get_logger().info( "send_email to=%s subject=%s SES response: %s",
+                       to_addr, email_subject, r )
     return r
