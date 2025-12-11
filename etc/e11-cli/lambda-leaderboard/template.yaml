@@ -78,7 +78,8 @@ Resources:
         Variables:
           LEADERBOARD_TABLE: !Ref LeaderboardTable
           AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
-          PORT: 8000
+          GUNICORN_PORT: 8000
+          PYTHONPATH: "/var/task/home_app/e11.whl"
       Layers:
         - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:23
       Events:

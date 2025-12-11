@@ -8,7 +8,6 @@ import time
 
 from typing import Optional
 
-from boto3.dynamodb.conditions import Key
 
 from e11.e11core.utils import get_logger
 from e11.e11_common import (
@@ -18,10 +17,11 @@ from e11.e11_common import (
     convert_dynamodb_item,
     create_new_user,
     sessions_table,
-    get_user_from_email
+    get_user_from_email,
+    add_user_log
 )
 
-from .common import add_user_log, SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
+from .common import SESSION_TTL_SECS, get_cookie_domain, COOKIE_NAME
 
 LOGGER = get_logger("home")
 

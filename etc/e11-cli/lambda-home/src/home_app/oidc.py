@@ -18,7 +18,6 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from e11.e11core.utils import get_logger
 from e11 import e11_common
 
-from . import common
 LOGGER = get_logger("grader")
 
 

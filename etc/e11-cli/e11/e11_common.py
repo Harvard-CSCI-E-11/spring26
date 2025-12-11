@@ -7,8 +7,11 @@ Used by both AWS Lambda and by e11 running in E11_STAFF mode (where staff intera
 import os
 import time
 import uuid
+import json
+import copy
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
+import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
@@ -180,6 +183,7 @@ def add_user_log(event, user_id, message, **extra):
     :param user_id: user_id
     :param message: Message to add to log
     """
+    logger = get_logger()
     if event is not None:
         client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     else:
@@ -196,6 +200,7 @@ def add_user_log(event, user_id, message, **extra):
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
+    logger = get_logger()
     now = datetime.datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
@@ -207,5 +212,33 @@ def add_grade(user, lab, public_ip, summary):
         "fail_names": summary["fails"],
         "raw": json.dumps(summary, default=str)[:35000],
     }
-    users_table.put_item(Item=item)
-    logger.info("DDB put_item to %s", users_table)
+    ret = users_table.put_item(Item=item)
+    logger.info("add_grade to %s user=%s ret=%s", users_table, user, ret)
+
+def queryscan_table(what, kwargs):
+    """user the users table and return the items"""
+    kwargs = copy.copy(kwargs)  # it will be modified
+    items = []
+    while True:
+        response = what(**kwargs)
+        items.extend(response.get('Items',[]))
+        lek = response.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return items
+
+def get_grade(user, lab):
+    """gets the highest grade for a user/lab"""
+    kwargs:dict = {
+        'KeyConditionExpression' : (
+            Key('user_id').eq(user.user_id) &
+            Key('sk').begins_with(f'grade##{lab}') ),
+        'ProjectionExpression' : 'user_id, sk, score'
+    }
+    items = queryscan_table(users_table.query, kwargs)
+    if items:
+        score = max( (item['score'] for item in items) )
+    else:
+        score = 0
+    return int(score)

@@ -55,6 +55,7 @@ from e11.e11_common import (
     secretsmanager_client,
     sessions_table,
     users_table,
+    queryscan_table
 )
 
 from e11.e11core.constants import COURSE_DOMAIN
@@ -263,15 +264,9 @@ def _with_request_log_level(payload: Dict[str, Any]):
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
-    key_query = Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)
-    logs = []
-    resp = users_table.query(KeyConditionExpression=key_query)
-    logs.extend(resp["Items"])
-    while LastEvaluatedKey in resp:
-        resp = users_table.query(
-            KeyConditionExpression=key_query, ExclusiveStartKey=resp[LastEvaluatedKey]
-        )
-        logs.extend([User(**convert_dynamodb_item(u)) for u in resp["Items"]])
+    kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)}
+    logs = queryscan_table(users_table.query, kwargs)
+    logs = [User(**convert_dynamodb_item(u)) for u in logs]
     return logs
 
 
@@ -329,15 +324,9 @@ def do_dashboard(event):
 
     # Get the dashboard items
     items = []
-    resp = users_table.query(KeyConditionExpression=Key(A.USER_ID).eq(user.user_id))
-    items.extend(resp["Items"])
-    while LastEvaluatedKey in resp:
-        resp = users_table.query(
-            KeyConditionExpression=Key(A.USER_ID).eq(user.user_id),
-            ExclusiveStartKey=resp[LastEvaluatedKey],
-        )
-        items.extend([User(**convert_dynamodb_item(u)) for u in resp["Items"]])
-
+    kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
+    items = queryscan_table(users_table.query, kwargs)
+    items = [User(**convert_dynamodb_item(u)) for u in items]
     logs = all_logs_for_userid(user.user_id)
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
