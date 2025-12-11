@@ -50,6 +50,10 @@ sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
 
+# Simple Email Service
+SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
+ses_client = boto3.client("ses")
+
 
 # Classes
 
@@ -242,3 +246,19 @@ def get_grade(user, lab):
     else:
         score = 0
     return int(score)
+
+
+def send_email(to_addr: str, email_subject: str, email_body: str):
+    r = ses_client.send_email(
+        Source=SES_VERIFIED_EMAIL,
+        Destination={"ToAddresses": [to_addr]},
+        Message={
+            "Subject": {"Data": email_subject},
+            "Body": {"Text": {"Data": email_body}},
+        },
+    )
+
+    LOGGER.info(
+        "send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r
+    )
+    return r

@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-from e11.e11_common import (get_user_from_email, get_grade)
+from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email)
 
 __version__ = '0.9.3'
 
@@ -248,13 +248,19 @@ def api_post_register():
         fail_names = ['test_agent_string']
 
     # if score is higher than current score, record that
-    if get_grade(user, LAB) < score:
+    old_score = get_grade(user, LAB)
+    if old_score < score:
         summary = {'score':score,
                    'pass_names':pass_names,
                    'fail_names':fail_names,
                    'raw':''}
 
         add_grade(user, LAB, request.remote_addr, summary)
+        (subject, body) = grader.create_email(summary)
+        send_email(to_addr = user.email,
+                   email_subject = subject,
+                   email_body=body)
+
 
     return  jsonify(new_registration())
 

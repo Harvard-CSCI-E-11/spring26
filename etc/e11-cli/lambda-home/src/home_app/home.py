@@ -55,7 +55,8 @@ from e11.e11_common import (
     secretsmanager_client,
     sessions_table,
     users_table,
-    queryscan_table
+    queryscan_table,
+    send_email
 )
 
 from e11.e11core.constants import COURSE_DOMAIN
@@ -123,10 +124,6 @@ env = Environment(
     )
 )
 env.filters["eastern"] = eastern_filter
-
-# Simple Email Service
-SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
-ses_client = boto3.client("ses")
 
 # Route53 config for this course
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # from route53
@@ -401,21 +398,6 @@ def do_logout(event):
         cookies=[del_cookie],
     )
 
-
-def send_email(to_addr: str, email_subject: str, email_body: str):
-    r = ses_client.send_email(
-        Source=SES_VERIFIED_EMAIL,
-        Destination={"ToAddresses": [to_addr]},
-        Message={
-            "Subject": {"Data": email_subject},
-            "Body": {"Text": {"Data": email_body}},
-        },
-    )
-
-    LOGGER.info(
-        "send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r
-    )
-    return r
 
 
 ################################################################
