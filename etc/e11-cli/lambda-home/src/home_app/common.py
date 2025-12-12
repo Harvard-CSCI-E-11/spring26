@@ -4,12 +4,9 @@ Common includes for lambda-home.
 
 import os
 import sys
-import datetime
 from os.path import dirname, join, isdir
 
-from e11.e11_common import users_table, A
 from e11.e11core.constants import COURSE_DOMAIN
-from e11.e11core.utils import get_logger
 
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 DNS_TTL = 30
@@ -32,27 +29,6 @@ STATIC_DIR = join(MY_DIR,"static")
 
 ################################################################
 ## Add to user log
-LOGGER = get_logger("grader")
-
-def add_user_log(event, user_id, message, **extra):
-    """
-    :param user_id: user_id
-    :param message: Message to add to log
-    """
-    if event is not None:
-        client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
-    else:
-        client_ip = extra.get('client_ip')
-    now = datetime.datetime.now().isoformat()
-    LOGGER.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
-    ret = users_table.put_item(Item={A.USER_ID:user_id,
-                                     'sk':f'{A.SK_LOG_PREFIX}{now}',
-                                     'client_ip':client_ip,
-                                     'message':message,
-                                     **extra})
-    LOGGER.debug("put_table=%s",ret)
-
-
 # Staging environment configuration
 def is_staging_environment(event) -> bool:
     """Detect if we're running in the staging environment"""

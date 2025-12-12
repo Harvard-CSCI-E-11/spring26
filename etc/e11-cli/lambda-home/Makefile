@@ -62,9 +62,7 @@ distclean:
 	/bin/rm -rf .mypy_cache .pytest_cache
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 
-# --- Custom Vendoring (largely unchanged) ---
-# This is a custom script for your project, so we keep it.
-# It now uses `poetry run` to ensure it uses the venv's python/pip.
+# --- Custom Vendoring
 .PHONY: vend-e11
 vend-e11: install
 	@echo "Building src/home_app/e11.whl via pip"
@@ -74,7 +72,7 @@ vend-e11: install
 	install -m 444 $$(ls -t ../dist/*.whl | head -1) src/home_app/e11.whl
 	@echo "OK -> src/home_app/e11.whl"
 
-# --- AWS SAM/CLI Targets (unchanged) ---
+# --- AWS SAM/CLI Targets
 # These are deployment tasks, perfect for Make.
 # They now depend on the new poetry-based targets.
 

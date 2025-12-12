@@ -32,7 +32,6 @@ import datetime
 from typing import Any, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
 
-import boto3
 from boto3.dynamodb.conditions import Key
 
 import paramiko.ssh_exception
@@ -44,8 +43,21 @@ from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
 from e11.e11core import grader
-from e11.e11_common import users_table, sessions_table, A, EmailNotRegistered
-from e11.e11_common import route53_client, User, convert_dynamodb_item, secretsmanager_client
+from e11.e11_common import (
+    A,
+    EmailNotRegistered,
+    User,
+    add_grade,
+    add_user_log,
+    convert_dynamodb_item,
+    route53_client,
+    secretsmanager_client,
+    sessions_table,
+    users_table,
+    queryscan_table,
+    send_email
+)
+
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.main import __version__
 from e11.e11core.utils import get_logger
@@ -60,7 +72,16 @@ from .sessions import (
     delete_session_from_event,
 )
 from .sessions import get_user_from_email, delete_session, expire_batch
-from .common import add_user_log,make_cookie, get_cookie_domain, COOKIE_NAME, SESSION_TTL_SECS, DNS_TTL, TEMPLATE_DIR, STATIC_DIR, NESTED
+from .common import (
+    make_cookie,
+    get_cookie_domain,
+    COOKIE_NAME,
+    SESSION_TTL_SECS,
+    DNS_TTL,
+    TEMPLATE_DIR,
+    STATIC_DIR,
+    NESTED
+    )
 
 
 LOGGER = get_logger("home")
@@ -102,10 +123,6 @@ env = Environment(
     )
 )
 env.filters["eastern"] = eastern_filter
-
-# Simple Email Service
-SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
-ses_client = boto3.client("ses")
 
 # Route53 config for this course
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # from route53
@@ -243,15 +260,9 @@ def _with_request_log_level(payload: Dict[str, Any]):
 
 def all_logs_for_userid(user_id):
     """:param userid: The user to fetch logs for"""
-    key_query = Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)
-    logs = []
-    resp = users_table.query(KeyConditionExpression=key_query)
-    logs.extend(resp["Items"])
-    while LastEvaluatedKey in resp:
-        resp = users_table.query(
-            KeyConditionExpression=key_query, ExclusiveStartKey=resp[LastEvaluatedKey]
-        )
-        logs.extend([User(**convert_dynamodb_item(u)) for u in resp["Items"]])
+    kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user_id) & Key(A.SK).begins_with(A.SK_LOG_PREFIX)}
+    logs = queryscan_table(users_table.query, kwargs)
+    logs = [User(**convert_dynamodb_item(u)) for u in logs]
     return logs
 
 
@@ -309,15 +320,9 @@ def do_dashboard(event):
 
     # Get the dashboard items
     items = []
-    resp = users_table.query(KeyConditionExpression=Key(A.USER_ID).eq(user.user_id))
-    items.extend(resp["Items"])
-    while LastEvaluatedKey in resp:
-        resp = users_table.query(
-            KeyConditionExpression=Key(A.USER_ID).eq(user.user_id),
-            ExclusiveStartKey=resp[LastEvaluatedKey],
-        )
-        items.extend([User(**convert_dynamodb_item(u)) for u in resp["Items"]])
-
+    kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
+    items = queryscan_table(users_table.query, kwargs)
+    items = [User(**convert_dynamodb_item(u)) for u in items]
     logs = all_logs_for_userid(user.user_id)
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
@@ -392,21 +397,6 @@ def do_logout(event):
         cookies=[del_cookie],
     )
 
-
-def send_email(to_addr: str, email_subject: str, email_body: str):
-    r = ses_client.send_email(
-        Source=SES_VERIFIED_EMAIL,
-        Destination={"ToAddresses": [to_addr]},
-        Message={
-            "Subject": {"Data": email_subject},
-            "Body": {"Text": {"Data": email_body}},
-        },
-    )
-
-    LOGGER.info(
-        "send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r
-    )
-    return r
 
 
 ################################################################
@@ -592,21 +582,7 @@ def api_grader(event, context, payload):
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-
-    # Record grades
-    now = datetime.datetime.now().isoformat()
-    item = {
-        A.USER_ID: user.user_id,
-        A.SK: f"{A.SK_GRADE_PREFIX}#{lab}#{now}",
-        A.LAB: lab,
-        A.PUBLIC_IP: public_ip,
-        "score": str(summary["score"]),
-        "pass_names": summary["passes"],
-        "fail_names": summary["fails"],
-        "raw": json.dumps(summary, default=str)[:35000],
-    }
-    users_table.put_item(Item=item)
-    LOGGER.info("DDB put_item to %s", users_table)
+    add_grade(user, lab, public_ip, summary)
 
     # Send email
     (subject, body) = grader.create_email(summary)
@@ -875,7 +851,7 @@ def lambda_handler(event, context):
             if is_browser_request:
                 template = env.get_template("error_user_not_registered.html")
                 return resp_text(403, template.render())
-            return resp_json(302, {"error": f"Email not registered {e}"})
+            return resp_json(403, {"error": f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Try to get session ID from cookies for better debugging
@@ -887,7 +863,7 @@ def lambda_handler(event, context):
                         session_id = cookie.split("=")[1]
                         break
             except Exception as ef:  # pylint: disable=broad-exception-caught
-                LOGGER.exception("Unhandled innder exception. ef=%s", ef)
+                LOGGER.exception("Unhandled inner exception. ef=%s", ef)
             LOGGER.exception("Unhandled exception! Session ID: %s  e=%s", session_id, e)
 
             if is_browser_request:

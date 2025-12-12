@@ -4,6 +4,7 @@ version = 0.1
 
 [default.global.parameters]
 stack_name = "leaderboard"
+region = "us-east-1"
 
 [default.build.parameters]
 cached = true
@@ -14,13 +15,13 @@ lint = true
 
 [default.deploy.parameters]
 capabilities = "CAPABILITY_IAM"
-confirm_changeset = false
+confirm_changeset = true
 resolve_s3 = true
 s3_prefix = "leaderboard"
 region = "us-east-1"
 image_repositories = []
 disable_rollback = true
-parameter_overrides = "FQDN=\"leaderboard.csci-e-11.org\" ZoneId=\"Z05034072HOMXYCK23BRA\""
+parameter_overrides = "EnvironmentName=\"prod\" UsersTableName=\"e11-users\" LeaderboardTableName=\"Leaderboard\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" LogLevel=\"INFO\" DeploymentTimestamp=\"2025-12-11T22:43:30-0500\""
 profile = "fas"
 
 [default.package.parameters]

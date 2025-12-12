@@ -1,0 +1,159 @@
+#
+# Deploy with:
+# sam deploy --profile fas
+# or put this in samconfig.toml:
+# [default.deploy.parameters]
+# profile = "fas"
+
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "CSCI E-11 Leaderboard application"
+
+Mappings:
+  EnvConfig:
+    prod:
+      DomainName: "leaderboard.csci-e-11.org"
+      StageName: "prod"
+      Description: "e11 leaderboard (leaderboard.csci-e-11.org)"
+      CustomDomainUrl: "https://csci-e-11.org/"
+    stage:
+      DomainName: "stage-leaderboard.csci-e-11.org"
+      StageName: "stage"
+      Description: "e11 stage leaderboard (stage-leaderboard.csci-e-11.org)"
+      CustomDomainUrl: "https://stage-leaderboard.csci-e-11.org/"
+
+Globals:
+  Function:
+    Architectures: [ arm64 ]
+    Environment:
+      Variables:
+        LOG_LEVEL: !Ref LogLevel
+        PYTHONPATH: "/var/task/leaderboard_app/e11.whl"
+        DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
+        LEADERBOARD_TABLE: !Ref LeaderboardTableName
+        USERS_TABLE_NAME: !Ref UsersTableName
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: stage
+    AllowedValues: [prod, stage]
+    Description: The deployment environment (prod or stage).
+  UsersTableName:
+    Type: String
+    Default: "e11-users"
+    Description: DynamoDB table name for users
+  LeaderboardTableName:
+    Type: String
+    Default: "Leaderboard"
+    Description: DynamoDB table name for leaderboard
+  HostedZoneId:
+    Type: String
+    Description: Route53 Zone ID
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: (Optional) ACM Certificate ARN for the domain. Leave blank to auto-create.
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET]
+    Description: Default LOG_LEVEL environment value for the function
+  DeploymentTimestamp:
+    Type: String
+    Description: UTC timestamp of when the application was deployed.
+    Default: 'Not Set'
+
+Conditions:
+  CreateAcmCert: !Equals [!Ref CertificateArn, ""]
+
+Resources:
+  # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
+  HomeCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCert
+    Properties:
+      DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
+          HostedZoneId: !Ref HostedZoneId
+
+  # HTTP API fronting the Lambda, bound to specified domain
+  HomeHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowMethods: ['GET','POST','OPTIONS']
+      Domain:
+        DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
+        CertificateArn: !If [CreateAcmCert, !Ref HomeCertificate, !Ref CertificateArn]
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+
+  LeaderboardFlaskFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        RequirementsFile: requirements.txt   # relative to CodeUri (src/)
+    Properties:
+      Runtime: python3.13
+      CodeUri: src/
+      Handler: leaderboard_app.leaderboard.lambda_handler
+      Timeout: 60
+      MemorySize: 256
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTableName
+
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: AllowSES
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
+      Events:
+        AnyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        AnyProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /{proxy+}
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+
+
+  # Define the DynamoDB table used to hold the Leaderboard
+  # We index on the name. Each entry is a JSON object whose structure is determiend at runtime.
+  # The table is automatically created with 'sam deploy' and destroyed with 'sam delete'
+  LeaderboardTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref LeaderboardTableName
+      AttributeDefinitions:
+        - AttributeName: name
+          AttributeType: S
+      KeySchema:
+        - AttributeName: name
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  ApiId:
+    Description: HTTP API ID
+    Value: !Ref HomeHttpApi

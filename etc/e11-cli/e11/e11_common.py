@@ -7,8 +7,11 @@ Used by both AWS Lambda and by e11 running in E11_STAFF mode (where staff intera
 import os
 import time
 import uuid
+import json
+import copy
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
+import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
@@ -47,6 +50,10 @@ sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
 
+# Simple Email Service
+SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
+ses_client = boto3.client("ses")
+
 
 # Classes
 
@@ -70,10 +77,12 @@ class A:                        # pylint: disable=too-few-public-methods
     LAB = 'lab'
     PREFERRED_NAME = 'preferred_name'
     PUBLIC_IP = 'public_ip'           # public IP address
+    SCORE = 'score'
     SESSION_CREATED = 'session_created'  # time_t
     SESSION_EXPIRE = 'session_expire'    # time_t
     SK = 'sk'                   # sort key
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
+    SK_GRADE_PATTERN = SK_GRADE_PREFIX + "{lab}#{now}"
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_USER = '#'               # sort key for the user record
     USER_ID = 'user_id'
@@ -172,3 +181,83 @@ def get_user_from_email(email) -> User:
     item = resp["Items"][0]
     logger.debug("get_user_from_email - item=%s", item)
     return User(**convert_dynamodb_item(item))
+
+
+def add_user_log(event, user_id, message, **extra):
+    """
+    :param user_id: user_id
+    :param message: Message to add to log
+    """
+    logger = get_logger()
+    if event is not None:
+        client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
+    else:
+        client_ip = extra.get('client_ip')
+    now = datetime.datetime.now().isoformat()
+    logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
+    ret = users_table.put_item(Item={A.USER_ID:user_id,
+                                     A.SK:f'{A.SK_LOG_PREFIX}{now}',
+                                     'client_ip':client_ip,
+                                     'message':message,
+                                     **extra})
+    logger.debug("put_table=%s",ret)
+
+
+def add_grade(user, lab, public_ip, summary):
+    # Record grades
+    logger = get_logger()
+    now = datetime.datetime.now().isoformat()
+    item = {
+        A.USER_ID: user.user_id,
+        A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
+        A.LAB: lab,
+        A.PUBLIC_IP: public_ip,
+        A.SCORE: str(summary["score"]),
+        "pass_names": summary["passes"],
+        "fail_names": summary["fails"],
+        "raw": json.dumps(summary, default=str)[:35000],
+    }
+    ret = users_table.put_item(Item=item)
+    logger.info("add_grade to %s user=%s ret=%s", users_table, user, ret)
+
+def queryscan_table(what, kwargs):
+    """use the users table and return the items"""
+    kwargs = copy.copy(kwargs)  # it will be modified
+    items = []
+    while True:
+        response = what(**kwargs)
+        items.extend(response.get('Items',[]))
+        lek = response.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return items
+
+def get_grade(user, lab):
+    """gets the highest grade for a user/lab"""
+    kwargs:dict = {
+        'KeyConditionExpression' : (
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
+        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}'
+    }
+    items = queryscan_table(users_table.query, kwargs)
+    if items:
+        score = max( (int(item.get(A.SCORE, 0)) for item in items) )
+    else:
+        score = 0
+    return int(score)
+
+
+def send_email(to_addr: str, email_subject: str, email_body: str):
+    r = ses_client.send_email(
+        Source=SES_VERIFIED_EMAIL,
+        Destination={"ToAddresses": [to_addr]},
+        Message={
+            "Subject": {"Data": email_subject},
+            "Body": {"Text": {"Data": email_body}},
+        },
+    )
+    get_logger().info( "send_email to=%s subject=%s SES response: %s",
+                       to_addr, email_subject, r )
+    return r

@@ -5,7 +5,7 @@ test_handler.py
 import json
 import pytest
 
-from lambda_app import lambda_app
+from leaderboard_app.leaderboard import lambda_handler
 
 @pytest.fixture()
 def apigw_event():
@@ -67,7 +67,7 @@ def apigw_event():
 @pytest.mark.docker
 def test_lambda_handler(apigw_event):
     """Test the lambda function"""
-    ret = lambda_app(apigw_event, "")
+    ret = lambda_handler(apigw_event, "")
     data = json.loads(ret["body"])
 
     assert ret["statusCode"] == 200

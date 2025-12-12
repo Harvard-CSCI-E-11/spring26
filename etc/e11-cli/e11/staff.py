@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 
 
 from .e11core.e11ssh import E11Ssh
-from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email
+from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -70,7 +70,7 @@ def do_student_report(args):
 
     print("Users:")
     table = dynamodb_resource.Table('e11-users')
-    kwargs = { 'FilterExpression':Attr('sk').eq('#'),
+    kwargs = { 'FilterExpression':Attr(A.SK).eq(A.SK_USER),
                'ProjectionExpression': 'user_registered, email, preferred_name, claims'}
 
     try:
@@ -104,45 +104,31 @@ def do_student_report(args):
     print(tabulate( sorted(pitems,key=sortkey), headers='keys'))
 
 def get_class_list():
-    """Get the entire class list"""
-    kwargs:dict = {'FilterExpression':Key('sk').eq('#'),
-                   'ProjectionExpression': 'user_id, email, preferred_name' }
-    items = []
-    while True:
-        response = users_table.scan(**kwargs)
-        items.extend(response.get('Items',[]))
-        lek = response.get('LastEvaluatedKey')
-        if not lek:
-            break
-        kwargs['ExclusiveStartKey'] = lek
-    return items
+    """Get the entire class list. Requires a scan."""
+    kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
+                   'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
+    return queryscan_table(users_table.scan, kwargs)
 
 def do_student_grades_lab(lab):
+    """Grades for a lab. Requires a scan."""
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
-    print("Grades for lab:",lab)
     kwargs:dict = {
-        'FilterExpression' : ( Key('sk').begins_with(f'grade##{lab}') ),
-        'ProjectionExpression' : 'user_id, sk, score',
+        'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
+        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
     }
-    items = []
-    while True:
-        response = users_table.scan(**kwargs)
-        items.extend(response.get('Items',[]))
-        lek = response.get('LastEvaluatedKey')
-        if not lek:
-            break
-        kwargs['ExclusiveStartKey'] = lek
+    items = queryscan_table(users_table.scan, kwargs)
+    print("Grades for lab:",lab)
 
     #
     # Get the highest grade for each student
     grades = {}
     for item in items:
         email = userid_to_user[item['user_id']]['email']
-        score = Decimal(item['score'])
-        row = [email, item['score'], item['sk']]
+        score = Decimal(item[A.SCORE])
+        row = [email, item[A.SCORE], item[A.SK]]
         print(row)
         if (email not in grades) or (grades[email][0] < score):
-            grades[email] = (score, item['sk'])
+            grades[email] = (score, item[A.SK])
     for (k,v) in sorted(grades.items()):
         print(k,v)
 
@@ -153,17 +139,13 @@ def do_student_grades_email(email):
         print(f"{k}:{v}")
 
     kwargs:dict = {'KeyConditionExpression' : (
-        Key('user_id').eq(user.user_id) &
-        Key('sk').begins_with('grade##')
+        Key(A.USER_ID).eq(user.user_id) &
+        Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
     )}
-    items = []
-    while True:
-        response = users_table.query(**kwargs)
-        items.extend(response.get('Items',[]))
-        lek = response.get('LastEvaluatedKey')
-        if not lek:
-            break
-        kwargs['ExclusiveStartKey'] = lek
+    items = queryscan_table(users_table.query, kwargs)
+    print("*** note - only print the highest grade")
+    for item in items:
+        print(item)
 
 
 def do_student_grades(args):

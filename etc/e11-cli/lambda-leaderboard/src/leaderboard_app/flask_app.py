@@ -16,7 +16,15 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
+from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email)
+from e11.e11core import grader
+
 __version__ = '0.9.3'
+
+BASE_SCORE = 4.5
+SCORE_WITH_MAGIC = 5.
+MAGIC = 'magic'
+LAB='lab7'
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
@@ -31,6 +39,14 @@ NO_MESSAGE = None
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.logger.setLevel(logging.DEBUG)
+
+@app.before_request
+def _log_path():
+    app.logger.info("PATH_INFO=%r script_root=%r full_path=%r",
+                    request.environ.get("PATH_INFO"),
+                    request.script_root,
+                    request.full_path)
+
 
 @app.template_filter('datetimeformat')
 def datetimeformat(value):
@@ -213,8 +229,48 @@ def root():
                          FAVICO=icon_data)
 
 @app.route('/api/register', methods=['GET'])
-def api_register():
+def api_get_register():
     """Return the registration of the name and secret key. Store hashed key in database"""
+    return  jsonify(new_registration())
+
+@app.route('/api/register', methods=['POST'])
+def api_post_register():
+    """Check the posted email and class key. If they are correct, grade the assignment.
+    Then return the registration of the name and secret key. Store hashed key in database"""
+    email = request.form.get('email','')
+    course_key = request.form.get('course_key','')
+
+    user = get_user_from_email(email)
+    if not user:
+        abort(404, 'invalid email')
+    if user.course_key != course_key:
+        abort(404, 'invalid course_key')
+
+    user_agent = str(request.user_agent)
+    pass_names = ['test_user_key']
+    if MAGIC.lower() in user_agent.lower():
+        score = SCORE_WITH_MAGIC
+        pass_names = ['test_agent_string']
+        fail_names = []
+    else:
+        score = BASE_SCORE
+        fail_names = ['test_agent_string']
+
+    # if score is higher than current score, record that
+    old_score = get_grade(user, LAB)
+    if old_score < score:
+        summary = {'score':score,
+                   'pass_names':pass_names,
+                   'fail_names':fail_names,
+                   'raw':''}
+
+        add_grade(user, LAB, request.remote_addr, summary)
+        (subject, body) = grader.create_email(summary)
+        send_email(to_addr = user.email,
+                   email_subject = subject,
+                   email_body=body)
+
+
     return  jsonify(new_registration())
 
 @app.route('/api/update', methods=['POST'])
