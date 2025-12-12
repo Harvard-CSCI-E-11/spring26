@@ -83,7 +83,6 @@ Resources:
   HomeHttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
-      StageName: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
       CorsConfiguration:
         AllowOrigins: ['*']
         AllowMethods: ['GET','POST','OPTIONS']
@@ -106,34 +105,13 @@ Resources:
       Timeout: 60
       MemorySize: 256
       Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTableName
+
         - Version: '2012-10-17'
           Statement:
-            - Sid: UsersTableRW
-              Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:DeleteItem
-                - dynamodb:UpdateItem
-                - dynamodb:Query
-              Resource:
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
-
-            - Sid: LeaderboardTableRW
-              Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:DeleteItem
-                - dynamodb:UpdateItem
-                - dynamodb:Query
-              Resource:
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeaderboardTableName}"
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeaderboardTableName}/index/*"
-
             - Sid: AllowSES
               Effect: Allow
               Action:

@@ -40,6 +40,14 @@ app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.logger.setLevel(logging.DEBUG)
 
+@app.before_request
+def _log_path():
+    app.logger.info("PATH_INFO=%r script_root=%r full_path=%r",
+                    request.environ.get("PATH_INFO"),
+                    request.script_root,
+                    request.full_path)
+
+
 @app.template_filter('datetimeformat')
 def datetimeformat(value):
     """Format for displaying datetime in jinja2"""

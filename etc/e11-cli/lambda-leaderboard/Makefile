@@ -26,8 +26,7 @@ prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
 	sam deploy --config-file "$$(pwd)/samconfig-prod.toml"  --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://leaderboard.csci-e-11.org/ | head -3
 
-
-tail-vbd:
+prod-tail:
 	sam logs --stack-name leaderboard --name LeaderboardFlaskFunction --tail   --region us-east-1   --profile fas
 
 # This target generates the requirements.txt for SAM to use
