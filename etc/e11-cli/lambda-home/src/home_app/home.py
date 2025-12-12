@@ -851,7 +851,7 @@ def lambda_handler(event, context):
             if is_browser_request:
                 template = env.get_template("error_user_not_registered.html")
                 return resp_text(403, template.render())
-            return resp_json(302, {"error": f"Email not registered {e}"})
+            return resp_json(403, {"error": f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Try to get session ID from cookies for better debugging
@@ -863,7 +863,7 @@ def lambda_handler(event, context):
                         session_id = cookie.split("=")[1]
                         break
             except Exception as ef:  # pylint: disable=broad-exception-caught
-                LOGGER.exception("Unhandled innder exception. ef=%s", ef)
+                LOGGER.exception("Unhandled inner exception. ef=%s", ef)
             LOGGER.exception("Unhandled exception! Session ID: %s  e=%s", session_id, e)
 
             if is_browser_request:

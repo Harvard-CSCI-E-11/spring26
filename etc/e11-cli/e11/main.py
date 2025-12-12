@@ -68,6 +68,9 @@ def do_version(args):
     print(f"E11 local version: {__version__}")
     ep = endpoint(args)
     r = requests.post(ep, json={'action':'version'},timeout=5)
+    if not r.ok:
+        print(f"Error attempting to get server version: {r.status_code} {r.text}")
+        return
     data = r.json()
     if data['error']:
         print(f"Error attempting to get server version: {data}")
@@ -255,7 +258,8 @@ def do_register(args):
             if not r.ok:
                 print("Registration failed: ",r.text)
                 sys.exit(1)
-        except TimeoutError:
+            break  # Success, exit retry loop
+        except requests.exceptions.Timeout:
             if n==MAX_RETRIES:
                 print("Retries reached. Please contact course support and try again later")
                 sys.exit(1)

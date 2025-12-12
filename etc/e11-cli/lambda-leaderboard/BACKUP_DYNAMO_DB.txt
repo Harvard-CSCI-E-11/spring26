@@ -1,0 +1,3 @@
+aws dynamodb create-backup --table-name Leaderboard --backup-name "Leaderboard-pre-sam-$(date +%Y%m%d-%H%M%S)" \
+  --region us-east-1 --profile fas
+

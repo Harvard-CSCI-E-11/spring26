@@ -18,6 +18,7 @@ pydantic = "^2.12.4"
 boto3-stubs = { version = "*", extras = ["essential", "route53", "secretsmanager", "dynamodb"] }
 flask = "^3.1.2"
 apig-wsgi = "^2.20.0"
+paramiko = "^4.0.0"
 
 [tool.poetry.group.dev.dependencies]
 boto3-stubs = {extras = ["route53"], version = "^1.41.5"}

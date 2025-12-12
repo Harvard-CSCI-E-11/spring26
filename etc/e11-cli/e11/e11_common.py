@@ -77,11 +77,12 @@ class A:                        # pylint: disable=too-few-public-methods
     LAB = 'lab'
     PREFERRED_NAME = 'preferred_name'
     PUBLIC_IP = 'public_ip'           # public IP address
+    SCORE = 'score'
     SESSION_CREATED = 'session_created'  # time_t
     SESSION_EXPIRE = 'session_expire'    # time_t
     SK = 'sk'                   # sort key
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
-    SK_GRADE_PATTERN = "{A.SK_GRADE_PREFIX}#{lab}#{now}"
+    SK_GRADE_PATTERN = SK_GRADE_PREFIX + "{lab}#{now}"
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
     SK_USER = '#'               # sort key for the user record
     USER_ID = 'user_id'
@@ -195,7 +196,7 @@ def add_user_log(event, user_id, message, **extra):
     now = datetime.datetime.now().isoformat()
     logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
     ret = users_table.put_item(Item={A.USER_ID:user_id,
-                                     'sk':f'{A.SK_LOG_PREFIX}{now}',
+                                     A.SK:f'{A.SK_LOG_PREFIX}{now}',
                                      'client_ip':client_ip,
                                      'message':message,
                                      **extra})
@@ -211,7 +212,7 @@ def add_grade(user, lab, public_ip, summary):
         A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
         A.LAB: lab,
         A.PUBLIC_IP: public_ip,
-        "score": str(summary["score"]),
+        A.SCORE: str(summary["score"]),
         "pass_names": summary["passes"],
         "fail_names": summary["fails"],
         "raw": json.dumps(summary, default=str)[:35000],
@@ -220,7 +221,7 @@ def add_grade(user, lab, public_ip, summary):
     logger.info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
 def queryscan_table(what, kwargs):
-    """user the users table and return the items"""
+    """use the users table and return the items"""
     kwargs = copy.copy(kwargs)  # it will be modified
     items = []
     while True:
@@ -236,13 +237,13 @@ def get_grade(user, lab):
     """gets the highest grade for a user/lab"""
     kwargs:dict = {
         'KeyConditionExpression' : (
-            Key('user_id').eq(user.user_id) &
-            Key('sk').begins_with(f'grade##{lab}') ),
-        'ProjectionExpression' : 'user_id, sk, score'
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
+        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}'
     }
     items = queryscan_table(users_table.query, kwargs)
     if items:
-        score = max( (item['score'] for item in items) )
+        score = max( (int(item.get(A.SCORE, 0)) for item in items) )
     else:
         score = 0
     return int(score)

@@ -70,7 +70,7 @@ def do_student_report(args):
 
     print("Users:")
     table = dynamodb_resource.Table('e11-users')
-    kwargs = { 'FilterExpression':Attr('sk').eq('#'),
+    kwargs = { 'FilterExpression':Attr(A.SK).eq(A.SK_USER),
                'ProjectionExpression': 'user_registered, email, preferred_name, claims'}
 
     try:
@@ -105,16 +105,16 @@ def do_student_report(args):
 
 def get_class_list():
     """Get the entire class list. Requires a scan."""
-    kwargs:dict = {'FilterExpression':Key('sk').eq('#'),
-                   'ProjectionExpression': 'user_id, email, preferred_name' }
+    kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
+                   'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
     return queryscan_table(users_table.scan, kwargs)
 
 def do_student_grades_lab(lab):
     """Grades for a lab. Requires a scan."""
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
     kwargs:dict = {
-        'FilterExpression' : ( Key('sk').begins_with(f'grade##{lab}') ),
-        'ProjectionExpression' : 'user_id, sk, score',
+        'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
+        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
     }
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
@@ -124,11 +124,11 @@ def do_student_grades_lab(lab):
     grades = {}
     for item in items:
         email = userid_to_user[item['user_id']]['email']
-        score = Decimal(item['score'])
-        row = [email, item['score'], item['sk']]
+        score = Decimal(item[A.SCORE])
+        row = [email, item[A.SCORE], item[A.SK]]
         print(row)
         if (email not in grades) or (grades[email][0] < score):
-            grades[email] = (score, item['sk'])
+            grades[email] = (score, item[A.SK])
     for (k,v) in sorted(grades.items()):
         print(k,v)
 
@@ -139,8 +139,8 @@ def do_student_grades_email(email):
         print(f"{k}:{v}")
 
     kwargs:dict = {'KeyConditionExpression' : (
-        Key('user_id').eq(user.user_id) &
-        Key('sk').begins_with('grade##')
+        Key(A.USER_ID).eq(user.user_id) &
+        Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
     )}
     items = queryscan_table(users_table.query, kwargs)
     print("*** note - only print the highest grade")

@@ -30,7 +30,7 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         PYTHONPATH: "/var/task/leaderboard_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
-        LEADERBOARD_TABLE: !Ref LeaderboardTable
+        LEADERBOARD_TABLE: !Ref LeaderboardTableName
         USERS_TABLE_NAME: !Ref UsersTableName
 
 Parameters:
@@ -164,7 +164,7 @@ Resources:
   LeaderboardTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: Leaderboard    # only needs to be unique within the account
+      TableName: !Ref LeaderboardTableName
       AttributeDefinitions:
         - AttributeName: name
           AttributeType: S
