@@ -34,6 +34,14 @@ src/requirements.txt: poetry.lock pyproject.toml
 	@echo "--- Exporting requirements.txt from Poetry ---"
 	poetry export -f requirements.txt --output src/requirements.txt --without-hashes
 
+# Useful functions
+list-cloud-resources:
+	aws cloudformation list-stack-resources \
+	  --stack-name leaderboard --region us-east-1 --profile fas \
+	  --query "StackResourceSummaries[?ResourceType=='AWS::ApiGatewayV2::DomainName'].[LogicalResourceId,PhysicalResourceId,ResourceStatus]" \
+	  --output table
+
+
 # --- Custom Vendoring
 .PHONY: vend-e11
 vend-e11: install
