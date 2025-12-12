@@ -32,7 +32,6 @@ import datetime
 from typing import Any, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
 
-import boto3
 from boto3.dynamodb.conditions import Key
 
 import paramiko.ssh_exception

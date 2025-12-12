@@ -25,15 +25,13 @@ deploy: $(PYTHON) vend-e11
 
 # --- Custom Vendoring
 .PHONY: vend-e11
-vend-e11: install
+vend-e11: $(PYTHON)
 	@echo "Building src/leaderboard_app/e11.whl via pip"
 	( cd .. && poetry run python -m pip wheel --no-deps -w dist . )
 	@echo "Installing wheel into src/leaderboard_app/ as e11.whl"
 	install -d src/leaderboard_app
 	install -m 444 $$(ls -t ../dist/*.whl | head -1) src/leaderboard_app/e11.whl
 	@echo "OK -> src/leaderboard_app/e11.whl"
-
-
 
 # Create the virtual environment and install both host requirements
 # and the lambda requirements for testing
