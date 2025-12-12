@@ -17,6 +17,7 @@ jinja2 = "^3.1.6"
 pydantic = "^2.12.4"
 boto3-stubs = { version = "*", extras = ["essential", "route53", "secretsmanager", "dynamodb"] }
 flask = "^3.1.2"
+apig-wsgi = "^2.20.0"
 
 [tool.poetry.group.dev.dependencies]
 boto3-stubs = {extras = ["route53"], version = "^1.41.5"}
@@ -26,12 +27,12 @@ mypy-boto3-route53 = "^1.40.57"
 mypy-boto3-secretsmanager = "^1.40.60"
 mypy-boto3-ses = "^1.40.60"
 pydantic = "^2.12.4"
-pylint = "^3.3.8"
 pyright = "^1.1.407"
-pytest = ">=8.4.1,<9.0.0"
 pytest-cov = ">=6.2.1,<7.0.0"
 types-requests = "^2.32.4.20250913"
 ruff = "*"
+pylint-pytest = "^1.1.8"
+requests = "^2.32.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

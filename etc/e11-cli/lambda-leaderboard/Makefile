@@ -4,30 +4,33 @@
 install:
 	poetry install --with dev
 
-install:
-	@echo "--- Installing dependencies with Poetry ---"
-	poetry install --with dev
-
 check: install vend-e11
-	$(PYTHON) -m pytest --log-cli-level=DEBUG
+	poetry run pytest --log-cli-level=DEBUG
 
 lint: install vend-e11
-	$(PYTHON) -m pylint leaderboard_app
+	poetry run pylint leaderboard_app
 
 local-debug: install vend-e11
-	$(PYTHON) -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
+	poetry run python -c 'from leaderboard_app.flask_app import app; app.run(debug=True)'
 
 # https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/using-sam-cli-sync.html
 sam-sync: install
 	sam sync --code --watch
 
-deploy: install vend-e11
-	make pylint
-	sam validate
-	sam validate --lint
-	sam build
-	sam deploy
-	sam logs --stack-name leaderboard --tail
+.PHONY: prod-vbd stage-vbd
+prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
+	make lint
+	make check
+	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
+	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
+	sam deploy --config-file "$$(pwd)/samconfig-prod.toml"  --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml
+	curl --silent  https://leaderboard.csci-e-11.org/ | head -3
+
+
+# This target generates the requirements.txt for SAM to use
+src/requirements.txt: poetry.lock pyproject.toml
+	@echo "--- Exporting requirements.txt from Poetry ---"
+	poetry export -f requirements.txt --output src/requirements.txt --without-hashes
 
 # --- Custom Vendoring
 .PHONY: vend-e11

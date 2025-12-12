@@ -7,87 +7,155 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  Leaderboard application
+Description: "CSCI E-11 Leaderboard application"
 
-Parameters:
-  FQDN:
-    Type: String
-    Description: Fully qualified domain name
-  ZoneId:
-    Type: String
-    Description: Route53 Zone ID
+Mappings:
+  EnvConfig:
+    prod:
+      DomainName: "leaderboard.csci-e-11.org"
+      StageName: "prod"
+      Description: "e11 leaderboard (leaderboard.csci-e-11.org)"
+      CustomDomainUrl: "https://csci-e-11.org/"
+    stage:
+      DomainName: "stage-leaderboard.csci-e-11.org"
+      StageName: "stage"
+      Description: "e11 stage leaderboard (stage-leaderboard.csci-e-11.org)"
+      CustomDomainUrl: "https://stage-leaderboard.csci-e-11.org/"
 
 Globals:
   Function:
-    Timeout: 30
-  Api:
-    Cors:
-      AllowMethods: "'OPTIONS,GET,POST,PUT,DELETE'"
-      AllowHeaders: "'content-type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Forwarded-For'"
-      AllowOrigin: "'*'"
-      EnableSimpleResponses: true
+    Architectures: [ arm64 ]
+    Environment:
+      Variables:
+        LOG_LEVEL: !Ref LogLevel
+        PYTHONPATH: "/var/task/leaderboard_app/e11.whl"
+        DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
+        LEADERBOARD_TABLE: !Ref LeaderboardTable
+        USERS_TABLE_NAME: !Ref UsersTableName
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: stage
+    AllowedValues: [prod, stage]
+    Description: The deployment environment (prod or stage).
+  UsersTableName:
+    Type: String
+    Default: "e11-users"
+    Description: DynamoDB table name for users
+  LeaderboardTableName:
+    Type: String
+    Default: "Leaderboard"
+    Description: DynamoDB table name for leaderboard
+  HostedZoneId:
+    Type: String
+    Description: Route53 Zone ID
+  CertificateArn:
+    Type: String
+    Default: ""
+    Description: (Optional) ACM Certificate ARN for the domain. Leave blank to auto-create.
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues: [CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET]
+    Description: Default LOG_LEVEL environment value for the function
+  DeploymentTimestamp:
+    Type: String
+    Description: UTC timestamp of when the application was deployed.
+    Default: 'Not Set'
+
+Conditions:
+  CreateAcmCert: !Equals [!Ref CertificateArn, ""]
 
 Resources:
-  GenerateCertificate:
+  # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
+  HomeCertificate:
     Type: AWS::CertificateManager::Certificate
+    Condition: CreateAcmCert
     Properties:
-      DomainName: !Ref FQDN
+      DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
       ValidationMethod: DNS
       DomainValidationOptions:
-      - DomainName: !Ref FQDN
-        HostedZoneId: !Ref ZoneId
+        - DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
+          HostedZoneId: !Ref HostedZoneId
 
-  # Custom domain name for the API Gateway HttpApi
-  CustomDomainName:
-    Type: AWS::ApiGatewayV2::DomainName
+  # HTTP API fronting the Lambda, bound to specified domain
+  HomeHttpApi:
+    Type: AWS::Serverless::HttpApi
     Properties:
-      DomainName: !Ref FQDN
-      DomainNameConfigurations:
-        - CertificateArn: !Ref GenerateCertificate
-          EndpointType: REGIONAL
+      StageName: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
+      CorsConfiguration:
+        AllowOrigins: ['*']
+        AllowMethods: ['GET','POST','OPTIONS']
+      Domain:
+        DomainName: !FindInMap [EnvConfig, !Ref EnvironmentName, DomainName]
+        CertificateArn: !If [CreateAcmCert, !Ref HomeCertificate, !Ref CertificateArn]
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
 
-  # API Gateway API mapping for the custom domain
-  ApiMapping:
-    Type: AWS::ApiGatewayV2::ApiMapping
-    Properties:
-      ApiId: !Ref ServerlessHttpApi
-      DomainName: !Ref CustomDomainName
-      Stage: $default
-
-  # Route53 record to map the custom domain name to the API Gateway domain
-  Route53Record:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref ZoneId
-      Name: !Ref FQDN
-      Type: A
-      AliasTarget:
-        DNSName: !GetAtt CustomDomainName.RegionalDomainName
-        HostedZoneId: !GetAtt CustomDomainName.RegionalHostedZoneId
-
-  FlaskFunction:
+  LeaderboardFlaskFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        RequirementsFile: requirements.txt   # relative to CodeUri (src/)
     Properties:
-      CodeUri: leaderboard_app/
-      Handler: run.sh
-      #Handler: app.lambda_handler
       Runtime: python3.13
+      CodeUri: src/
+      Handler: leaderboard_app.leaderboard.lambda_handler
+      Timeout: 60
       MemorySize: 256
-      Environment:
-        Variables:
-          LEADERBOARD_TABLE: !Ref LeaderboardTable
-          AWS_LAMBDA_EXEC_WRAPPER: /opt/bootstrap
-          GUNICORN_PORT: 8000
-          PYTHONPATH: "/var/task/home_app/e11.whl"
-      Layers:
-        - !Sub arn:aws:lambda:${AWS::Region}:753240598075:layer:LambdaAdapterLayerX86:23
-      Events:
-        ApiEvent:
-          Type: HttpApi
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref LeaderboardTable
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: UsersTableRW
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource:
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
+
+            - Sid: LeaderboardTableRW
+              Effect: Allow
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource:
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeaderboardTableName}"
+                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${LeaderboardTableName}/index/*"
+
+            - Sid: AllowSES
+              Effect: Allow
+              Action:
+                - ses:SendEmail
+                - ses:SendRawEmail
+              Resource: "*"
+
+      Events:
+        AnyRoot:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /
+            Method: ANY
+            PayloadFormatVersion: "2.0"
+        AnyProxy:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeHttpApi
+            Path: /{proxy+}
+            Method: ANY
+            PayloadFormatVersion: "2.0"
 
 
   # Define the DynamoDB table used to hold the Leaderboard
@@ -108,15 +176,6 @@ Resources:
         WriteCapacityUnits: 5
 
 Outputs:
-  ApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${FQDN}"
-  FlaskApi:
-    Description: "API Gateway endpoint URL for Prod stage for Flask function"
-    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
-  FlaskFunction:
-    Description: "Flask Lambda Function ARN"
-    Value: !GetAtt FlaskFunction.Arn
-  FlaskIamRole:
-    Description: "Implicit IAM Role created for Flask function"
-    Value: !GetAtt FlaskFunctionRole.Arn
+  ApiId:
+    Description: HTTP API ID
+    Value: !Ref HomeHttpApi

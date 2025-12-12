@@ -20,7 +20,7 @@ s3_prefix = "leaderboard"
 region = "us-east-1"
 image_repositories = []
 disable_rollback = true
-parameter_overrides = "FQDN=\"leaderboard.csci-e-11.org\" ZoneId=\"Z05034072HOMXYCK23BRA\""
+parameter_overrides = "EnvironmentName=\"prod\"  UsersTableName=\"e11-users\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\""
 profile = "fas"
 
 [default.package.parameters]

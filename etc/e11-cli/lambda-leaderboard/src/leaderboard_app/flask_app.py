@@ -17,6 +17,7 @@ import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
 from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email)
+from e11.e11core import grader
 
 __version__ = '0.9.3'
 
@@ -232,7 +233,7 @@ def api_post_register():
     course_key = request.form.get('course_key','')
 
     user = get_user_from_email(email)
-    if not User:
+    if not user:
         abort(404, 'invalid email')
     if user.course_key != course_key:
         abort(404, 'invalid course_key')
