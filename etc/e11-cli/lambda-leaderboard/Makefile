@@ -6,7 +6,7 @@ install:
 
 check: vend-e11 lint create-local-table
 	@echo "--- Running tests with pytest ---"
-	$(AWS_VARS) poetry run pytest --log-cli-level=DEBUG
+	$(AWS_VARS) poetry run pytest -q --cov=. --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy --log-cli-level=DEBUG
 
 lint: install vend-e11
 	poetry run pylint leaderboard_app
