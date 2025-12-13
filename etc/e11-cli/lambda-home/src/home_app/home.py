@@ -333,12 +333,17 @@ def do_dashboard(event):
     except EmailNotRegistered:
         return resp_text(500, f"Internal error: no user for email address {ses.email}")
 
-    # Get the dashboard items
-    items = []
+    # Get the dashboard items --- everything from DynamoDB for this user_id
+    # This is faster than separately getting the logs and the grades
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
+
+    # Convert to a User object. Additional records are kept
     items = [User(**convert_dynamodb_item(u)) for u in items]
-    logs = all_logs_for_userid(user.user_id)
+
+    # logs = all_logs_for_userid(user.user_id)
+    logs   = [item for item in items where item['sk'].startswith(A.SK_LOG_PREFIX]]
+    grades = [item for item in items where item['sk'].startswith(A.SK_GRADE_PREFIX]]
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
@@ -349,7 +354,7 @@ def do_dashboard(event):
             client_ip=client_ip,
             sessions=user_sessions,
             logs=logs,
-            items=items,
+            grades=grades,
             now=round(time.time()),
         ),
     )

@@ -47,6 +47,7 @@ def collect_tests_in_definition_order(mod):
     return tests
 
 def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
+    """Returns the summary of the lab results"""
     lab = ctx.lab  # 'lab3'
     try:
         mod = _import_tests_module(lab)
@@ -171,7 +172,9 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
 
 
 def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str|None=None, key_filename:str|None=None):
-    """Run grading by SSHing into the student's VM and executing tests via shared runner."""
+    """Run grading by SSHing into the student's VM and executing tests via shared runner.
+    Returns the summary of the test results
+    """
 
     smashed = smash_email(user_email)
 
