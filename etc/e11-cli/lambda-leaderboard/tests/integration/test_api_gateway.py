@@ -1,51 +1,81 @@
 """
 test_api_gateway.py
 
-Make sure env variable AWS_SAM_STACK_NAME exists with the name of the stack we are going to test.
+Integration tests for the leaderboard API Gateway Lambda handler.
+Tests multiple routes to ensure the full integration works.
 
 """
 
-import os
-
-from botocore.exceptions import ClientError
-import boto3
+import json
 import pytest
-import requests
+
+from leaderboard_app.leaderboard import lambda_handler
 
 #pylint: disable=line-too-long
 
 class TestApiGateway:           # pylint: disable=missing-class-docstring
     @pytest.fixture()
-    def api_gateway_url(self):
-        """ Get the API Gateway URL from Cloudformation Stack outputs """
-        stack_name = os.environ.get("AWS_SAM_STACK_NAME")
+    def apigw_event_base(self):
+        """Base API Gateway event structure"""
+        return {
+            "version": "2.0",
+            "routeKey": "GET /api/register",
+            "rawPath": "/api/register",
+            "rawQueryString": "",
+            "requestContext": {
+                "http": {
+                    "method": "GET",
+                    "path": "/api/register",
+                    "protocol": "HTTP/1.1",
+                    "sourceIp": "127.0.0.1",
+                    "requestId": "test-request-id"
+                },
+                "stage": "prod"
+            },
+            "headers": {
+                "Accept": "application/json",
+                "User-Agent": "test-agent"
+            },
+            "isBase64Encoded": False
+        }
 
-        if stack_name is None:
-            raise ValueError('Please set the AWS_SAM_STACK_NAME environment variable to the name of your stack')
+    def test_api_register_get(self, apigw_event_base):
+        """Test GET /api/register endpoint"""
+        event = apigw_event_base.copy()
+        ret = lambda_handler(event, None)
+        
+        assert ret["statusCode"] == 200
+        data = json.loads(ret["body"])
+        assert "name" in data
+        assert "opaque" in data
+        assert isinstance(data["name"], str)
+        assert isinstance(data["opaque"], str)
 
-        client = boto3.client("cloudformation")
+    def test_api_ver(self, apigw_event_base):
+        """Test GET /ver endpoint"""
+        event = apigw_event_base.copy()
+        event["routeKey"] = "GET /ver"
+        event["rawPath"] = "/ver"
+        event["requestContext"]["http"]["path"] = "/ver"
+        
+        ret = lambda_handler(event, None)
+        
+        assert ret["statusCode"] == 200
+        # /ver returns just the version string, not JSON
+        assert isinstance(ret["body"], str)
+        assert len(ret["body"]) > 0
 
-        try:
-            response = client.describe_stacks(StackName=stack_name)
-        except ClientError as e:
-            raise ClientError(
-                f"Cannot find stack {stack_name} \n" f'Please make sure a stack with the name "{stack_name}" exists',
-                "cloudformation"
-            ) from e
-
-        stacks = response["Stacks"]
-        stack_outputs = stacks[0]["Outputs"]
-        api_outputs = [output for output in stack_outputs if output["OutputKey"] == "HelloWorldApi"]
-
-        if not api_outputs:
-            raise KeyError(f"HelloWorldAPI not found in stack {stack_name}")
-
-        return api_outputs[0]["OutputValue"]  # Extract url from stack outputs
-
-    @pytest.mark.docker
-    def test_api_gateway(self, api_gateway_url):
-        """ Call the API Gateway endpoint and check the response """
-        response = requests.get(api_gateway_url,timeout=5)
-
-        assert response.status_code == 200
-        assert response.json() == {"message": "hello world"}
+    def test_root_route(self, apigw_event_base):
+        """Test GET / (root) endpoint"""
+        event = apigw_event_base.copy()
+        event["routeKey"] = "GET /"
+        event["rawPath"] = "/"
+        event["requestContext"]["http"]["path"] = "/"
+        
+        ret = lambda_handler(event, None)
+        
+        assert ret["statusCode"] == 200
+        # Root route returns HTML - headers are lowercase in API Gateway v2
+        content_type = ret.get("headers", {}).get("content-type", "").lower()
+        assert "text/html" in content_type
+        assert "<html" in ret["body"].lower() or "<!doctype" in ret["body"].lower()

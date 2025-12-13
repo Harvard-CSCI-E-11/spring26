@@ -30,7 +30,12 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
 DEFAULT_LEADERBOARD_TABLE = 'Leaderboard'
 
-dynamodb = boto3.resource( 'dynamodb')
+# Use local DynamoDB endpoint if specified
+dynamodb_endpoint = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB')
+if dynamodb_endpoint:
+    dynamodb = boto3.resource('dynamodb', endpoint_url=dynamodb_endpoint)
+else:
+    dynamodb = boto3.resource('dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', DEFAULT_LEADERBOARD_TABLE))
 SECRET_KEY = 'to be changed'    # for its dangerous
 MAX_ITEMS = 100                 # we have 90 students in the class

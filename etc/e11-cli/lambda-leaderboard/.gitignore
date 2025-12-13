@@ -244,3 +244,8 @@ $RECYCLE.BIN/
 # End of https://www.gitignore.io/api/osx,linux,python,windows,pycharm,visualstudiocode.aws-sam
 .aws-sam
 activate
+bin/minio
+bin/minio.gz
+bin/DynamoDBLocal.jar
+bin/DynamoDBLocal_lib/**
+bin/*.zip

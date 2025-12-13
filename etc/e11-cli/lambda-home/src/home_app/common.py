@@ -7,6 +7,9 @@ import sys
 from os.path import dirname, join, isdir
 
 from e11.e11core.constants import COURSE_DOMAIN
+from e11 import e11_common
+
+users_table = e11_common.users_table
 
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(60*60*24*180)))  # 180 days
 DNS_TTL = 30

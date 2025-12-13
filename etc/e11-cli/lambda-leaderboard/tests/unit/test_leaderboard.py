@@ -9,7 +9,7 @@ import logging
 import pytest
 from flask import render_template
 
-from flask_app import app
+from leaderboard_app.flask_app import app
 
 
 @pytest.fixture

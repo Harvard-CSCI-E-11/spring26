@@ -1,4 +1,0 @@
-[MASTER]
-init-hook='import sys; sys.path.insert(0,"./leaderboard_app")'
-load-plugins=pylint_pytest
-source-roots=app
