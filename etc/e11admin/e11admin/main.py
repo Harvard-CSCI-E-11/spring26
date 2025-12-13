@@ -82,6 +82,17 @@ def dump_users_table(args,user_id=None):
             print(item)
         if args.dump:
             print(item)
+    return items
+
+def delete_items(items):
+    # 2. Use batch_writer for efficient deletion
+    # The batch_writer automatically handles buffering (up to 25 items) and unprocecessed items
+    confirm = input(f"Really delete {len(items)} items? ")
+    if confirm[0]=='Y':
+        with users_table.batch_writer() as batch:
+            for item in items:
+                batch.delete_item(Key={'user_id':item['user_id'], 'sk':item['sk']})
+        print("deleted")
 
 def main():
     parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -93,8 +104,13 @@ def main():
     if args.dump:
         dump_users_table(args)
     if args.delete_userid:
-        dump_users_table(args,user_id=args.delete_userid)
-
+        items = dump_users_table(args,user_id=args.delete_userid)
+        if not items:
+            print("user not found")
+            sys.exit(0)
+        response = input("really delete user? [n/YES]")
+        if response=='YES':
+            delete_items(items)
 
 if __name__=="__main__":
     main()

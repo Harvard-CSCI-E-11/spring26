@@ -331,7 +331,18 @@ def do_dashboard(event):
     try:
         user = get_user_from_email(ses.email)
     except EmailNotRegistered:
-        return resp_text(500, f"Internal error: no user for email address {ses.email}")
+        # User has been deleted - delete their session cookie and show error page
+        email = ses.email
+        delete_session_from_event(event)
+        del_cookie = make_cookie(
+            COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event)
+        )
+        template = env.get_template("error_user_deleted.html")
+        return resp_text(
+            200,
+            template.render(email=email),
+            cookies=[del_cookie],
+        )
 
     # Get the dashboard items --- everything from DynamoDB for this user_id
     # This is faster than separately getting the logs and the grades
@@ -342,8 +353,8 @@ def do_dashboard(event):
     items = [User(**convert_dynamodb_item(u)) for u in items]
 
     # logs = all_logs_for_userid(user.user_id)
-    logs   = [item for item in items where item['sk'].startswith(A.SK_LOG_PREFIX]]
-    grades = [item for item in items where item['sk'].startswith(A.SK_GRADE_PREFIX]]
+    logs   = [item for item in items if item.sk.startswith(A.SK_LOG_PREFIX)]
+    grades = [item for item in items if item.sk.startswith(A.SK_GRADE_PREFIX)]
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
