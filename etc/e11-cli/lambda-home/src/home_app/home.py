@@ -589,6 +589,8 @@ def api_grader(event, context, payload):
     lab = payload["lab"]
     public_ip = user.public_ip
     email = user.email
+    if email is None:
+        return resp_json(400, {"error":True, "message":email is None})
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
     summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
     if summary['error']:
@@ -602,7 +604,6 @@ def api_grader(event, context, payload):
     # Send email
     (subject, body) = grader.create_email(summary)
     send_email(to_addr=email, email_subject=subject, email_body=body)
-
     return resp_json(200, {"summary": summary})
 
 

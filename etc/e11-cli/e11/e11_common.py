@@ -107,9 +107,9 @@ class User(DictLikeModel):
     """e11-users table sk='#' record"""
     user_id: str
     sk: str
-    email: str
-    course_key: str
-    user_registered: int
+    email: str|None = None
+    course_key: str|None = None
+    user_registered: int|None = None
     preferred_name: str|None = None
     claims: dict[str, Any] | None = None
     public_ip: str|None = None
