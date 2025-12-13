@@ -28,7 +28,7 @@ SK_GRADE_PATTERN = A.SK_GRADE_PREFIX + "#{lab}#{now}"
 - **Expected format** (per comment in `lambda-home/src/home_app/home.py:569`): `"grade#lab2#time"` (single hash)
 - **Query pattern** (line 240): Uses `f'grade##{lab}'` which looks for `grade##lab1` (double hash)
 
-**Impact**: 
+**Impact**:
 - If Issue 1a exists, `add_grade()` will crash with KeyError when trying to store grades
 - If Issue 1a is somehow working, then `get_grade()` will never find grades due to pattern mismatch
 
@@ -55,11 +55,11 @@ Key('sk').begins_with(f'grade#{lab}#')
 ### 2. Typo in Leaderboard Flask App
 **Location**: `lambda-leaderboard/src/leaderboard_app/flask_app.py:2`
 
-**Issue**: 
+**Issue**:
 - "Leaerboard" should be "Leaderboard"
 - "Fask" should be "Flask"
 
-**Fix**: 
+**Fix**:
 ```python
 """
 Leaderboard Flask Application (src/app.py).
@@ -342,7 +342,7 @@ The E11_STAFF environment variable enables staff-only commands when set to a tru
 - Good error handling overall
 - Minor typo and status code issue noted above
 
-### lambda-leaderboard  
+### lambda-leaderboard
 - Typo in module docstring
 - Missing pylint colon in comment
 - Otherwise well-structured

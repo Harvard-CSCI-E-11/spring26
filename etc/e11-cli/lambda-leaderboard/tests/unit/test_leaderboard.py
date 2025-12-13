@@ -2,9 +2,6 @@
 Test the leaderboard.
 """
 
-import os
-print('pythonpath',os.environ['PYTHONPATH'])
-
 import logging
 import pytest
 from flask import render_template
@@ -24,7 +21,7 @@ def test_template_rendering(app_context):
     assert "<title>Leaderboard Client</title>" in rendered
 
 
-def test_client_request(app_context):
+def test_client_request(app_context, dynamodb_local):
     """Test the leaderboard function"""
     client = app.test_client()
     r1 = client.get('/api/register')

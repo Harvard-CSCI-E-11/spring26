@@ -39,11 +39,11 @@ class TestApiGateway:           # pylint: disable=missing-class-docstring
             "isBase64Encoded": False
         }
 
-    def test_api_register_get(self, apigw_event_base):
+    def test_api_register_get(self, apigw_event_base, dynamodb_local):
         """Test GET /api/register endpoint"""
         event = apigw_event_base.copy()
         ret = lambda_handler(event, None)
-        
+
         assert ret["statusCode"] == 200
         data = json.loads(ret["body"])
         assert "name" in data
@@ -57,9 +57,9 @@ class TestApiGateway:           # pylint: disable=missing-class-docstring
         event["routeKey"] = "GET /ver"
         event["rawPath"] = "/ver"
         event["requestContext"]["http"]["path"] = "/ver"
-        
+
         ret = lambda_handler(event, None)
-        
+
         assert ret["statusCode"] == 200
         # /ver returns just the version string, not JSON
         assert isinstance(ret["body"], str)
@@ -71,9 +71,9 @@ class TestApiGateway:           # pylint: disable=missing-class-docstring
         event["routeKey"] = "GET /"
         event["rawPath"] = "/"
         event["requestContext"]["http"]["path"] = "/"
-        
+
         ret = lambda_handler(event, None)
-        
+
         assert ret["statusCode"] == 200
         # Root route returns HTML - headers are lowercase in API Gateway v2
         content_type = ret.get("headers", {}).get("content-type", "").lower()

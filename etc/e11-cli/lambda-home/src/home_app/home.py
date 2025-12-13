@@ -91,7 +91,7 @@ CSCIE_BOT = "cscie-bot"
 ses_client = _ses_client
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
-    return ses_client.send_email(
+    r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
         Destination={"ToAddresses": [to_addr]},
         Message={
@@ -99,6 +99,8 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
             "Body": {"Text": {"Data": email_body}},
         },
     )
+    LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
+    return r
 
 LAB_REDIRECTS = {0:'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
                  1:'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',

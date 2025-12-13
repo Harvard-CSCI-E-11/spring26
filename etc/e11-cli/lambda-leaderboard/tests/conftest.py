@@ -33,11 +33,11 @@ def dynamodb_local():
         requests.get(DYNAMODB_LOCAL_ENDPOINT, timeout=1)
     except requests.exceptions.RequestException:
         pytest.skip("DynamoDB Local is not running. Run 'make start_local_dynamodb' first.")
-    
+
     # Create table if it doesn't exist
     dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_LOCAL_ENDPOINT, region_name='us-east-1')
     table_name = 'Leaderboard'
-    
+
     try:
         table = dynamodb.Table(table_name)
         table.load()  # Check if table exists
@@ -62,15 +62,36 @@ def dynamodb_local():
             )
             # Wait for table to be created
             table.wait_until_exists()
-    
+
     yield dynamodb
-    
+
     # Cleanup: delete all items from the table
-    table = dynamodb.Table(table_name)
-    scan = table.scan()
-    with table.batch_writer() as batch:
-        for item in scan['Items']:
-            batch.delete_item(Key={'name': item['name']})
+    try:
+        table = dynamodb.Table(table_name)
+        # Handle pagination in scan results
+        last_evaluated_key = None
+        while True:
+            if last_evaluated_key:
+                scan_kwargs = {'ExclusiveStartKey': last_evaluated_key}
+            else:
+                scan_kwargs = {}
+
+            scan = table.scan(**scan_kwargs)
+
+            # Delete items in batches
+            if scan.get('Items'):
+                with table.batch_writer() as batch:
+                    for item in scan['Items']:
+                        batch.delete_item(Key={'name': item['name']})
+
+            # Check if there are more items to scan
+            last_evaluated_key = scan.get('LastEvaluatedKey')
+            if not last_evaluated_key:
+                break
+    except Exception as e:
+        # Log but don't fail the test if cleanup fails
+        import logging
+        logging.warning("Failed to clean up DynamoDB table: %s", e)
 
 def pytest_runtest_setup(item):
     if "docker" in item.keywords and os.getenv("IS_DOCKER") != "true":

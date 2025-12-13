@@ -1,7 +1,7 @@
 {
-    "reportMissingImports": "warning", 
-    "reportMissingModuleSource": "warning", 
-    "reportAttributeAccessIssue": "warning", 
+    "reportMissingImports": "warning",
+    "reportMissingModuleSource": "warning",
+    "reportAttributeAccessIssue": "warning",
     // This setting tells Pyright to ignore imports and attribute issues for
     // any code placed inside a 'lib' folder, common in CircuitPython projects.
     "ignore": [
