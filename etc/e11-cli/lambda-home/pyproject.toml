@@ -24,6 +24,9 @@ boto3-stubs = { version = "*", extras = ["essential", "route53", "secretsmanager
 crossplane = "^0.5.8"
 pyyaml = "^6.0.3"
 tabulate = "^0.9.0"
+pylint = "^4.0.4"
+pytest = "^9.0.2"
+pytest-cov = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
 boto3-stubs = {extras = ["route53"], version = "^1.41.5"}
@@ -34,12 +37,10 @@ mypy-boto3-route53 = "^1.40.57"
 mypy-boto3-secretsmanager = "^1.40.60"
 mypy-boto3-ses = "^1.40.60"
 pydantic = "^2.12.4"
-pylint = "^3.3.8"
 pyright = "^1.1.407"
-pytest = ">=8.4.1,<9.0.0"
-pytest-cov = ">=6.2.1,<7.0.0"
-types-requests = "^2.32.4.20250913"
+
 ruff = "*"
+types-requests = "^2.32.4.20250913"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -52,7 +52,8 @@ secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", re
 
 # Simple Email Service
 SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
-ses_client = boto3.client("ses")
+SES_REGION = os.environ.get("SES_REGION","us-east-1")
+ses_client = boto3.client("ses", region_name=SES_REGION)
 
 
 # Classes

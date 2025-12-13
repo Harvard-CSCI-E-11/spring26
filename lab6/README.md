@@ -23,4 +23,4 @@ Then do these steps:
    sudo systemctl start lab6.service
    ```
 
-4. Modify image_controller.py so that 
+4. Modify image_controller.py so that

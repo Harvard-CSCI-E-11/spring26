@@ -57,19 +57,20 @@ def apigw_event():
             "CloudFront-Forwarded-Proto": "https",
             "Accept-Encoding": "gzip, deflate, sdch",
         },
-        "pathParameters": {"proxy": "/api/leaderboard"},
+        "pathParameters": {"proxy": "/api/register"},
         "httpMethod": "GET",
         "stageVariables": {"baz": "qux"},
-        "path": "/api/leaderboard",
+        "path": "/api/register",
     }
 
 
-@pytest.mark.docker
-def test_lambda_handler(apigw_event):
+def test_lambda_handler(apigw_event, dynamodb_local):
     """Test the lambda function"""
     ret = lambda_handler(apigw_event, "")
     data = json.loads(ret["body"])
 
     assert ret["statusCode"] == 200
-    assert "message" in ret["body"]
-    assert data["message"] == "hello world"
+    assert "name" in data
+    assert "opaque" in data
+    assert isinstance(data["name"], str)
+    assert isinstance(data["opaque"], str)

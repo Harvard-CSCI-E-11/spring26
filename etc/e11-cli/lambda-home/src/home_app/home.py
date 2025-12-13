@@ -55,7 +55,8 @@ from e11.e11_common import (
     sessions_table,
     users_table,
     queryscan_table,
-    send_email
+    SES_VERIFIED_EMAIL,
+    ses_client as _ses_client
 )
 
 from e11.e11core.constants import COURSE_DOMAIN
@@ -86,6 +87,20 @@ from .common import (
 
 LOGGER = get_logger("home")
 CSCIE_BOT = "cscie-bot"
+
+ses_client = _ses_client
+
+def send_email(to_addr: str, email_subject: str, email_body: str):
+    r = ses_client.send_email(
+        Source=SES_VERIFIED_EMAIL,
+        Destination={"ToAddresses": [to_addr]},
+        Message={
+            "Subject": {"Data": email_subject},
+            "Body": {"Text": {"Data": email_body}},
+        },
+    )
+    LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
+    return r
 
 LAB_REDIRECTS = {0:'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
                  1:'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
