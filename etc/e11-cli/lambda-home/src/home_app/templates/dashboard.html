@@ -18,6 +18,7 @@
     {% endif %}
   </tbody>
 </table>
+
 <h3>User Log</h3>
 <table class="pure-table">
   <thead>
@@ -32,6 +33,36 @@
       <td class="claims">{{ log.claims }}</td>
     </tr>
     {% endfor %}
+  </tbody>
+</table>
+
+<h3>Grades</h3>
+<table class="pure-table">
+  <thead>
+    <tr><th class="sk">sk</th><th class="lab">lab</th><th class="public_ip">public_ip</th><th class="score">score</th><th>pass names</th><th>fail names</th></tr>
+  </thead>
+  <tbody>
+  {% for grade in grades %}
+  <tr>
+    <th class="sk">{{ grade.sk }}</th>
+    <th class="public_ip">{{ grade.public_ip }}</th>
+    <th class="score">{{ grade.score }}</th>
+    <th class="pass_names">
+      <ul>
+        {% for name in grade.pass_names %}
+        <li> {{ name }} </li>
+        {% endfor %}
+      </ul>
+    </th>
+    <th class="fail_names">
+      <ul>
+        {% for name in grade.fail_names %}
+        <li> {{ name }} </li>
+        {% endfor %}
+      </ul>
+    </th>
+  </tr>
+  {% endfor %}
   </tbody>
 </table>
 

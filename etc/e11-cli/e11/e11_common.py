@@ -107,9 +107,9 @@ class User(DictLikeModel):
     """e11-users table sk='#' record"""
     user_id: str
     sk: str
-    email: str
-    course_key: str
-    user_registered: int
+    email: str|None = None
+    course_key: str|None = None
+    user_registered: int|None = None
     preferred_name: str|None = None
     claims: dict[str, Any] | None = None
     public_ip: str|None = None
@@ -244,10 +244,10 @@ def get_grade(user, lab):
     }
     items = queryscan_table(users_table.query, kwargs)
     if items:
-        score = max( (int(item.get(A.SCORE, 0)) for item in items) )
+        score = max( (float(item.get(A.SCORE, 0)) for item in items) )
     else:
         score = 0
-    return int(score)
+    return float(score)
 
 
 def send_email(to_addr: str, email_subject: str, email_body: str):

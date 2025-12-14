@@ -20,51 +20,57 @@ def validate_dynamodb():
         print(f"- {table_name}")
     for name in ['Leaderboard','e11-users','home-app-prod-sessions','home-app-stage-sessions']:
         assert name in r['TableNames']
+    print("")
 
-def get_all_sk(sk, projection=None):
+def get_all(*, sk=None, user_id=None, projection=None):
     """Search the users table and returns all of the recoreds with a particular sk.
     Currently this requires a scan. We need to modify the schema to allow us to do this efficiently with a query.
     """
-    all_users = []
     # Use a FilterExpression to find items where 'sk' equals 'USER'
-    filter_expr = Attr('sk').eq(sk)
 
     # Start the scan
-    response = users_table.scan( FilterExpression=filter_expr )
-    all_users.extend(response['Items'])
-    calls = 1
 
+    kwargs = {}
+    if sk is not None:
+        kwargs['FilterExpression'] = Attr('sk').eq(sk)
+    if projection is not None:
+        kwargs['ProjectionExpression'] = projection
+
+    func = users_table.scan
+    if user_id is not None:
+        func = users_table.query
+        kwargs['KeyConditionExpression'] = Key('user_id').eq(user_id)
+
+    response = func( **kwargs )
+    items = response['Items']
+    calls = 1
     while 'LastEvaluatedKey' in response:
-        response = users_table.scan( FilterExpression=filter_expr,
-                                     ExclusiveStartKey=response['LastEvaluatedKey'] )
-        all_users.extend(response['Items'])
+        kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
+        response = func( **kwargs )
+        items.extend(response['Items'])
         calls += 1
 
-    print(f"Scan complete. Found {len(all_users)} users. calls={calls}")
-    return all_users
+    print(f"Scan complete. Found {len(items)} users. calls={calls}")
+    return items
 
 def show_registered_users():
-    users = get_all_sk('#',projection='user_registered,email,claims')
+    print("================ show_registered_users ================")
+    users = get_all(sk='#',projection='user_id,user_registered,email,public_ip,claims,preferred_name')
     pusers = [ (user.get('preferred_name','n/a'),
                 user.get('email','n/a'),
                 time.asctime(time.localtime(int(user.get('user_registered',0)))),
-                user.get('public_ip','n/a/')
+                user.get('public_ip','n/a'),
+                user.get('user_id')
                 )
               for user in users]
     pusers.sort()
-    print(tabulate(pusers,headers=['name','email','registered','public_ip']))
+    print(tabulate(pusers,headers=['preferred_name','email','registered','public_ip','user_id']))
+    print("")
 
-def dump_users_table(args):
-    items = []
-    response = users_table.scan()
-    items.extend(response['Items'])
+def dump_users_table(args,user_id=None):
+    print("================ dump_users_table ================")
 
-    # Continue scanning if the table is larger than 1MB (pagination)
-    while 'LastEvaluatedKey' in response:
-        response = users_table.scan( FilterExpression=filter_expr,
-                                     ExclusiveStartKey=response['LastEvaluatedKey'] )
-        items.extend(response['Items'])
-
+    items = get_all(user_id=user_id)
     print(f"Scan complete. Found {len(items)} items")
     printable = {}
     for item in items:
@@ -76,15 +82,35 @@ def dump_users_table(args):
             print(item)
         if args.dump:
             print(item)
+    return items
+
+def delete_items(items):
+    # 2. Use batch_writer for efficient deletion
+    # The batch_writer automatically handles buffering (up to 25 items) and unprocecessed items
+    confirm = input(f"Really delete {len(items)} items? ")
+    if confirm[0]=='Y':
+        with users_table.batch_writer() as batch:
+            for item in items:
+                batch.delete_item(Key={'user_id':item['user_id'], 'sk':item['sk']})
+        print("deleted")
 
 def main():
     parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dump", help='Dump all ', action='store_true')
+    parser.add_argument("--delete_userid", help='Delete a user')
     args = parser.parse_args()
     validate_dynamodb()
     show_registered_users()
-    dump_users_table(args)
-
+    if args.dump:
+        dump_users_table(args)
+    if args.delete_userid:
+        items = dump_users_table(args,user_id=args.delete_userid)
+        if not items:
+            print("user not found")
+            sys.exit(0)
+        response = input("really delete user? [n/YES]")
+        if response=='YES':
+            delete_items(items)
 
 if __name__=="__main__":
     main()
