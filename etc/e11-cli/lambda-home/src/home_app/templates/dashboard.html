@@ -14,7 +14,7 @@
     <tr><th>Instance public IP address:</th><td>{{ user.public_ip }}</td></tr>
     <tr><th>Access:</th><td><span class="check-btn">(check)</span></td></tr>
     {% else %}
-    <tr><th colspan="2">Instance not registered <span class="reload-btn">(reload)</span></th></tr>
+    <tr><th>Instance not registered</th><td><a href="/dashboard">(reload)</a></td></tr>
     {% endif %}
   </tbody>
 </table>
@@ -22,12 +22,12 @@
 <h3>User Log</h3>
 <table class="pure-table">
   <thead>
-    <tr><th class="sk">sk</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
+    <tr><th class="date">date</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
   </thead>
   <tbody>
     {% for log in logs %}
     <tr>
-      <th class="sk">{{ log.sk }}</th>
+      <th class="date">{{ log.datetime }}</th>
       <td class="client_ip">{{ log.client_ip }}</td>
       <td class="message">{{ log.message }}</td>
       <td class="claims">{{ log.claims }}</td>
@@ -37,14 +37,19 @@
 </table>
 
 <h3>Grades</h3>
+<p><i>Note: Only the highest grade for each lab is recorded in Canvas.</i></p>
 <table class="pure-table">
   <thead>
-    <tr><th class="sk">sk</th><th class="lab">lab</th><th class="public_ip">public_ip</th><th class="score">score</th><th>pass names</th><th>fail names</th></tr>
+    <tr>
+      <th class="date">date</th><th class="lab">lab</th><th class="public_ip">IP Address</th>
+      <th class="score">score</th><th>Checks passed</th><th>Checks failed</th>
+    </tr>
   </thead>
   <tbody>
   {% for grade in grades %}
   <tr>
-    <th class="sk">{{ grade.sk }}</th>
+    <th class="date">{{ grade.datetime }}</th>
+    <th class="lab">{{ grade.lab }}</th>
     <th class="public_ip">{{ grade.public_ip }}</th>
     <th class="score">{{ grade.score }}</th>
     <th class="pass_names">

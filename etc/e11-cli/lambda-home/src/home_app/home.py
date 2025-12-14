@@ -41,7 +41,7 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 from e11.e11core.e11ssh import E11Ssh
-from e11.e11core.utils import smash_email
+from e11.e11core.utils import (smash_email,get_log_level)
 from e11.e11core import grader
 from e11.e11_common import (
     A,
@@ -157,6 +157,12 @@ EMAIL_BODY = """
     Best regards,
     CSCIE-11 Team
 """
+
+# Email subject constants
+EMAIL_SUBJECT_PREFIX = "CSCI E-11 Update: "
+EMAIL_SUBJECT_BASE = "CSCI E-11 Update"
+EMAIL_SUBJECT_NEW_DNS_RECORDS = "New DNS records created for {hostname}"
+EMAIL_SUBJECT_DNS_RECORDS_UPDATED = "DNS records updated for {hostname}"
 
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
 DASHBOARD = f"https://{COURSE_DOMAIN}"
@@ -349,12 +355,17 @@ def do_dashboard(event):
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
-    # Convert to a User object. Additional records are kept
-    items = [User(**convert_dynamodb_item(u)) for u in items]
+    # Create printable dates from the sortkeys
+    for item in items:
+        item['datetime'] = item['sk'][-26:-7].replace("T"," ")
 
     # logs = all_logs_for_userid(user.user_id)
-    logs   = [item for item in items if item.sk.startswith(A.SK_LOG_PREFIX)]
-    grades = [item for item in items if item.sk.startswith(A.SK_GRADE_PREFIX)]
+    logs   = [item for item in items if item['sk'].startswith(A.SK_LOG_PREFIX)]
+    grades = [item for item in items if item['sk'].startswith(A.SK_GRADE_PREFIX)]
+
+    LOGGER.debug("logs=%s",logs)
+    LOGGER.info("grades=%s",grades)
+    #print("items AFTER CONVERT:\n",json.dumps(items,default=str,indent=4))
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
@@ -550,10 +561,10 @@ def api_register(event, payload):
     if new_records > 0 or changed_records > 0 or verbose:
         subject_parts = []
         if new_records > 0:
-            subject_parts.append(f"New DNS records created for {hostnames[0]}")
+            subject_parts.append(EMAIL_SUBJECT_NEW_DNS_RECORDS.format(hostname=hostnames[0]))
         if changed_records > 0:
-            subject_parts.append(f"DNS records updated for {hostnames[0]}")
-        subject = "CSCI E-11 Update: " + "; ".join(subject_parts) if subject_parts else "CSCI E-11 Update"
+            subject_parts.append(EMAIL_SUBJECT_DNS_RECORDS_UPDATED.format(hostname=hostnames[0]))
+        subject = EMAIL_SUBJECT_PREFIX + "; ".join(subject_parts) if subject_parts else EMAIL_SUBJECT_BASE
         send_email(to_addr=email,
                    email_subject = subject,
                    email_body = EMAIL_BODY.format(
@@ -739,7 +750,8 @@ def lambda_handler(event, context):
     with _with_request_log_level(payload):
         try:
             LOGGER.info(
-                "req method='%s' path='%s' action='%s' source_ip='%s'",
+                "log_level=%s req method='%s' path='%s' action='%s' source_ip='%s'",
+                get_log_level(),
                 method,
                 path,
                 payload.get("action"),

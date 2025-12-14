@@ -289,11 +289,16 @@ def assert_ses_email_sent(mock_aws: MockedAWSServices, expected_recipient: str, 
     """Assert that SES email was sent with expected recipient"""
     for msg in mock_aws.ses_emails:
         if msg['Source'] == 'admin@csci-e-11.org':
-            if (expected_subject_contains in msg['Message']['Subject']['Data'] and
-                expected_recipient in msg['Destination']['ToAddresses']):
-                return
+            if expected_subject_contains is None or expected_subject_contains in msg['Message']['Subject']['Data']:
+                if expected_recipient in msg['Destination']['ToAddresses']:
+                    return
 
-    logger.error("Could not find %s/%s in ses_emails: %s",expected_subject_contains,expected_recipient,json.dumps(mock_aws.ses_emails,indent=4,default=str))
+    error_msg = f"Could not find email with recipient '{expected_recipient}'"
+    if expected_subject_contains:
+        error_msg += f" and subject containing '{expected_subject_contains}'"
+    error_msg += f" in ses_emails: {json.dumps(mock_aws.ses_emails, indent=4, default=str)}"
+    logger.error(error_msg)
+    raise AssertionError(error_msg)
 
 
 def assert_response_success(response: Dict[str, Any], expected_message_contains: str = None):

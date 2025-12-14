@@ -104,10 +104,7 @@ functions:
 # Tail logs
 .PHONY: prod-tail
 prod-tail:
-	@echo "Tailing production logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_PROD) --region $(REGION) --profile $(PROFILE) \
-		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
-		--since 15m --follow --region $(REGION) --profile $(PROFILE)
+	sam logs --stack-name $(STACK_PROD) --name E11HomeFunction --tail  --region $(REGION) --profile $(PROFILE)
 
 # Tail stage logs (separate stack)
 .PHONY: stage-tail

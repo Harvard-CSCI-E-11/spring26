@@ -251,42 +251,44 @@ def api_post_register():
     if user.course_key != course_key:
         abort(404, 'invalid course_key')
 
-    tests = [{'name':'Post to API','status':'pass', 'context':''},
-             {'name':'User agent set to include the string "magic"', 'status':None,'context':''}]
+    tests = [{'name':'Post to API',
+              'status':'pass',
+              'context':''},
+             {'name':'User agent set to include the string "magic"',
+              'status':None,
+              'context':''}]
 
     user_agent = str(request.user_agent)
+    passes = ['Registered with email and course_key']
     if MAGIC.lower() in user_agent.lower():
         score = SCORE_WITH_MAGIC
         tests[1]['status'] = 'pass'
-        pass_names = [tests[0]['name'], tests[1]['name']]
-        fail_names = []
+        passes.append('Updated user agent to include the word "magic"')
+        fails = 0
     else:
         score = BASE_SCORE
         tests[1]['status'] = 'fail'
-        pass_names = [tests[0]['name']]
-        fail_names = [tests[1]['name']]
+        fails = 1
 
 
     # if score is higher than current score, record that
     # See grader.py for how to construct summary...
     old_score = get_grade(user, LAB)
     app.logger.debug("user=%s score=%s, old_score=%s",user,score,old_score)
-    if score > old_score:
-        summary = {'lab':LAB,
-                   'passes':pass_names,
-                   'fails':fail_names,
-                   'tests':pass_names + fail_names,
-                   'score':score,
-                   'message':'',
-                   'ctx':{},
-                   'error':False}
+    summary = {'lab':LAB,
+               'passes':passes,
+               'fails': fails,
+               'tests': tests,
+               'score': score,
+               'message':'',
+               'ctx':{},
+               'error':False}
 
-        add_grade(user, LAB, request.remote_addr, summary)
-        (subject, body) = grader.create_email(summary)
-        send_email(to_addr = user.email,
-                   email_subject = subject,
-                   email_body=body)
-
+    add_grade(user, LAB, request.remote_addr, summary)
+    (subject, body) = grader.create_email(summary)
+    send_email(to_addr = user.email,
+               email_subject = subject,
+               email_body=body)
 
     reg = new_registration()
     add_user_log(None,

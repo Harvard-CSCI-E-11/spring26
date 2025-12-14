@@ -4,7 +4,10 @@ import os
 
 from e11.e11_common import User
 import home_app.home as home
-from home_app.home import EmailNotRegistered
+from home_app.home import (
+    EmailNotRegistered,
+    EMAIL_SUBJECT_NEW_DNS_RECORDS,
+)
 
 from test_utils import (
     create_test_config_data, create_test_auth_data,
@@ -100,7 +103,8 @@ def test_registration_api_flow(monkeypatch):
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility
-        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
+        expected_subject = EMAIL_SUBJECT_NEW_DNS_RECORDS.format(hostname='testcsci-e-11.csci-e-11.org')
+        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', expected_subject)
 
     finally:
         # Clean up temporary config file
@@ -228,7 +232,8 @@ def test_registration_api_returning_user_flow(monkeypatch):
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility
-        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
+        expected_subject = EMAIL_SUBJECT_NEW_DNS_RECORDS.format(hostname='testcsci-e-11.csci-e-11.org')
+        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', expected_subject)
 
     finally:
         # Clean up temporary config file
