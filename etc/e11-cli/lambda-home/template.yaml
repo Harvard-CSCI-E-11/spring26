@@ -54,6 +54,9 @@ Parameters:
     Default: stage
     AllowedValues: [prod, stage]
     Description: The deployment environment (prod or stage).
+  ImageBucketName:
+    Type: String
+    Default: cscie-11
   UsersTableName:
     Type: String
     Default: "e11-users"
@@ -173,6 +176,15 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
+
+            - Sid: AccessExistingBucket
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource:
+                - !Sub 'arn:aws:s3:::${ImageBucketName}'      # The Bucket itself
+                - !Sub 'arn:aws:s3:::${ImageBucketName}/*'    # The Objects inside
 
       Events:
         AnyRoot:

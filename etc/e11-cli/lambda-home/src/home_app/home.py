@@ -8,14 +8,14 @@ Allows users to see all active sessions and results of running the grader.
 
 Data Model:
 Users table:
-PK: user#<user_id>
-SK: PROFILE (and other items as needed)
+PK: user_id
+SK determines if we are storing user record or the log#, grade#, image#,
+See e11_common.py for details
 
 Sessions table:
-PK: SID#<sid>
-Item: object including email, and user_id
+PK: session_id
 
-Cookies - just have sid (session ID)
+Cookies - just have sid (session ID). If you know it, you are authenticated (they are hard to guess)
 """
 
 # at top of home_app/home.py (module import time)
@@ -331,18 +331,7 @@ def do_dashboard(event):
     try:
         user = get_user_from_email(ses.email)
     except EmailNotRegistered:
-        # User has been deleted - delete their session cookie and show error page
-        email = ses.email
-        delete_session_from_event(event)
-        del_cookie = make_cookie(
-            COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event)
-        )
-        template = env.get_template("error_user_deleted.html")
-        return resp_text(
-            200,
-            template.render(email=email),
-            cookies=[del_cookie],
-        )
+        return resp_text(500, f"Internal error: no user for email address {ses.email}")
 
     # Get the dashboard items --- everything from DynamoDB for this user_id
     # This is faster than separately getting the logs and the grades
@@ -353,8 +342,13 @@ def do_dashboard(event):
     items = [User(**convert_dynamodb_item(u)) for u in items]
 
     # logs = all_logs_for_userid(user.user_id)
+<<<<<<< Updated upstream
     logs   = [item for item in items if item.sk.startswith(A.SK_LOG_PREFIX)]
     grades = [item for item in items if item.sk.startswith(A.SK_GRADE_PREFIX)]
+=======
+    logs   = [item for item in items where item['sk'].startswith(A.SK_LOG_PREFIX]]
+    grades = [item for item in items where item['sk'].startswith(A.SK_GRADE_PREFIX]]
+>>>>>>> Stashed changes
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
@@ -440,30 +434,26 @@ class APINotAuthenticated(Exception):
     def __init__(self, msg):
         super().__init__(msg)
 
+def validate_email_and_course_key(email, course_key):
+    """validate an email address and course key. Return the user if successful, otherwise raise an exception."""
+    try:
+        user = get_user_from_email(email)
+    except EmailNotRegistered as e:
+        raise APINotAuthenticated( f"User email {email} is not registered. Please visit {DASHBOARD} to register." ) from e
+    if user.course_key != auth.get(A.COURSE_KEY, ""):
+        raise APINotAuthenticated(
+            f"User course_key does not match registration course_key for email {email}. "
+            f"Please visit {DASHBOARD} to find correct course_key.")
+    return user
 
-def api_auth(payload):
+def validate_payload(payload):
     # See if there is an existing user_id for this email address.
     try:
         auth = payload["auth"]
     except KeyError as e:
         raise APINotAuthenticated("payload does not contain auth") from e
-
-    email = auth.get(A.EMAIL, "")
-    try:
-        user = get_user_from_email(email)
-    except EmailNotRegistered as e:
-        raise APINotAuthenticated(
-            f"User email {email} is not registered. Please visit {DASHBOARD} to register."
-        ) from e
-
-    # See if the user's course_key matches
-    if user.course_key != auth.get(A.COURSE_KEY, ""):
-        raise APINotAuthenticated(
-            f"User course_key does not match registration course_key for email {email}. "
-            f"Please visit {DASHBOARD} to find correct course_key."
-        )
-    return user
-
+    return validate_email_and_course_key( auth.get(A.EMAIL, ""),
+                                          auth.get(A.COURSE_KEY, ""))
 
 # pylint: disable=too-many-locals
 def api_register(event, payload):
@@ -475,7 +465,7 @@ def api_register(event, payload):
         LOGGER.debug("*** auth.email != registration.email payload=%s", payload)
         return resp_json(403, {"message": "API auth.email != registration.email"})
 
-    user = api_auth(payload)
+    user = validate_payload(payload)
 
     # Get the registration information
     verbose = payload.get('verbose',True)
@@ -486,24 +476,16 @@ def api_register(event, payload):
     hostname = smash_email(email)
 
     # update the user record in table to match registration information
-    users_table.update_item(
-        Key={
-            "user_id": user.user_id,
-            "sk": user.sk,
-        },
+    users_table.update_item( Key={ "user_id": user.user_id, "sk": user.sk, },
         UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.PREFERRED_NAME} = :preferred_name",
         ExpressionAttributeValues={
             ":ip": public_ip,
             ":hn": hostname,
             ":t": int(time.time()),
-            ":preferred_name": registration.get(A.PREFERRED_NAME),
-        },
-    )
-    add_user_log(
-        event,
-        user.user_id,
-        f"User registered instanceId={instanceId} public_ip={public_ip}",
-    )
+            ":preferred_name": registration.get(A.PREFERRED_NAME), } )
+
+    add_user_log( event, user.user_id,
+                  f"User registered instanceId={instanceId} public_ip={public_ip}")
 
     # Hosts that need to be created
     hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
@@ -562,7 +544,9 @@ def api_register(event, payload):
                        course_key=user.course_key,
                        preferred_name=user.preferred_name))
         add_user_log(event, user.user_id, f'Registration email sent to {email}')
-        return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
+        return resp_json(200,{'message':
+                              'DNS updated and email sent successfully. '
+                              f'new_records={new_records} changed_records={changed_records}'})
     return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
 
 
@@ -580,7 +564,6 @@ def api_heartbeat(event, context):
             break
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(200, {"now": now, "expired": expired, "elapsed": time.time() - t0})
-
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
@@ -600,7 +583,7 @@ def api_grader(event, context, payload):
     sk format: "grade#lab2#time"
     """
     LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
-    user = api_auth(payload)
+    user = validate_payload(payload)
 
     lab = payload["lab"]
     public_ip = user.public_ip
@@ -628,19 +611,14 @@ def api_check_access(event, payload, check_me=False):
     Authentication requires knowing the user's email and the course_key.
     """
     if check_me is False:
-        user = api_auth(payload)
+        user = validate_payload(payload)
         public_ip = str(user.public_ip)
         try:
             ipaddress.ip_address(public_ip)
         except ValueError as e:
-            return resp_json(
-                400,
-                {
-                    "error": "user.ipaddress is not valid",
-                    "e": e,
-                    "public_ip": public_ip,
-                },
-            )
+            return resp_json( 400, { "error": "user.ipaddress is not valid",
+                                     "e": e,
+                                     "public_ip": public_ip } )
         LOGGER.info("api_check_access user=%s public_ip=%s", user, public_ip)
     else:
         # Try to get the source IP
@@ -657,27 +635,44 @@ def api_check_access(event, payload, check_me=False):
 
     try:
         rc, out, err = ssh.exec("hostname")
-        return resp_json(
-            200,
-            {
-                "error": False,
-                "public_ip": public_ip,
-                "message": f"Access On for IP address {public_ip}",
-                "rc": rc,
-                "out": out,
-                "err": err,
-            },
-        )
+        return resp_json( 200, { "error": False,
+                                 "public_ip": public_ip,
+                                 "message": f"Access On for IP address {public_ip}",
+                                 "rc": rc,
+                                 "out": out,
+                                 "err": err })
     except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(
-            200,
-            {
-                "error": False,
-                "public_ip": public_ip,
-                "message": f"Access Off for IP address {public_ip}",
-                "e": str(e),
-            },
-        )
+        return resp_json( 200, { "error": False,
+                                 "public_ip": public_ip,
+                                 "message": f"Access Off for IP address {public_ip}",
+                                 "e": str(e) })
+
+
+def make_presigned_post(s3_bucket,s3key):
+    """Return the S3 presigned_post fields"""
+    return s3_client.generate_presigned_post(
+        Bucket = s3_bucket,
+        Key = s3key,
+        Conditions = [
+            # Only enforce the Content-Type restriction...
+            { "Content-Type": JPEG_MIME_TYPE },
+            # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES
+            # restriction by uncommenting the next line:
+            # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
+        ],
+        Fields = { "Content-Type": JPEG_MIME_TYPE},
+        ExpiresIn = 120, # in seconds
+    )
+
+
+def api_post_image(event, payload):
+    """For lab 8 - validate the course key and give the user an upload S3 """
+
+    user = api_validate_email_and_course_key( payload.get(A.EMAIL,""), payload.get(A.COURSE_KEY, ""))
+    s3key = "images/" + os.urandom(8).hex() + ".jpeg"
+    presigned_post = make_presigned_post(S3_BUCKET, s3key)
+
+    # User validated;
 
 
 def api_delete_session(payload):
@@ -721,7 +716,9 @@ def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
 
 # pylint: disable=too-many-return-statements, disable=too-many-branches, disable=unused-argument
 def lambda_handler(event, context):
-    """called by lambda"""
+    """called by lambda.
+    break out the HTTP method, the HTTP path, and the JSON body as a payload.
+    """
     method, path, payload = parse_event(event)
 
     # Detect if this is a browser request vs API request
@@ -804,6 +801,9 @@ def lambda_handler(event, context):
 
                 case ("POST", "/api/v1", "check-me"):
                     return api_check_access(event, payload, check_me=True)
+
+                case ("POST", "/api/v1", "post-image"):
+                    return api_post_image(event, payload)
 
                 case ("POST", "/api/v1", "heartbeat"):
                     return api_heartbeat(event, context)
