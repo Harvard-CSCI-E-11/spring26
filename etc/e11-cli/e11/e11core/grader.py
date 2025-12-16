@@ -12,12 +12,13 @@ from time import monotonic
 import inspect
 from types import FunctionType
 
+from e11.e11_common import S3_BUCKET
+
 from .assertions import TestFail
 from .testrunner import TestRunner
 from .utils import get_logger, smash_email, get_error_location, read_s3
 from .e11ssh import E11Ssh
 from .constants import COURSE_DOMAIN,POINTS_PER_LAB,SUCCESS_KEY_TEMPLATE
-from e11.e11_common import S3_BUCKET
 
 from .context import build_ctx, E11Context
 

@@ -59,10 +59,31 @@ from e11.e11_common import (
     S3_BUCKET,
     SES_VERIFIED_EMAIL,
     ses_client,
-    s3_client
+    s3_client,
+    HOSTED_ZONE_ID,
+    CSCIE_BOT,
+    GITHUB_REPO_URL,
+    LAB_REDIRECTS
 )
 
-from e11.e11core.constants import COURSE_DOMAIN
+from e11.e11core.constants import (
+    COURSE_DOMAIN,
+    API_PATH,
+    HTTP_OK,
+    HTTP_FOUND,
+    HTTP_BAD_REQUEST,
+    HTTP_FORBIDDEN,
+    HTTP_NOT_FOUND,
+    HTTP_INTERNAL_ERROR,
+    JPEG_MIME_TYPE,
+    JSON_CONTENT_TYPE,
+    HTML_CONTENT_TYPE,
+    PNG_CONTENT_TYPE,
+    CSS_CONTENT_TYPE,
+    CORS_HEADER,
+    CORS_WILDCARD,
+    CONTENT_TYPE_HEADER
+)
 from e11.main import __version__
 from e11.e11core.utils import get_logger
 
@@ -89,8 +110,6 @@ from .common import (
 
 
 LOGGER = get_logger("home")
-CSCIE_BOT = "cscie-bot"
-JPEG_MIME_TYPE = "image/jpeg"
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
@@ -103,16 +122,6 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     )
     LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
     return r
-
-LAB_REDIRECTS = {0:'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
-                 1:'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
-                 2:'https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link',
-                 3:'https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link',
-                 4:'https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link',
-                 5:'https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link',
-                 6:'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
-                 7:'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
-                 8:'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'}
 
 
 eastern = ZoneInfo("America/New_York")
@@ -140,9 +149,10 @@ env = Environment(
     )
 )
 env.filters["eastern"] = eastern_filter
+env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
+env.globals["API_PATH"] = API_PATH
 
-# Route53 config for this course
-HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # from route53
+# Route53 config for this course (imported from e11_common)
 
 EMAIL_BODY = """
     Hi {preferred_name},
@@ -172,8 +182,8 @@ def resp_json(
     return {
         "statusCode": status,
         "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            CONTENT_TYPE_HEADER: JSON_CONTENT_TYPE,
+            CORS_HEADER: CORS_WILDCARD,
             **(headers or {}),
         },
         "body": json.dumps(body, default=str),
@@ -191,8 +201,8 @@ def resp_text(
     return {
         "statusCode": status,
         "headers": {
-            "Content-Type": "text/html; charset=utf-8",
-            "Access-Control-Allow-Origin": "*",
+            CONTENT_TYPE_HEADER: HTML_CONTENT_TYPE,
+            CORS_HEADER: CORS_WILDCARD,
             **(headers or {}),
         },
         "body": body,
@@ -210,8 +220,8 @@ def resp_png(
     return {
         "statusCode": status,
         "headers": {
-            "Content-Type": "image/png",
-            "Access-Control-Allow-Origin": "*",
+            CONTENT_TYPE_HEADER: PNG_CONTENT_TYPE,
+            CORS_HEADER: CORS_WILDCARD,
             **(headers or {}),
         },
         "body": base64.b64encode(png_bytes).decode("ascii"),
@@ -228,13 +238,13 @@ def redirect(
     headers = {"Location": location}
     if extra_headers:
         headers.update(extra_headers)
-    return {"statusCode": 302, "headers": headers, "cookies": cookies or [], "body": ""}
+    return {"statusCode": HTTP_FOUND, "headers": headers, "cookies": cookies or [], "body": ""}
 
 
 def error_404(page):
     """Generate an error"""
     template = env.get_template("404.html")
-    return resp_text(404, template.render(page=page))
+    return resp_text(HTTP_NOT_FOUND, template.render(page=page))
 
 
 def static_file(fname):
@@ -246,12 +256,12 @@ def static_file(fname):
     try:
         if fname.endswith(".png"):
             with open(join(STATIC_DIR, fname), "rb") as f:
-                return resp_png(200, f.read())
+                return resp_png(HTTP_OK, f.read())
 
         with open(join(STATIC_DIR, fname), "r", encoding="utf-8") as f:
             if fname.endswith(".css"):
-                headers["Content-Type"] = "text/css; charset=utf-8"
-            return resp_text(200, f.read(), headers=headers)
+                headers[CONTENT_TYPE_HEADER] = CSS_CONTENT_TYPE
+            return resp_text(HTTP_OK, f.read(), headers=headers)
     except FileNotFoundError:
         return error_404(fname)
 
@@ -302,7 +312,7 @@ def do_page(event, status="", extra=""):
     if page:
         try:
             template = env.get_template(page)
-            return resp_text(200, template.render(ses=ses, status=status, extra=extra))
+            return resp_text(HTTP_OK, template.render(ses=ses, status=status, extra=extra))
         except TemplateNotFound:
             return error_404(page)
 
@@ -319,7 +329,7 @@ def do_page(event, status="", extra=""):
     )
     LOGGER.debug("url=%s issued_at=%s", url, issued_at)
     template = env.get_template("login.html")
-    return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
+    return resp_text(HTTP_OK, template.render(harvard_key=url, status=status, extra=extra))
 
 
 def do_dashboard(event):
@@ -333,7 +343,7 @@ def do_dashboard(event):
     try:
         user = get_user_from_email(ses.email)
     except EmailNotRegistered:
-        return resp_text(500, f"Internal error: no user for email address {ses.email}")
+        return resp_text(HTTP_INTERNAL_ERROR, f"Internal error: no user for email address {ses.email}")
 
     # Get the dashboard items --- everything from DynamoDB for this user_id
     # This is faster than separately getting the logs and the grades
@@ -349,7 +359,7 @@ def do_dashboard(event):
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
-        200,
+        HTTP_OK,
         template.render(
             user=user,
             ses=ses,
@@ -369,7 +379,7 @@ def oidc_callback(event):
     code = params.get("code")
     state = params.get("state")
     if not code:
-        return {"statusCode": 400, "body": "Missing 'code' in query parameters"}
+        return {"statusCode": HTTP_BAD_REQUEST, "body": "Missing 'code' in query parameters"}
     try:
         obj = oidc.handle_oidc_redirect_stateless(
             openid_config=oidc.get_oidc_config(),
@@ -414,7 +424,7 @@ def do_logout(event):
     )
     LOGGER.debug("url=%s issued_at=%s ", url, issued_at)
     return resp_text(
-        200,
+        HTTP_OK,
         env.get_template("logout.html").render(harvard_key=url),
         cookies=[del_cookie],
     )
@@ -460,7 +470,7 @@ def api_register(event, payload):
         "email", ""
     ):
         LOGGER.debug("*** auth.email != registration.email payload=%s", payload)
-        return resp_json(403, {"message": "API auth.email != registration.email"})
+        return resp_json(HTTP_FORBIDDEN, {"message": "API auth.email != registration.email"})
 
     user = validate_payload(payload)
 
@@ -541,10 +551,10 @@ def api_register(event, payload):
                        course_key=user.course_key,
                        preferred_name=user.preferred_name))
         add_user_log(event, user.user_id, f'Registration email sent to {email}')
-        return resp_json(200,{'message':
+        return resp_json(HTTP_OK,{'message':
                               'DNS updated and email sent successfully. '
                               f'new_records={new_records} changed_records={changed_records}'})
-    return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
+    return resp_json(HTTP_OK,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
 
 
 def api_heartbeat(event, context):
@@ -560,7 +570,7 @@ def api_heartbeat(event, context):
         if LastEvaluatedKey not in page:
             break
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
-    return resp_json(200, {"now": now, "expired": expired, "elapsed": time.time() - t0})
+    return resp_json(HTTP_OK, {"now": now, "expired": expired, "elapsed": time.time() - t0})
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
@@ -586,12 +596,12 @@ def api_grader(event, context, payload):
     public_ip = user.public_ip
     email = user.email
     if email is None:
-        return resp_json(400, {"error":True, "message":email is None})
+        return resp_json(HTTP_BAD_REQUEST, {"error":True, "message":email is None})
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
     summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
     if summary['error']:
         LOGGER.error("summary=%s",summary)
-        return resp_json(500, summary)
+        return resp_json(HTTP_INTERNAL_ERROR, summary)
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
@@ -600,7 +610,7 @@ def api_grader(event, context, payload):
     # Send email
     (subject, body) = grader.create_email(summary)
     send_email(to_addr=email, email_subject=subject, email_body=body)
-    return resp_json(200, {"summary": summary})
+    return resp_json(HTTP_OK, {"summary": summary})
 
 
 def api_check_access(event, payload, check_me=False):
@@ -613,7 +623,7 @@ def api_check_access(event, payload, check_me=False):
         try:
             ipaddress.ip_address(public_ip)
         except ValueError as e:
-            return resp_json( 400, { "error": "user.ipaddress is not valid",
+            return resp_json( HTTP_BAD_REQUEST, { "error": "user.ipaddress is not valid",
                                      "e": e,
                                      "public_ip": public_ip } )
         LOGGER.info("api_check_access user=%s public_ip=%s", user, public_ip)
@@ -632,14 +642,14 @@ def api_check_access(event, payload, check_me=False):
 
     try:
         rc, out, err = ssh.exec("hostname")
-        return resp_json( 200, { "error": False,
+        return resp_json( HTTP_OK, { "error": False,
                                  "public_ip": public_ip,
                                  "message": f"Access On for IP address {public_ip}",
                                  "rc": rc,
                                  "out": out,
                                  "err": err })
     except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json( 200, { "error": False,
+        return resp_json( HTTP_OK, { "error": False,
                                  "public_ip": public_ip,
                                  "message": f"Access Off for IP address {public_ip}",
                                  "e": str(e) })
@@ -668,15 +678,15 @@ def api_post_image(event, payload):
     s3key = "images/" + str(uuid.uuid4()) + ".jpeg"
     presigned_post = make_presigned_post(S3_BUCKET, s3key)
     LOGGER.info("event=%s payload=%s user=%s presigned_post=%s",event, payload, user,presigned_post)
-    return resp_json(200, {"presigned_post":presigned_post})
+    return resp_json(HTTP_OK, {"presigned_post":presigned_post})
 
 
 def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
     sid = payload.get("sid", "")
     if sid:
-        return resp_json(200, {"result": delete_session(sid)})
-    return resp_json(400, {"error": "no sid provided"})
+        return resp_json(HTTP_OK, {"result": delete_session(sid)})
+    return resp_json(HTTP_BAD_REQUEST, {"error": "no sid provided"})
 
 
 ################################################################
@@ -745,146 +755,151 @@ def lambda_handler(event, context):
             )
             action = (payload.get("action") or "").lower()
 
-            match (method, path, action):
-                ################################################################
-                # Authentication callback
-                #
-                case ("GET", "/auth/callback", _):
-                    return oidc_callback(event)
-
+            if path == API_PATH:
                 ################################################################
                 # JSON API Actions
                 #
-                case ("POST", "/api/v1", "ping"):
-                    return resp_json(
-                        200,
-                        {
-                            "error": False,
-                            "message": "ok",
-                            "path": sys.path,
-                            "context": dict(context),
-                            "environ": dict(os.environ),
-                        },
-                    )
-                case ("POST", "/api/v1", "ping-mail"):
-                    hostnames = ["first"]
-                    public_ip = "<address>"
-                    resp = send_email(
-                        email_subject="E11 email ping",
-                        email_body=EMAIL_BODY.format(
-                            hostname=hostnames[0], public_ip=public_ip
-                        ),
-                        to_addr=payload[A.EMAIL],
-                    )
+                match (method, action):
+                    case ("POST", "ping"):
+                        return resp_json(
+                            HTTP_OK,
+                            {
+                                "error": False,
+                                "message": "ok",
+                                "path": sys.path,
+                                "context": dict(context),
+                                "environ": dict(os.environ),
+                            },
+                        )
+                    case ("POST", "ping-mail"):
+                        hostnames = ["first"]
+                        public_ip = "<address>"
+                        resp = send_email(
+                            email_subject="E11 email ping",
+                            email_body=EMAIL_BODY.format(
+                                hostname=hostnames[0], public_ip=public_ip
+                            ),
+                            to_addr=payload[A.EMAIL],
+                        )
 
-                    return resp_json(
-                        200,
-                        {
-                            "error": False,
-                            "message": "ok",
-                            "path": sys.path,
-                            "resp": resp,
-                            "environ": dict(os.environ),
-                        },
-                    )
+                        return resp_json(
+                            HTTP_OK,
+                            {
+                                "error": False,
+                                "message": "ok",
+                                "path": sys.path,
+                                "resp": resp,
+                                "environ": dict(os.environ),
+                            },
+                        )
 
-                case ("POST", "/api/v1", "register"):
-                    return api_register(event, payload)
+                    case ("POST", "register"):
+                        return api_register(event, payload)
 
-                case ("POST", "/api/v1", "grade"):
-                    return api_grader(event, context, payload)
+                    case ("POST", "grade"):
+                        return api_grader(event, context, payload)
 
-                case ("POST", "/api/v1", "delete-session"):
-                    return api_delete_session(payload)
+                    case ("POST", "delete-session"):
+                        return api_delete_session(payload)
 
-                case ("POST", "/api/v1", "check-access"):
-                    return api_check_access(event, payload, check_me=False)
+                    case ("POST", "check-access"):
+                        return api_check_access(event, payload, check_me=False)
 
-                case ("POST", "/api/v1", "check-me"):
-                    return api_check_access(event, payload, check_me=True)
+                    case ("POST", "check-me"):
+                        return api_check_access(event, payload, check_me=True)
 
-                case ("POST", "/api/v1", "post-image"):
-                    return api_post_image(event, payload)
+                    case ("POST", "post-image"):
+                        return api_post_image(event, payload)
 
-                case ("POST", "/api/v1", "heartbeat"):
-                    return api_heartbeat(event, context)
+                    case ("POST", "heartbeat"):
+                        return api_heartbeat(event, context)
 
-                case ("POST", "/api/v1", "version"):
-                    return resp_json(200, {
-                        'error':False,
-                        'version':__version__,
-                        'deployment_timestamp':os.environ.get('DEPLOYMENT_TIMESTAMP')})
+                    case ("POST", "version"):
+                        return resp_json(HTTP_OK, {
+                            'error':False,
+                            'version':__version__,
+                            'deployment_timestamp':os.environ.get('DEPLOYMENT_TIMESTAMP')})
 
-                # Must be last API call - match all actions
-                case (_, "/api/v1", _):
-                    return resp_json( 400,{
-                        "error": True,
-                        "message": "unknown or missing action.",
-                        "method": method,
-                        "path": path,
-                        "action": action,
-                        "version": __version__ })
-
+                    # Must be last API call - match all actions
+                    case (_, _):
+                        return resp_json( HTTP_BAD_REQUEST,{
+                            "error": True,
+                            "message": "unknown or missing action.",
+                            "method": method,
+                            "path": path,
+                            "action": action,
+                            "version": __version__ })
+            else:
                 ################################################################
-                # Human actions
-                case ("GET", "/heartbeat", _):  # also called by lambda cron
-                    return api_heartbeat(event, context)
+                # Non-API routes
+                #
+                match (method, path):
+                    ################################################################
+                    # Authentication callback
+                    #
+                    case ("GET", "/auth/callback"):
+                        return oidc_callback(event)
 
-                case ("GET", "/dashboard", _):
-                    return do_dashboard(event)
+                    ################################################################
+                    # Human actions
+                    case ("GET", "/heartbeat"):  # also called by lambda cron
+                        return api_heartbeat(event, context)
 
-                case ("GET", "/logout", _):
-                    return do_logout(event)
+                    case ("GET", "/dashboard"):
+                        return do_dashboard(event)
 
-                # note that / handles all pages. Specify html template with page= option
-                case ("GET", "/", _):
-                    return do_page(event)
+                    case ("GET", "/logout"):
+                        return do_logout(event)
 
-                # lab redirects
-                case ("GET", "/lab0", _):
-                    return redirect(LAB_REDIRECTS[0])
-                case ("GET", "/lab1", _):
-                    return redirect(LAB_REDIRECTS[1])
-                case ("GET", "/lab2", _):
-                    return redirect(LAB_REDIRECTS[2])
-                case ("GET", "/lab3", _):
-                    return redirect(LAB_REDIRECTS[3])
-                case ("GET", "/lab4", _):
-                    return redirect(LAB_REDIRECTS[4])
-                case ("GET", "/lab5", _):
-                    return redirect(LAB_REDIRECTS[5])
-                case ("GET", "/lab6", _):
-                    return redirect(LAB_REDIRECTS[6])
-                case ("GET", "/lab7", _):
-                    return redirect(LAB_REDIRECTS[7])
-                case ("GET", "/lab8", _):
-                    return redirect(LAB_REDIRECTS[8])
+                    # note that / handles all pages. Specify html template with page= option
+                    case ("GET", "/"):
+                        return do_page(event)
 
-                case ("GET", "/version", _):
-                    return resp_text(200, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
+                    # lab redirects
+                    case ("GET", "/lab0"):
+                        return redirect(LAB_REDIRECTS[0])
+                    case ("GET", "/lab1"):
+                        return redirect(LAB_REDIRECTS[1])
+                    case ("GET", "/lab2"):
+                        return redirect(LAB_REDIRECTS[2])
+                    case ("GET", "/lab3"):
+                        return redirect(LAB_REDIRECTS[3])
+                    case ("GET", "/lab4"):
+                        return redirect(LAB_REDIRECTS[4])
+                    case ("GET", "/lab5"):
+                        return redirect(LAB_REDIRECTS[5])
+                    case ("GET", "/lab6"):
+                        return redirect(LAB_REDIRECTS[6])
+                    case ("GET", "/lab7"):
+                        return redirect(LAB_REDIRECTS[7])
+                    case ("GET", "/lab8"):
+                        return redirect(LAB_REDIRECTS[8])
 
-                # This must be last - catch all GETs, check for /static
-                # used for serving css and javascript
-                case ("GET", p, _):
-                    if p.startswith("/static"):
-                        return static_file(p.removeprefix("/static/"))
-                    return error_404(p)
+                    case ("GET", "/version"):
+                        return resp_text(HTTP_OK, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
 
-                ################################################################
-                # error
-                case (_, _, _):
-                    return error_404(path)
+                    # This must be last - catch all GETs, check for /static
+                    # used for serving css and javascript
+                    case ("GET", p):
+                        if p.startswith("/static"):
+                            return static_file(p.removeprefix("/static/"))
+                        return error_404(p)
+
+                    ################################################################
+                    # error
+                    case (_, _):
+                        return error_404(path)
 
         except APINotAuthenticated as e:
-            return resp_json(403, {"message": str(e)})
+            return resp_json(HTTP_FORBIDDEN, {"message": str(e)})
 
         except EmailNotRegistered as e:
             LOGGER.info("EmailNotRegistered: %s", e)
 
             if is_browser_request:
                 template = env.get_template("error_user_not_registered.html")
-                return resp_text(403, template.render())
-            return resp_json(403, {"error": f"Email not registered {e}"})
+                return resp_text(HTTP_FORBIDDEN, template.render())
+            return resp_json(HTTP_FORBIDDEN, {"error": f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Try to get session ID from cookies for better debugging
@@ -903,9 +918,9 @@ def lambda_handler(event, context):
                 # Return HTML error page for browser requests
                 template = env.get_template("error_generic.html")
                 return resp_text(
-                    500, template.render(session_id=session_id, error_message=str(e))
+                    HTTP_INTERNAL_ERROR, template.render(session_id=session_id, error_message=str(e))
                 )
             # Return JSON for API requests
             return resp_json(
-                500, {"error": True, "message": str(e), "session_id": session_id}
+                HTTP_INTERNAL_ERROR, {"error": True, "message": str(e), "session_id": session_id}
             )

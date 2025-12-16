@@ -74,4 +74,5 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     assert "You have been logged out" in logout_resp['body']
 
     # 6) Check point
-    home.lambda_handler(create_lambda_event('/api/v1', method='POST', body='{"action":"ping"}'), None)
+    from e11.e11core.constants import API_PATH
+    home.lambda_handler(create_lambda_event(API_PATH, method='POST', body='{"action":"ping"}'), None)

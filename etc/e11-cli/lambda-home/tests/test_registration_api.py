@@ -82,7 +82,8 @@ def test_registration_api_flow(monkeypatch):
         registration_payload = create_registration_payload(config_data, auth_data)
 
         # Create the Lambda event using common utility
-        event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
+        from e11.e11core.constants import API_PATH
+        event = create_lambda_event(f'{API_PATH}/register', 'POST', json.dumps(registration_payload))
 
         # Call the registration handler
         response = home.api_register(event, registration_payload)
@@ -100,7 +101,8 @@ def test_registration_api_flow(monkeypatch):
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility
-        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
+        from e11.e11core.constants import COURSE_DOMAIN
+        assert_ses_email_sent(mock_aws, f'test@{COURSE_DOMAIN}', f'AWS Instance Registered. New DNS Record Created: testcsci-e-11.{COURSE_DOMAIN}')
 
     finally:
         # Clean up temporary config file
@@ -120,17 +122,19 @@ def test_registration_api_invalid_user(monkeypatch):
     monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
 
     # Create test data using common utilities
-    config_data = create_test_config_data(email='nonexistent@csci-e-11.org')
-    auth_data = create_test_auth_data(email='nonexistent@csci-e-11.org')
+    from e11.e11core.constants import COURSE_DOMAIN
+    config_data = create_test_config_data(email=f'nonexistent@{COURSE_DOMAIN}')
+    auth_data = create_test_auth_data(email=f'nonexistent@{COURSE_DOMAIN}')
 
     # Create the registration payload using common utility
     registration_payload = create_registration_payload(config_data, auth_data)
 
     # Create the Lambda event using common utility
-    event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
+    from e11.e11core.constants import API_PATH
+    event = create_lambda_event(f'{API_PATH}/register', 'POST', json.dumps(registration_payload))
 
     # Call the registration handler
-    with pytest.raises(home.APINotAuthenticated, match='User email nonexistent@csci-e-11.org is not registered.*'):
+    with pytest.raises(home.APINotAuthenticated, match=f'User email nonexistent@{COURSE_DOMAIN} is not registered.*'):
         home.api_register(event, registration_payload)
 
 
@@ -161,10 +165,11 @@ def test_registration_api_invalid_course_key(monkeypatch):
     registration_payload = create_registration_payload(config_data, auth_data)
 
     # Create the Lambda event using common utility
-    event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
+    from e11.e11core.constants import API_PATH, COURSE_DOMAIN
+    event = create_lambda_event(f'{API_PATH}/register', 'POST', json.dumps(registration_payload))
 
     # Call the registration handler
-    with pytest.raises(home.APINotAuthenticated, match='User course_key does not match registration course_key for email test@csci-e-11.org.*'):
+    with pytest.raises(home.APINotAuthenticated, match=f'User course_key does not match registration course_key for email test@{COURSE_DOMAIN}.*'):
         home.api_register(event, registration_payload)
 
 
@@ -186,6 +191,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
         monkeypatch.setenv('E11_CONFIG', config_path)
 
         # Mock the user lookup to return an existing user (Flow 2: returning user)
+        from e11.e11core.constants import COURSE_DOMAIN
         def mock_get_user_from_email(email):
             return User(**{
                 'user_id': 'existing-user-id',
@@ -195,7 +201,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
                 'claims': {'name': 'Test User', 'email': email},
                 'user_registered': 1000000000,
                 'public_ip': '0.0.0.0',    # Old IP (different from new registration)
-                'hostname': 'old-hostname.csci-e-11.org'  # Old hostname (different from new registration)
+                'hostname': f'old-hostname.{COURSE_DOMAIN}'  # Old hostname (different from new registration)
             })
 
         monkeypatch.setattr(home, 'get_user_from_email', mock_get_user_from_email)
@@ -210,7 +216,8 @@ def test_registration_api_returning_user_flow(monkeypatch):
         registration_payload = create_registration_payload(config_data, auth_data)
 
         # Create the Lambda event using common utility
-        event = create_lambda_event('/api/v1/register', 'POST', json.dumps(registration_payload))
+        from e11.e11core.constants import API_PATH
+        event = create_lambda_event(f'{API_PATH}/register', 'POST', json.dumps(registration_payload))
 
         # Call the registration handler
         response = home.api_register(event, registration_payload)
@@ -228,7 +235,7 @@ def test_registration_api_returning_user_flow(monkeypatch):
         assert_route53_called(mock_aws, expected_hostnames, '1.2.3.4')
 
         # Verify SES email was sent using common utility
-        assert_ses_email_sent(mock_aws, 'test@csci-e-11.org', 'AWS Instance Registered. New DNS Record Created: testcsci-e-11.csci-e-11.org')
+        assert_ses_email_sent(mock_aws, f'test@{COURSE_DOMAIN}', f'AWS Instance Registered. New DNS Record Created: testcsci-e-11.{COURSE_DOMAIN}')
 
     finally:
         # Clean up temporary config file

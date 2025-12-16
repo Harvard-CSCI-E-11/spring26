@@ -20,9 +20,9 @@ import requests
 from email_validator import validate_email, EmailNotValidError
 
 from . import staff
-from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,REPO_YEAR,DEFAULT_TIMEOUT,get_config
+from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,DEFAULT_TIMEOUT,get_config
 
-from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX
+from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX, COURSE_ROOT
 from .e11core.context import build_ctx, chdir_to_lab
 from .e11core.grader import collect_tests_in_definition_order,print_summary
 from .e11core.utils import get_logger,smash_email
@@ -52,7 +52,7 @@ ANSWERS = {"lab1":['e11-attacker'],
            "lab6":['api_key','api_secret_key']}
 
 
-UPDATE_CMDS=f"""cd /home/ubuntu/{REPO_YEAR}
+UPDATE_CMDS=f"""cd {COURSE_ROOT}
 git stash
 git pull
 (cd etc/e11-cli; pipx install . --force)
@@ -334,9 +334,9 @@ def do_status(_):
 
 
 def do_update(_):
-    repo_dir = f"/home/ubuntu/{REPO_YEAR}"
+    repo_dir = str(COURSE_ROOT)
     if not os.path.exists(repo_dir):
-        print(f"{REPO_YEAR} does not exist",file=sys.stderr)
+        print(f"{COURSE_ROOT} does not exist",file=sys.stderr)
         sys.exit(1)
     os.chdir(repo_dir)
     for cmd in UPDATE_CMDS.split('\n'):

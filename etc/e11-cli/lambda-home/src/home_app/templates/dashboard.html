@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
      btn.addEventListener("click", async (event) => {
        const sid = btn.dataset.sid;
        try {
-         const resp = await fetch("/api/v1", {
+         const resp = await fetch("{{ API_PATH }}", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ action: "delete-session", sid: sid
@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
        btn.textContent = "Checking...";
        const sid = btn.dataset.sid;
        try {
-         const resp = await fetch("/api/v1", {
+         const resp = await fetch("{{ API_PATH }}", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({

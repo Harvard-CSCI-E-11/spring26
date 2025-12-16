@@ -7,7 +7,8 @@
 STACK_PROD      ?= home-app-prod
 STACK_STAGE     ?= home-app-stage
 CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
-REGION          ?= us-east-1
+AWS_REGION      ?= us-east-1
+REGION          ?= $(AWS_REGION)  # Alias for backward compatibility
 PROFILE         ?= fas
 DJLINT_FLAGS    ?= --profile=jinja --lint --quiet --ignore J004,J018
 TEMPLATE_DIR    := src/home_app/templates
@@ -182,4 +183,4 @@ s3-install-rules:
 s3-validate-rules-and-region:
 	aws s3api --profile $(AWS_PROFILE) get-bucket-notification-configuration --bucket $(S3_BUCKET) | \
 		grep EventBridgeConfiguration && echo "✅ EventBridge is ENABLED"
-	aws --profile=fas s3api get-bucket-location --bucket csci-e-11 | sed s/null/us-east-1/ | grep $(REGION) && echo "✅ S3 bucket in correct region"
+	aws --profile=fas s3api get-bucket-location --bucket csci-e-11 | sed s/null/$(AWS_REGION)/ | grep $(AWS_REGION) && echo "✅ S3 bucket in correct region"

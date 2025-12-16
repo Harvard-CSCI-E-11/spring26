@@ -6,17 +6,18 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
+from e11.e11core.constants import COURSE_DOMAIN
 
 expected_hostnames = [
-    'testcsci-e-11.csci-e-11.org',
-    'testcsci-e-11-lab1.csci-e-11.org',
-    'testcsci-e-11-lab2.csci-e-11.org',
-    'testcsci-e-11-lab3.csci-e-11.org',
-    'testcsci-e-11-lab4.csci-e-11.org',
-    'testcsci-e-11-lab5.csci-e-11.org',
-    'testcsci-e-11-lab6.csci-e-11.org',
-    'testcsci-e-11-lab7.csci-e-11.org',
-    'testcsci-e-11-lab8.csci-e-11.org'
+    f'testcsci-e-11.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab1.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab2.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab3.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab4.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab5.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab6.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab7.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab8.{COURSE_DOMAIN}'
 ]
 
 
@@ -208,8 +209,9 @@ def fake_aws(monkeypatch):
 
     # capture discovery URL from test after fixture wiring
     monkeypatch.setenv("OIDC_SECRET_ID", "fake-secret-id")
-    monkeypatch.setenv("DDB_REGION", "us-east-1")
-    monkeypatch.setenv("DDB_TABLE_ARN", "arn:aws:dynamodb:us-east-1:000000000000:table/fake-table")
+    from e11.e11_common import AWS_REGION
+    monkeypatch.setenv("DDB_REGION", AWS_REGION)
+    monkeypatch.setenv("DDB_TABLE_ARN", f"arn:aws:dynamodb:{AWS_REGION}:000000000000:table/fake-table")
     monkeypatch.setenv("SESSIONS_TABLE_NAME", "sessions-table")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
 

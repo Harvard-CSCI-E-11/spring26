@@ -148,11 +148,14 @@ class MockedAWSServices:
 
         # Set environment variables
         monkeypatch.setenv('OIDC_SECRET_ID', 'fake-secret-id')
-        monkeypatch.setenv('DDB_REGION', 'us-east-1')
-        monkeypatch.setenv('DDB_USERS_TABLE_ARN', 'arn:aws:dynamodb:us-east-1:000000000000:table/fake-users-table')
+        from e11.e11_common import AWS_REGION
+        monkeypatch.setenv('DDB_REGION', AWS_REGION)
+        monkeypatch.setenv('DDB_USERS_TABLE_ARN', f'arn:aws:dynamodb:{AWS_REGION}:000000000000:table/fake-users-table')
         monkeypatch.setenv('SESSIONS_TABLE_NAME', 'fake-sessions-table')
-        monkeypatch.setenv('COOKIE_DOMAIN', 'csci-e-11.org')
-        monkeypatch.setenv('HOSTED_ZONE_ID', 'Z05034072HOMXYCK23BRA')
+        from e11.e11core.constants import COURSE_DOMAIN
+        from e11.e11_common import HOSTED_ZONE_ID
+        monkeypatch.setenv('COOKIE_DOMAIN', COURSE_DOMAIN)
+        monkeypatch.setenv('HOSTED_ZONE_ID', HOSTED_ZONE_ID)
 
 
 class MockedSessionsTable:
@@ -192,9 +195,10 @@ class MockedSessionsTable:
 # Test Data Factories
 def create_test_config_data(**overrides) -> Dict[str, Any]:
     """Create standardized test configuration data"""
+    from e11.e11core.constants import COURSE_DOMAIN
     default_data = {
         'preferred_name': 'Test User',
-        'email': 'test@csci-e-11.org',
+        'email': f'test@{COURSE_DOMAIN}',
         'course_key': '123456',
         'public_ip': '1.2.3.4',
         'instanceId': 'i-1234567890abcdef0'
@@ -205,8 +209,9 @@ def create_test_config_data(**overrides) -> Dict[str, Any]:
 
 def create_test_auth_data(**overrides) -> Dict[str, Any]:
     """Create standardized test authentication data"""
+    from e11.e11core.constants import COURSE_DOMAIN
     default_data = {
-        'email': 'test@csci-e-11.org',
+        'email': f'test@{COURSE_DOMAIN}',
         'course_key': '123456'
     }
     default_data.update(overrides)
@@ -269,7 +274,8 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
     assert len(mock_aws.route53_changes) == 1, f"Expected 1 Route53 call, got {len(mock_aws.route53_changes)}"
 
     route53_change = mock_aws.route53_changes[0]
-    assert route53_change['HostedZoneId'] == 'Z05034072HOMXYCK23BRA'
+    from e11.e11_common import HOSTED_ZONE_ID
+    assert route53_change['HostedZoneId'] == HOSTED_ZONE_ID
 
     changes = route53_change['ChangeBatch']['Changes']
     if len(changes) != len(expected_hostnames):
@@ -287,8 +293,9 @@ def assert_route53_called(mock_aws: MockedAWSServices, expected_hostnames: List[
 
 def assert_ses_email_sent(mock_aws: MockedAWSServices, expected_recipient: str, expected_subject_contains: str = None):
     """Assert that SES email was sent with expected recipient"""
+    from e11.e11_common import SES_VERIFIED_EMAIL
     for msg in mock_aws.ses_emails:
-        if msg['Source'] == 'admin@csci-e-11.org':
+        if msg['Source'] == SES_VERIFIED_EMAIL:
             if (expected_subject_contains in msg['Message']['Subject']['Data'] and
                 expected_recipient in msg['Destination']['ToAddresses']):
                 return

@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from e11.e11core.constants import COURSE_KEY_LEN
+from e11.e11core.constants import COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11core.utils import get_logger
 
 if TYPE_CHECKING:
@@ -34,10 +34,36 @@ else:
     DynamoDBServiceResource = Any  # pylint: disable=invalid-name
     DynamoDBTable = Any            # pylint: disable=invalid-name
 
-# COURSE_KEY_LEN is imported from e11.e11core.constants
+# COURSE_KEY_LEN and COURSE_DOMAIN are imported from e11.e11core.constants
 
 S3_BUCKET  = 'csci-e-11'
 AWS_REGION = 'us-east-1'
+
+# Route53
+HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # Route53 hosted zone for course domain
+
+# SSH/Bot Configuration
+CSCIE_BOT = "cscie-bot"
+CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
+
+# GitHub Repository
+GITHUB_REPO_URL = "https://github.com/Harvard-CSCI-E-11/spring26"
+
+# Lab Redirect URLs
+LAB_REDIRECTS = {
+    0: 'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
+    1: 'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
+    2: 'https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link',
+    3: 'https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link',
+    4: 'https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link',
+    5: 'https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link',
+    6: 'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
+    7: 'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
+    8: 'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'
+}
+
+# Time Constants
+SIX_MONTHS = 60 * 60 * 24 * 180  # 180 days in seconds
 
 # DynamoDB config
 USERS_TABLE_NAME    = os.environ.get("USERS_TABLE_NAME","e11-users")
@@ -56,7 +82,7 @@ secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", re
 s3_client : S3Client = boto3.client("s3", region_name=AWS_REGION)
 
 # Simple Email Service
-SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
+SES_VERIFIED_EMAIL = f"admin@{COURSE_DOMAIN}"  # Verified SES email address
 ses_client = boto3.client("ses", region_name=AWS_REGION)
 
 # Classes

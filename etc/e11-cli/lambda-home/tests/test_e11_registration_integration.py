@@ -19,9 +19,10 @@ def test_e11_registration_with_test_config(monkeypatch):
     mock_aws = setup_aws_mocks(monkeypatch)
 
     # Create test config data using common utilities instead of external file
+    from e11.e11core.constants import COURSE_DOMAIN
     test_config_data = create_test_config_data(
         preferred_name='Test User',
-        email='user@csci-e-11.org',
+        email=f'user@{COURSE_DOMAIN}',
         course_key='123456',
         public_ip='1.2.3.4'
     )
@@ -55,10 +56,11 @@ def test_e11_registration_with_test_config(monkeypatch):
         })
 
         # Simulate the registration API response
-        if url == 'https://csci-e-11.org/api/v1':
+        from e11.e11core.constants import API_PATH, API_ENDPOINT
+        if url == API_ENDPOINT:
             # Call the actual registration handler with the captured data
             event = {
-                'rawPath': '/api/v1',
+                'rawPath': API_PATH,
                 'requestContext': {
                     'http': {
                         'method': 'POST',
@@ -137,7 +139,8 @@ def test_e11_registration_with_test_config(monkeypatch):
         # Verify that a request was made to the API endpoint
         assert len(captured_requests) == 1
         request = captured_requests[0]
-        assert request['url'] == 'https://csci-e-11.org/api/v1'
+        from e11.e11core.constants import API_ENDPOINT
+        assert request['url'] == API_ENDPOINT
 
         # Verify the registration payload contains the config data
         registration_data = request['json']['registration']
