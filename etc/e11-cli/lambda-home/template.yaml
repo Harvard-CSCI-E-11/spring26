@@ -47,6 +47,7 @@ Globals:
         SESSIONS_TABLE_NAME: !Ref SessionsTable
         PYTHONPATH: "/var/task/home_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
+        IMAGE_BUCKET_NAME: !Ref ImageBucketName
 
 Parameters:
   EnvironmentName:

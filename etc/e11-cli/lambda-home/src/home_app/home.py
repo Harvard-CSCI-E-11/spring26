@@ -28,6 +28,7 @@ import binascii
 import time
 import ipaddress
 import datetime
+import uuid
 
 from typing import Any, Dict, Tuple, Optional
 from zoneinfo import ZoneInfo
@@ -56,7 +57,7 @@ from e11.e11_common import (
     users_table,
     queryscan_table,
     SES_VERIFIED_EMAIL,
-    ses_client as _ses_client
+    ses_client
 )
 
 from e11.e11core.constants import COURSE_DOMAIN
@@ -87,8 +88,7 @@ from .common import (
 
 LOGGER = get_logger("home")
 CSCIE_BOT = "cscie-bot"
-
-ses_client = _ses_client
+JPEG_MIME_TYPE = "image/jpeg"
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
@@ -342,13 +342,8 @@ def do_dashboard(event):
     items = [User(**convert_dynamodb_item(u)) for u in items]
 
     # logs = all_logs_for_userid(user.user_id)
-<<<<<<< Updated upstream
     logs   = [item for item in items if item.sk.startswith(A.SK_LOG_PREFIX)]
     grades = [item for item in items if item.sk.startswith(A.SK_GRADE_PREFIX)]
-=======
-    logs   = [item for item in items where item['sk'].startswith(A.SK_LOG_PREFIX]]
-    grades = [item for item in items where item['sk'].startswith(A.SK_GRADE_PREFIX]]
->>>>>>> Stashed changes
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
     return resp_text(
@@ -440,7 +435,7 @@ def validate_email_and_course_key(email, course_key):
         user = get_user_from_email(email)
     except EmailNotRegistered as e:
         raise APINotAuthenticated( f"User email {email} is not registered. Please visit {DASHBOARD} to register." ) from e
-    if user.course_key != auth.get(A.COURSE_KEY, ""):
+    if user.course_key != course_key:
         raise APINotAuthenticated(
             f"User course_key does not match registration course_key for email {email}. "
             f"Please visit {DASHBOARD} to find correct course_key.")
@@ -582,7 +577,7 @@ def api_grader(event, context, payload):
     Get ready for grading, run the grader, store the results in the users table.
     sk format: "grade#lab2#time"
     """
-    LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
+    LOGGER.info("api_grader event=%s context=%s payload=%s",event,context,payload)
     user = validate_payload(payload)
 
     lab = payload["lab"]
@@ -668,11 +663,10 @@ def make_presigned_post(s3_bucket,s3key):
 def api_post_image(event, payload):
     """For lab 8 - validate the course key and give the user an upload S3 """
 
-    user = api_validate_email_and_course_key( payload.get(A.EMAIL,""), payload.get(A.COURSE_KEY, ""))
-    s3key = "images/" + os.urandom(8).hex() + ".jpeg"
-    presigned_post = make_presigned_post(S3_BUCKET, s3key)
-
-    # User validated;
+    user = validate_payload( payload )
+    s3key = "images/" + str(uuid.uuid4()) + ".jpeg"
+    presigned_post = make_presigned_post(IMAGE_BUCKET_NAME, s3key)
+    return jsonify({"presigned_post":presigned_post})
 
 
 def api_delete_session(payload):

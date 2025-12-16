@@ -14,11 +14,13 @@ import boto3
 from e11.e11core.constants import COURSE_DOMAIN, COURSE_NAME
 
 if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
     from mypy_boto3_route53.client import Route53Client
     from mypy_boto3_secretsmanager.client import SecretsManagerClient
     from mypy_boto3_dynamodb.client import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table as DynamoDBTable
 else:
+    S3Client = Any                 # pylint: disable=invalid-name
     Route53Client = Any            # pylint: disable=invalid-name
     SecretsManagerClient = Any     # pylint: disable=invalid-name
     DynamoDBClient = Any           # pylint: disable=invalid-name
@@ -30,13 +32,16 @@ COURSE_KEY_LEN = 6
 
 
 # DynamoDB config
+S3_REGION = os.environ.get("S3_REGION","us-east-1")
 DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
 SECRETS_REGION = os.environ.get("SECRETS_REGION","us-east-1")
 ROUTE53_REGION = "us-east-1"
 USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
+IMAGE_BUCKET_NAME = os.environ.get("IMAGE_BUCKET_NAME", "cscie-11")
 
 # DynamoDB values:
+s3_client : S3Client = boto3.client("s3", region_name=S3_REGION)
 dynamodb_client : DynamoDBClient = boto3.client("dynamodb", region_name=DDB_REGION)
 dynamodb_resource : DynamoDBServiceResource = boto3.resource( 'dynamodb', region_name=DDB_REGION )
 users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
@@ -149,3 +154,5 @@ def create_new_user(email, claims=None):
     }
     users_table.put_item(Item=user)  # USER CREATION POINT
     return user
+
+def save_user_image(user, s3key):
