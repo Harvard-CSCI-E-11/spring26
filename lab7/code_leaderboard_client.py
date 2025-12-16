@@ -4,20 +4,20 @@ MEMENTO Leaderboard Client
 
 import os
 import time
+import sys
+
 import wifi                     # pyright: ignore[reportMissingModuleSource]
 import adafruit_connection_manager
 import adafruit_requests
 import digitalio
 import board
-import sys
-import displayio
 
 # WiFi configuration
 ssid     = os.getenv("CIRCUITPY_WIFI_SSID")
 password = os.getenv("CIRCUITPY_WIFI_PASSWORD")
 email    = os.getenv("E11_EMAIL")
 course_key = os.getenv("E11_COURSE_KEY")
-                             
+
 
 # --- Button Setup (The "Kill Switch") ---
 # The Momento Shutter button is usually board.BUTTON
@@ -72,7 +72,6 @@ def run_leaderboard():
         print("\nrun:",run)
         response = requests.post(URL_UPDATE, data={"opaque": opaque}, timeout=TIMEOUT)
         data = response.json()
-        now = int(time.time())
         # The leaderboard API returns an array of leaders
         # Check it to see if it is active.
         # Then check to see if it is this particular MEMENTO!

@@ -8,7 +8,6 @@ CONFIG_FILENAME = "e11-config.ini"
 COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
 LAB_MAX=7
-STAFF_S3_BUCKET = 'cscie-11'
 SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
 
 # Defaults

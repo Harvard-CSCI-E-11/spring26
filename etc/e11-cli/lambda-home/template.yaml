@@ -48,6 +48,7 @@ Globals:
         PYTHONPATH: "/var/task/home_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
         IMAGE_BUCKET_NAME: !Ref ImageBucketName
+        STAGE_NAME: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
 
 Parameters:
   EnvironmentName:
@@ -57,7 +58,7 @@ Parameters:
     Description: The deployment environment (prod or stage).
   ImageBucketName:
     Type: String
-    Default: cscie-11
+    Default: csci-e-11
   UsersTableName:
     Type: String
     Default: "e11-users"
@@ -207,6 +208,20 @@ Resources:
           Properties:
             Schedule: rate(5 minutes)
             Input: '{"action":"heartbeat"}'
+
+        FileUpload:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              #detail-type:
+              #  - "Object Created"
+              detail:
+                bucket:
+                  name:
+                    - !Ref ImageBucketName
+
 
   # Sessions table holds the cookie sessions
   SessionsTable:

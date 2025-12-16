@@ -56,8 +56,10 @@ from e11.e11_common import (
     sessions_table,
     users_table,
     queryscan_table,
+    S3_BUCKET,
     SES_VERIFIED_EMAIL,
-    ses_client
+    ses_client,
+    s3_client
 )
 
 from e11.e11core.constants import COURSE_DOMAIN
@@ -661,12 +663,12 @@ def make_presigned_post(s3_bucket,s3key):
 
 
 def api_post_image(event, payload):
-    """For lab 8 - validate the course key and give the user an upload S3 """
-
+    """For lab 8 - validate the course key and give the user an upload S3. The image only gets added to the database if there is a successful upload."""
     user = validate_payload( payload )
     s3key = "images/" + str(uuid.uuid4()) + ".jpeg"
-    presigned_post = make_presigned_post(IMAGE_BUCKET_NAME, s3key)
-    return jsonify({"presigned_post":presigned_post})
+    presigned_post = make_presigned_post(S3_BUCKET, s3key)
+    LOGGER.info("event=%s payload=%s user=%s presigned_post=%s",event, payload, user,presigned_post)
+    return resp_json(200, {"presigned_post":presigned_post})
 
 
 def api_delete_session(payload):
@@ -713,6 +715,11 @@ def lambda_handler(event, context):
     """called by lambda.
     break out the HTTP method, the HTTP path, and the JSON body as a payload.
     """
+
+    print("event=",event)
+    for k,v in sorted(os.environ.items()):
+        print(f"{k} = {v}")
+
     method, path, payload = parse_event(event)
 
     # Detect if this is a browser request vs API request

@@ -23,7 +23,7 @@ pyyaml = "^6.0.3"
 
 
 [tool.poetry.group.dev.dependencies]
-boto3-stubs = {extras = ["route53"], version = "^1.41.5"}
+boto3-stubs = {extras = ["route53","s3"], version = "^1.41.5"}
 djlint = "^1.36.4"
 flask = ">=3.0.0,<4.0.0"
 mypy-boto3-dynamodb = "^1.40.56"
