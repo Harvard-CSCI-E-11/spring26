@@ -50,6 +50,7 @@ from e11.e11_common import (
     User,
     add_grade,
     add_user_log,
+    add_image,
     convert_dynamodb_item,
     route53_client,
     secretsmanager_client,
@@ -108,6 +109,8 @@ from .common import (
     NESTED
     )
 
+
+MAX_IMAGE_SIZE_BYTES = 10_000_000
 
 LOGGER = get_logger("home")
 
@@ -346,30 +349,37 @@ def do_dashboard(event):
         return resp_text(HTTP_INTERNAL_ERROR, f"Internal error: no user for email address {ses.email}")
 
     # Get the dashboard items --- everything from DynamoDB for this user_id
-    # This is faster than separately getting the logs and the grades
+
+    # This is faster than separately getting the logs, the grades, the images, etc...
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
     # Convert to a User object. Additional records are kept
-    items = [User(**convert_dynamodb_item(u)) for u in items]
+    # items = [User(**convert_dynamodb_item(u)) for u in items]
 
-    # logs = all_logs_for_userid(user.user_id)
-    logs   = [item for item in items if item.sk.startswith(A.SK_LOG_PREFIX)]
-    grades = [item for item in items if item.sk.startswith(A.SK_GRADE_PREFIX)]
+    # Extract out the data
+    logs   = [item for item in items if item[A.SK].startswith(A.SK_LOG_PREFIX)]
+    grades = [item for item in items if item[A.SK].startswith(A.SK_GRADE_PREFIX)]
+    images = [item for item in items if item[A.SK].startswith(A.SK_IMAGE_PREFIX)]
+
+    # sign the image URLs
+    for image in images:
+        image['url'] = make_presigned_url(image[A.BUCKET], image[A.KEY])
+
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
-    return resp_text(
-        HTTP_OK,
-        template.render(
-            user=user,
-            ses=ses,
-            client_ip=client_ip,
-            sessions=user_sessions,
-            logs=logs,
-            grades=grades,
-            now=round(time.time()),
-        ),
-    )
+    return resp_text( HTTP_OK,
+                      template.render(
+                          user=user,
+                          ses=ses,
+                          client_ip=client_ip,
+                          sessions=user_sessions,
+                          logs=logs,
+                          grades=grades,
+                          images = images,
+                          now=round(time.time()) ) )
+
+
 
 
 def oidc_callback(event):
@@ -430,6 +440,39 @@ def do_logout(event):
     )
 
 
+def get_pkey_pem(key_name):
+    """Return the PEM key"""
+    ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
+    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
+    json_key = secret.get("SecretString")
+    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
+    try:
+        return keys[key_name]
+    except KeyError:
+        LOGGER.error("keys  %s not found", key_name)
+        raise
+
+
+def make_presigned_post(bucket, key, email):
+    """Return the S3 presigned_post fields"""
+    return s3_client.generate_presigned_post(
+        Bucket = bucket,
+        Key = key,
+        Conditions = [
+            { "Content-Type": JPEG_MIME_TYPE },
+            [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
+            { "x-amz-meta-email": email}
+        ],
+        Fields = { "Content-Type": JPEG_MIME_TYPE,
+                   "x-amz-meta-email" : email },
+        ExpiresIn = 120 )
+
+def make_presigned_url(bucket, key):
+    return s3_client.generate_presigned_url(
+        'get_object',
+        Params={'Bucket':bucket, 'Key':key},
+        ExpiresIn = 120)
+
 
 ################################################################
 ## api code.
@@ -462,6 +505,8 @@ def validate_payload(payload):
     return validate_email_and_course_key( auth.get(A.EMAIL, ""),
                                           auth.get(A.COURSE_KEY, ""))
 
+
+################################################################
 # pylint: disable=too-many-locals
 def api_register(event, payload):
     """Register a VM"""
@@ -558,7 +603,7 @@ def api_register(event, payload):
 
 
 def api_heartbeat(event, context):
-    """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database"""
+    """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database and keep lambda warm."""
     LOGGER.info("heartbeat event=%s context=%s", event, context)
     t0 = time.time()
     now = int(time.time())
@@ -571,18 +616,6 @@ def api_heartbeat(event, context):
             break
         scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
     return resp_json(HTTP_OK, {"now": now, "expired": expired, "elapsed": time.time() - t0})
-
-def get_pkey_pem(key_name):
-    """Return the PEM key"""
-    ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
-    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
-    json_key = secret.get("SecretString")
-    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
-    try:
-        return keys[key_name]
-    except KeyError:
-        LOGGER.error("keys  %s not found", key_name)
-        raise
 
 def api_grader(event, context, payload):
     """
@@ -654,39 +687,30 @@ def api_check_access(event, payload, check_me=False):
                                  "message": f"Access Off for IP address {public_ip}",
                                  "e": str(e) })
 
-
-def make_presigned_post(s3_bucket,s3key):
-    """Return the S3 presigned_post fields"""
-    return s3_client.generate_presigned_post(
-        Bucket = s3_bucket,
-        Key = s3key,
-        Conditions = [
-            # Only enforce the Content-Type restriction...
-            { "Content-Type": JPEG_MIME_TYPE },
-            # STUDENTS --- impose the MAX_IMAGE_SIZE_BYTES
-            # restriction by uncommenting the next line:
-            # [ "content-length-range", 1, MAX_IMAGE_SIZE_BYTES],
-        ],
-        Fields = { "Content-Type": JPEG_MIME_TYPE},
-        ExpiresIn = 120, # in seconds
-    )
-
-
-def api_post_image(event, payload):
-    """For lab 8 - validate the course key and give the user an upload S3. The image only gets added to the database if there is a successful upload."""
-    user = validate_payload( payload )
-    s3key = "images/" + str(uuid.uuid4()) + ".jpeg"
-    presigned_post = make_presigned_post(S3_BUCKET, s3key)
-    LOGGER.info("event=%s payload=%s user=%s presigned_post=%s",event, payload, user,presigned_post)
-    return resp_json(HTTP_OK, {"presigned_post":presigned_post})
-
-
 def api_delete_session(payload):
     """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
     sid = payload.get("sid", "")
     if sid:
         return resp_json(HTTP_OK, {"result": delete_session(sid)})
     return resp_json(HTTP_BAD_REQUEST, {"error": "no sid provided"})
+
+################ images ################
+def api_post_image(event, payload):
+    """For lab 8 - validate the course key and give the user an upload S3. The image only gets added to the database if there is a successful upload."""
+    user = validate_payload( payload )
+    s3key = "images/" + str(uuid.uuid4()) + ".jpeg"
+    presigned_post = make_presigned_post(S3_BUCKET, s3key, user.email)
+    LOGGER.info("event=%s payload=%s user=%s presigned_post=%s",event, payload, user,presigned_post)
+    return resp_json(HTTP_OK, {"presigned_post":presigned_post})
+
+def api_upload_callback(bucket, key):
+    LOGGER.info("api_upload_callback(%s,%s)",bucket, key)
+    # Get the metadata
+    r = s3_client.head_object(Bucket=bucket, Key=key)
+    email = r.get('Metadata',{}).get('email','')
+    user = get_user_from_email(email) # email is already validated at this point (see above)
+    add_image( user, 'lab8', bucket, key )
+
 
 
 ################################################################
@@ -715,9 +739,28 @@ def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
         payload = {}
     return method, path, payload
 
+def parse_s3_event(event):
+    if event.get('source','')=='aws.s3' and event.get('detail-type','')=='Object Created':
+        detail = event.get('detail',{})
+
+        request_id = detail.get('request-id','')
+
+        bucket = detail.get('bucket',{}).get('name')
+        key = detail.get('object',{}).get('key')
+        if (bucket is None) or (key is None):
+            LOGGER.error("bucket=%s key=%s event=%s",bucket,key,event)
+            return resp_json(200, {"error":True, 'bucket':bucket, 'key':key}) # 200 so we do not get retried
+        return request_id, bucket, key
+    return None, None, None
 
 ################################################################
 ## main entry point from lambda system
+
+def safe_dump_environment():
+    for k,v in sorted(os.environ.items()):
+        if k in ('AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN'):
+            v = '********'
+        print(f"{k} = {v}")
 
 
 # pylint: disable=too-many-return-statements, disable=too-many-branches, disable=unused-argument
@@ -726,10 +769,13 @@ def lambda_handler(event, context):
     break out the HTTP method, the HTTP path, and the JSON body as a payload.
     """
 
-    print("event=",event)
-    for k,v in sorted(os.environ.items()):
-        print(f"{k} = {v}")
+    # Check for upload
+    request_id, bucket, key = parse_s3_event(event)
+    if bucket is not None:
+        LOGGER.info("request_id=%s",request_id)         # Make sure this is not a duplicate request?
+        return api_upload_callback(bucket, key)
 
+    #
     method, path, payload = parse_event(event)
 
     # Detect if this is a browser request vs API request
@@ -761,37 +807,28 @@ def lambda_handler(event, context):
                 #
                 match (method, action):
                     case ("POST", "ping"):
-                        return resp_json(
-                            HTTP_OK,
-                            {
+                        return resp_json( HTTP_OK, {
                                 "error": False,
                                 "message": "ok",
                                 "path": sys.path,
                                 "context": dict(context),
-                                "environ": dict(os.environ),
-                            },
-                        )
+                                "environ": dict(os.environ), }, )
+
                     case ("POST", "ping-mail"):
                         hostnames = ["first"]
                         public_ip = "<address>"
                         resp = send_email(
                             email_subject="E11 email ping",
-                            email_body=EMAIL_BODY.format(
-                                hostname=hostnames[0], public_ip=public_ip
-                            ),
-                            to_addr=payload[A.EMAIL],
-                        )
+                            email_body=EMAIL_BODY.format( hostname=hostnames[0], public_ip=public_ip ),
+                            to_addr=payload[A.EMAIL] )
 
-                        return resp_json(
-                            HTTP_OK,
-                            {
-                                "error": False,
-                                "message": "ok",
-                                "path": sys.path,
-                                "resp": resp,
-                                "environ": dict(os.environ),
-                            },
-                        )
+                        return resp_json( HTTP_OK, {
+                            "error": False,
+                            "message": "ok",
+                            "path": sys.path,
+                            "resp": resp,
+                            "environ": dict(os.environ),
+                            },)
 
                     case ("POST", "register"):
                         return api_register(event, payload)

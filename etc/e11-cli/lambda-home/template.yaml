@@ -12,7 +12,7 @@
 #   EnvironmentName = "stage"
 #   ...
 #
-# Example (samconfig.toml for prod):
+# Example (samconfig-prod.toml for prod):
 #   [default.deploy.parameters]
 #   stack_name = "home-app"
 #   EnvironmentName = "prod"
@@ -208,22 +208,24 @@ Resources:
           Properties:
             Schedule: rate(5 minutes)
             Input: '{"action":"heartbeat"}'
-
         FileUpload:
           Type: EventBridgeRule
           Properties:
             Pattern:
               source:
                 - aws.s3
-              #detail-type:
-              #  - "Object Created"
+              detail-type:
+                - "Object Created"
               detail:
                 bucket:
                   name:
                     - !Ref ImageBucketName
+                object:
+                  key:
+                    - prefix: "images/"
 
-
-  # Sessions table holds the cookie sessions
+  # Sessions table holds the cookie sessions.
+  # It's a "Resource", so it's created and owned by the Lambda. The users table is not!
   SessionsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Delete

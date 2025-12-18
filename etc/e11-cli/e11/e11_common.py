@@ -101,6 +101,7 @@ class InvalidCookie(RuntimeError):
 class A:                        # pylint: disable=too-few-public-methods
     CLAIMS = 'claims'
     COURSE_KEY = 'course_key'
+    BUCKET = 'bucket'           # for S3
     EMAIL = 'email'
     HOSTNAME = 'hostname'
     HOST_REGISTERED = 'host_registered'
@@ -110,12 +111,14 @@ class A:                        # pylint: disable=too-few-public-methods
     SCORE = 'score'
     SESSION_CREATED = 'session_created'  # time_t
     SESSION_EXPIRE = 'session_expire'    # time_t
+    KEY = 'key'                          # typically for S3
     SK = 'sk'                   # sort key
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
     SK_GRADE_PATTERN = SK_GRADE_PREFIX + "{lab}#{now}"
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
-    SK_USER = '#'               # sort key for the user record
-    SK_IMAGE_PREFIX = 'image#'     #
+    SK_USER = '#'                  # sort key for the user record
+    SK_IMAGE_PREFIX = 'image#'     # sort key for images
+    SK_IMAGE_PATTERN = SK_IMAGE_PREFIX + "{lab}#{now}"
     USER_ID = 'user_id'
     USER_REGISTERED = 'user_registered'
 
@@ -179,7 +182,7 @@ def make_course_key():
     return str(uuid.uuid4())[0:COURSE_KEY_LEN]
 
 def create_new_user(email, claims=None):
-    """Create a new user. claims must include 'email'"""
+    """Create a new user."""
     now = int(time.time())
     user_id = str(uuid.uuid4())
     user = {
@@ -213,7 +216,6 @@ def get_user_from_email(email) -> User:
     logger.debug("get_user_from_email - item=%s", item)
     return User(**convert_dynamodb_item(item))
 
-
 def add_user_log(event, user_id, message, **extra):
     """
     :param user_id: user_id
@@ -236,7 +238,6 @@ def add_user_log(event, user_id, message, **extra):
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
-    logger = get_logger()
     now = datetime.datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
@@ -249,8 +250,23 @@ def add_grade(user, lab, public_ip, summary):
         "raw": json.dumps(summary, default=str)[:35000],
     }
     ret = users_table.put_item(Item=item)
-    logger.info("add_grade to %s user=%s ret=%s", users_table, user, ret)
+    get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
+def add_image(user, lab, bucket, s3key):
+    now = datetime.datetime.now().isoformat()
+    item = {
+        A.USER_ID: user.user_id,
+        A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now),
+        A.BUCKET: bucket,
+        A.LAB: lab,
+        A.KEY: s3key,
+    }
+    ret = users_table.put_item(Item=item)
+    get_logger().info("add_image user=%s bucket=%s s3key=%s ret=%s", user, bucket, s3key, ret)
+
+
+################################################################
+## get functions
 def queryscan_table(what, kwargs):
     """use the users table and return the items"""
     kwargs = copy.copy(kwargs)  # it will be modified
@@ -280,6 +296,8 @@ def get_grade(user, lab):
     return float(score)
 
 
+################################################################
+## SES
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,

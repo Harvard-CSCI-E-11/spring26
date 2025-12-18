@@ -66,6 +66,23 @@
   </tbody>
 </table>
 
+{% if images %}
+<h3>Lab8 Images</h3>
+<table class="pure-table">
+  <thead>
+    <tr><th>sk</th><th>image</th></tr>
+  </thead>
+  <tbody>
+    {% for image in images %}
+    <tr>
+      <th>{{ image.sk }}</th>
+      <th><img src="{{ image.url }}" width="320" height="240" alt="image you uploaded"></th>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 <h3>Authenticated Sessions</h3>
   <h4>Active Sessions Table</h4>
   <table class="pure-table">

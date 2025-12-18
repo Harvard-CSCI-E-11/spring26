@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 
 import dns
 import dns.resolver
@@ -291,7 +292,6 @@ def do_grade(args):
         print(body)
         return
 
-    ep = endpoint(args)
     cp = get_config()
     try:
         auth = {STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
@@ -300,6 +300,7 @@ def do_grade(args):
         print("You must run the e11 register command before using the grade command.",file=sys.stderr)
         sys.exit(1)
 
+    ep = endpoint(args)
     print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
     r = requests.post(ep, json={'action':'grade',
                                 'auth':auth,
@@ -411,6 +412,53 @@ def do_report_tests(_):
 
         print()  # Blank line between labs
 
+def do_lab8(args):
+    if args.upload:
+        if not args.upload.exists():
+            print(f"{args.upload} does not exist")
+            sys.exit(1)
+        if not str(args.upload).endswith(".jpeg"):
+            print(f"{args.upload} does end with .jpeg")
+            sys.exit(1)
+        print("upload ",args.upload)
+        cp = get_config()
+        try:
+            auth = {STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
+                    COURSE_KEY:cp[STUDENT][COURSE_KEY]}
+        except KeyError:
+            print("You must run the e11 register command before using the e11 lab8 --upload command.",file=sys.stderr)
+            sys.exit(1)
+
+        ep = endpoint(args)
+        print(f"Uploading {args.upload} to {ep} timeout {args.timeout}...")
+        r = requests.post(ep, json={'action':'post-image', 'auth':auth},
+                          timeout = args.timeout )
+        result = r.json()
+        print(result)
+        presigned_data= result['presigned_post']
+        url = presigned_data['url']
+        fields = presigned_data['fields']
+        files = []
+
+        # Construct the multipart form data
+        # The 'file' MUST be the last element in the dictionary/list
+        for key, value in fields.items():
+            files.append((key, (None, value)))
+
+        # Add the actual file data
+        files.append(('file', (args.upload.name, args.upload.read_bytes())))
+
+        # Perform the POST to S3
+        # Note: No 'headers=headers' here; requests handles the Content-Type for multipart
+        r = requests.post(url, files=files)
+
+        print("Status Code:", r.status_code)
+        if r.status_code >= 400:
+            print("Error:", r.text)
+
+
+
+
 def get_parser():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -475,6 +523,12 @@ def get_parser():
     check_parser = subparsers.add_parser('check', help='Check a lab (run from your instance)')
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
+
+    # e11 lab8
+    lab8_parser = subparsers.add_parser('lab8', help='Lab8 commands')
+    lab8_parser.add_argument("--upload", help="File to upload", type=Path)
+    lab8_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
+    lab8_parser.set_defaults(func=do_lab8)
 
     # e11 staff commands
     if staff.enabled():

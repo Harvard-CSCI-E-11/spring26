@@ -183,4 +183,4 @@ s3-install-rules:
 s3-validate-rules-and-region:
 	aws s3api --profile $(AWS_PROFILE) get-bucket-notification-configuration --bucket $(S3_BUCKET) | \
 		grep EventBridgeConfiguration && echo "✅ EventBridge is ENABLED"
-	aws --profile=fas s3api get-bucket-location --bucket csci-e-11 | sed s/null/$(AWS_REGION)/ | grep $(AWS_REGION) && echo "✅ S3 bucket in correct region"
+	aws --profile=$(AWS_PROFILE) s3api get-bucket-location --bucket $(S3_BUCKET) | sed s/null/$(AWS_REGION)/ | grep $(AWS_REGION) && echo "✅ S3 bucket in correct region"
