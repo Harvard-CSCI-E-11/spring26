@@ -450,7 +450,7 @@ def do_lab8(args):
 
         # Perform the POST to S3
         # Note: No 'headers=headers' here; requests handles the Content-Type for multipart
-        r = requests.post(url, files=files)
+        r = requests.post(url, files=files, timeout=args.timeout)
 
         print("Status Code:", r.status_code)
         if r.status_code >= 400:
