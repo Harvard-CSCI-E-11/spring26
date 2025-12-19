@@ -246,7 +246,6 @@ def api_post_register():
     if user.course_key != course_key:
         abort(404, 'invalid course_key')
 
-<<<<<<< Updated upstream
     tests = [{'name':'Post to API','status':'pass', 'context':''},
              {'name':'User agent set to include the string "magic"', 'status':None,'context':''}]
 
@@ -262,21 +261,8 @@ def api_post_register():
         pass_names = [tests[0]['name']]
         fail_names = [tests[1]['name']]
 
-=======
-    user_agent = str(request.user_agent)
-    pass_names = ['test_user_key']
-    if MAGIC.lower() in user_agent.lower():
-        score = SCORE_WITH_MAGIC
-        pass_names = ['test_agent_string']
-        fail_names = []
-    else:
-        score = BASE_SCORE
-        fail_names = ['test_agent_string']
->>>>>>> Stashed changes
-
     # if score is higher than current score, record that
     old_score = get_grade(user, LAB)
-<<<<<<< Updated upstream
     app.logger.debug("user=%s score=%s, old_score=%s",user,score,old_score)
     if score > old_score:
         summary = {'lab':LAB,
@@ -293,20 +279,6 @@ def api_post_register():
         send_email(to_addr = user.email,
                    email_subject = subject,
                    email_body=body)
-
-=======
-    if old_score < score:
-        summary = {'score':score,
-                   'pass_names':pass_names,
-                   'fail_names':fail_names,
-                   'raw':''}
-
-        add_grade(user, LAB, request.remote_addr, summary)
-        (subject, body) = grader.create_email(summary)
-        send_email(to_addr = user.email,
-                   email_subject = subject,
-                   email_body=body)
->>>>>>> Stashed changes
 
 
     return  jsonify(new_registration())
