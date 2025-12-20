@@ -370,7 +370,6 @@ def apply_all_aws_mocks(monkeypatch):
 
     # Import after base mocks are set so we bind to the mocked objects
     import e11.e11_common as e11_common
-    import home_app.home as home
     import home_app.common as common
 
     # Ensure consumer modules reference the same mocked tables/clients
