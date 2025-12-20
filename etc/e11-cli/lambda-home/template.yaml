@@ -43,6 +43,7 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         OIDC_SECRET_ID: !Ref OidcSecretId
         SSH_SECRET_ID: !Ref SshSecretId
+        SQS_SECRET_ID: !Ref SqsSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable
         PYTHONPATH: "/var/task/home_app/e11.whl"
@@ -79,6 +80,9 @@ Parameters:
   SshSecretId:
     Type: String
     Description: Secrets Manager ARN for SSH secrets (e11-ssh)
+  SqsSecretId:
+    Type: String
+    Description: Secrets Manager ARN for SQS authentication secret
   LogLevel:
     Type: String
     Default: INFO
@@ -167,6 +171,7 @@ Resources:
               Resource:
                 - !Ref OidcSecretId
                 - !Ref SshSecretId
+                - !Ref SqsSecretId
 
             - Sid: AllowRoute53Changes
               Effect: Allow

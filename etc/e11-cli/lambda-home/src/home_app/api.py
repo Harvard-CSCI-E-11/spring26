@@ -358,7 +358,7 @@ def api_delete_image(payload):
 
 
 # pylint: disable=too-many-positional-arguments,too-many-return-statements
-def dispatch(method, action, event, context, payload, path):
+def dispatch(method, action, event, context, payload):
     ################################################################
     # JSON API Actions
     #
@@ -423,6 +423,5 @@ def dispatch(method, action, event, context, payload, path):
                 "error": True,
                 "message": "unknown or missing action.",
                 "method": method,
-                "path": path,
                 "action": action,
                 "version": __version__ })

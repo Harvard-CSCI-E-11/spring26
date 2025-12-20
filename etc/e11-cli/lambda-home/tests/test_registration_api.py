@@ -108,7 +108,7 @@ def test_registration_api_invalid_user(monkeypatch, fake_aws, dynamodb_local):
     except api.APINotAuthenticated as e:
         from home_app.api import resp_json
         response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})
-    
+
     # Should return 403 Forbidden
     assert response["statusCode"] == 403
     assert "not registered" in response["body"].lower()
@@ -140,7 +140,7 @@ def test_registration_api_invalid_course_key(monkeypatch, fake_aws, dynamodb_loc
     except api.APINotAuthenticated as e:
         from home_app.api import resp_json
         response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})
-    
+
     # Should return 403 Forbidden
     assert response["statusCode"] == 403
     assert "course_key" in response["body"].lower()
