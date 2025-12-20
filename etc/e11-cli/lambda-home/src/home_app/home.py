@@ -28,7 +28,6 @@ import time
 import datetime
 
 from typing import Any, Dict, Tuple, Optional
-from zoneinfo import ZoneInfo
 
 from boto3.dynamodb.conditions import Key
 
@@ -46,7 +45,8 @@ from e11.e11_common import (
     SES_VERIFIED_EMAIL,
     ses_client,
     GITHUB_REPO_URL,
-    LAB_REDIRECTS
+    LAB_CONFIG,
+    LAB_TIMEZONE,
 )
 
 from e11.e11core.constants import (
@@ -111,7 +111,6 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     return r
 
 
-eastern = ZoneInfo("America/New_York")
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
 
 
@@ -120,7 +119,7 @@ def eastern_filter(value):
     if value in (None, jinja2.Undefined):  # catch both
         return ""
     try:
-        dt = datetime.datetime.fromtimestamp(round(value), tz=eastern)
+        dt = datetime.datetime.fromtimestamp(round(value), tz=LAB_TIMEZONE)
     except TypeError as e:
         LOGGER.debug("value=%s type(value)=%s e=%s", value, type(value), e)
         return "n/a"
@@ -138,6 +137,7 @@ env = Environment(
 env.globals["API_PATH"] = API_PATH
 env.filters["eastern"] = eastern_filter
 env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
+env.globals["LAB_CONFIG"] = LAB_CONFIG
 
 # Route53 config for this course (imported from e11_common)
 
@@ -286,7 +286,7 @@ def do_page(event, status="", extra=""):
     return resp_text(HTTP_OK, template.render(harvard_key=url, status=status, extra=extra))
 
 
-def do_dashboard(event):
+def do_dashboard(event):  # pylint: disable=too-many-locals
     """/dashboard
     If the session exists, then the user was created in new_session().
     """
@@ -317,8 +317,32 @@ def do_dashboard(event):
     for image in images:
         image['url'] = make_presigned_url(image[A.BUCKET], image[A.KEY])
 
+    # Compute next_lab: the next lab that is due
+    now = datetime.datetime.now(LAB_TIMEZONE)
+    next_lab = None
+    next_deadline = None
+
+    for lab_num in range(9):
+        lab_key = f"lab{lab_num}"
+        if lab_key in LAB_CONFIG:
+            deadline_str = LAB_CONFIG[lab_key]["deadline"]
+            # Deadline is in Eastern time (no timezone in string)
+            deadline = datetime.datetime.fromisoformat(deadline_str).replace(tzinfo=LAB_TIMEZONE)
+            if deadline > now:
+                if next_deadline is None or deadline < next_deadline:
+                    next_lab = lab_key
+                    next_deadline = deadline
+
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
+    # Get timezone name for display from LAB_TIMEZONE
+    timezone_name = LAB_TIMEZONE.key if hasattr(LAB_TIMEZONE, 'key') else str(LAB_TIMEZONE)
+    # Convert to a more readable format
+    if timezone_name == "America/New_York":
+        timezone_display = "Eastern Time"
+    else:
+        # For other timezones, use the key as-is (e.g., "America/Los_Angeles")
+        timezone_display = timezone_name
     return resp_text( HTTP_OK,
                       template.render(
                           user=user,
@@ -328,6 +352,9 @@ def do_dashboard(event):
                           logs=logs,
                           grades=grades,
                           images = images,
+                          next_lab=next_lab,
+                          next_deadline=next_deadline.isoformat() if next_deadline else None,
+                          timezone_display=timezone_display,
                           now=round(time.time()) ) )
 
 
@@ -552,23 +579,23 @@ def lambda_handler(event, context):
 
                 # lab redirects
                 case ("GET", "/lab0"):
-                    return redirect(LAB_REDIRECTS[0])
+                    return redirect(LAB_CONFIG["lab0"]["redirect"])
                 case ("GET", "/lab1"):
-                    return redirect(LAB_REDIRECTS[1])
+                    return redirect(LAB_CONFIG["lab1"]["redirect"])
                 case ("GET", "/lab2"):
-                    return redirect(LAB_REDIRECTS[2])
+                    return redirect(LAB_CONFIG["lab2"]["redirect"])
                 case ("GET", "/lab3"):
-                    return redirect(LAB_REDIRECTS[3])
+                    return redirect(LAB_CONFIG["lab3"]["redirect"])
                 case ("GET", "/lab4"):
-                    return redirect(LAB_REDIRECTS[4])
+                    return redirect(LAB_CONFIG["lab4"]["redirect"])
                 case ("GET", "/lab5"):
-                    return redirect(LAB_REDIRECTS[5])
+                    return redirect(LAB_CONFIG["lab5"]["redirect"])
                 case ("GET", "/lab6"):
-                    return redirect(LAB_REDIRECTS[6])
+                    return redirect(LAB_CONFIG["lab6"]["redirect"])
                 case ("GET", "/lab7"):
-                    return redirect(LAB_REDIRECTS[7])
+                    return redirect(LAB_CONFIG["lab7"]["redirect"])
                 case ("GET", "/lab8"):
-                    return redirect(LAB_REDIRECTS[8])
+                    return redirect(LAB_CONFIG["lab8"]["redirect"])
 
                 case ("GET", "/version"):
                     return resp_text(HTTP_OK, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
