@@ -9,6 +9,7 @@ import time
 import uuid
 import json
 import copy
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
 from datetime import datetime
@@ -55,7 +56,6 @@ GITHUB_REPO_URL = "https://github.com/Harvard-CSCI-E-11/spring26"
 
 # Lab Configuration
 # Each lab has a redirect URL and a deadline (ISO-8601 format, Eastern time, no timezone)
-from zoneinfo import ZoneInfo
 
 LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
 
