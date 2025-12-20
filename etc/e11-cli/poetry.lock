@@ -163,6 +163,7 @@ files = [
 botocore-stubs = "*"
 mypy-boto3-route53 = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"route53\""}
 mypy-boto3-s3 = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"s3\""}
+mypy-boto3-sqs = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"sqs\""}
 types-s3transfer = "*"
 
 [package.extras]
@@ -1525,6 +1526,18 @@ files = [
 ]
 
 [[package]]
+name = "mypy-boto3-sqs"
+version = "1.41.0"
+description = "Type annotations for boto3 SQS 1.41.0 service generated with mypy-boto3-builder 8.12.0"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy_boto3_sqs-1.41.0-py3-none-any.whl", hash = "sha256:feb7d88ff4c1415d5d823e55b177ae661d9ab82c23c384a1b70b7465ce278fef"},
+    {file = "mypy_boto3_sqs-1.41.0.tar.gz", hash = "sha256:806a8f6eb9348eaf8765ee2dda18883b1e882832cc99d12ae770f83b642885da"},
+]
+
+[[package]]
 name = "nodeenv"
 version = "1.9.1"
 description = "Node.js virtual environment builder"
@@ -2842,4 +2855,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "df0f0aba77645a96f206d131846f5d28996fb68225968963308f26fc2a7b180b"
+content-hash = "92f47bf42b454e53d31c911a03e155013bac77835217a882eaac7df94aeb9ef6"

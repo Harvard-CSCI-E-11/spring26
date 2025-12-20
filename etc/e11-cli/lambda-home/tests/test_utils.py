@@ -10,7 +10,7 @@ import tempfile
 import configparser
 from typing import Dict, Any, List, Optional
 
-from home_app.common import DNS_TTL
+from e11.e11_common import DNS_TTL
 
 logger = logging.getLogger()
 
@@ -374,9 +374,7 @@ def apply_all_aws_mocks(monkeypatch):
     import home_app.common as common
 
     # Ensure consumer modules reference the same mocked tables/clients
-    monkeypatch.setattr(home, "users_table", e11_common.users_table)
     monkeypatch.setattr(common, "users_table", e11_common.users_table)
-    monkeypatch.setattr(home, "route53_client", e11_common.route53_client)
-    monkeypatch.setattr(home, "secretsmanager_client", e11_common.secretsmanager_client)
+    # route53_client and secretsmanager_client are only used in api.py, not home.py
 
     return mock_aws

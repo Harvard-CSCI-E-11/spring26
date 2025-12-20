@@ -49,6 +49,9 @@ Globals:
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
         IMAGE_BUCKET_NAME: !Ref ImageBucketName
         STAGE_NAME: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
+        SQS_QUEUE_URL: !Ref HomeQueue
+        SQS_QUEUE_ARN: !GetAtt HomeQueue.Arn
+
 
 Parameters:
   EnvironmentName:
@@ -89,6 +92,7 @@ Parameters:
 Conditions:
   CreateAcmCert: !Equals [!Ref CertificateArn, ""]
 
+# Resources are things that the SAM creates
 Resources:
   # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
   HomeCertificate:
@@ -184,9 +188,21 @@ Resources:
               Action:
                 - s3:GetObject
                 - s3:PutObject
+                - s3:DeleteObject
               Resource:
                 - !Sub 'arn:aws:s3:::${ImageBucketName}'      # The Bucket itself
                 - !Sub 'arn:aws:s3:::${ImageBucketName}/*'    # The Objects inside
+
+
+            - Sid: HomeQueueRW
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+                - sqs:ChangeMessageVisibility
+              Resource: !GetAtt HomeQueue.Arn
 
       Events:
         AnyRoot:
@@ -223,6 +239,13 @@ Resources:
                 object:
                   key:
                     - prefix: "images/"
+        FromHomeQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt HomeQueue.Arn
+            BatchSize: 1
+            MaximumBatchingWindowInSeconds: 2
+
 
   # Sessions table holds the cookie sessions.
   # It's a "Resource", so it's created and owned by the Lambda. The users table is not!
@@ -252,6 +275,30 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # SQS is used to queue grading requests.
+  # Dead Letter Queue is for messages that don't get processed
+  HomeQueueDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-home-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  HomeQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-home-queue"
+      VisibilityTimeout: 75            # must be > Lambda Timeout (60s)
+      MessageRetentionPeriod: 3600     # 1 hour
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt HomeQueueDeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+
+# This is what the script prints
 Outputs:
   ApiId:
     Description: HTTP API ID
@@ -268,3 +315,9 @@ Outputs:
   UsersTableIndexArn:
     Description: ARN for Users Table Index
     Value: !Sub "${SessionsTable.Arn}/index/*"
+  HomeQueueUrl:
+    Description: URL of the Home SQS queue
+    Value: !Ref HomeQueue
+  HomeQueueArn:
+    Description: ARN of the Home SQS queue
+    Value: !GetAtt HomeQueue.Arn

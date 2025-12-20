@@ -12,7 +12,6 @@ from e11 import e11_common
 users_table = e11_common.users_table
 
 SESSION_TTL_SECS    = int(os.environ.get("SESSION_TTL_SECS", str(e11_common.SIX_MONTHS)))  # 180 days
-DNS_TTL = 30
 COOKIE_NAME = os.environ.get("COOKIE_NAME", "AuthSid")
 COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",COURSE_DOMAIN)

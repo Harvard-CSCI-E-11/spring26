@@ -70,3 +70,4 @@ def test_grader_imports_s3_bucket_correctly():
     # Compare imported value to the constant from the module (avoiding hard-coded strings)
     assert S3_BUCKET is not None
     assert S3_BUCKET == e11_common_module.S3_BUCKET
+

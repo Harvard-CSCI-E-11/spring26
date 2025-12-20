@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from mypy_boto3_secretsmanager import SecretsManagerClient
     from mypy_boto3_dynamodb import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table as DynamoDBTable
+    from mypy_boto3_sqs.client import SQSClient
 else:
     S3Client = Any                 # pylint: disable=invalid-name
     Route53Client = Any            # pylint: disable=invalid-name
@@ -33,11 +34,14 @@ else:
     DynamoDBClient = Any           # pylint: disable=invalid-name
     DynamoDBServiceResource = Any  # pylint: disable=invalid-name
     DynamoDBTable = Any            # pylint: disable=invalid-name
+    SQSClient = Any                 # pylint: disable=invalid-name
 
 # COURSE_KEY_LEN and COURSE_DOMAIN are imported from e11.e11core.constants
 
 S3_BUCKET  = 'csci-e-11'
 AWS_REGION = 'us-east-1'
+DASHBOARD = f"https://{COURSE_DOMAIN}"
+DNS_TTL = 30
 
 # Route53
 HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # Route53 hosted zone for course domain
@@ -60,7 +64,26 @@ LAB_REDIRECTS = {
     6: 'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
     7: 'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
     8: 'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'
+
 }
+
+EMAIL_BODY = """
+    Hi {preferred_name},
+
+    You have successfully registered your AWS instance.
+
+    Your course key is: {course_key}
+
+    The following DNS record has been created:
+
+    Hostname: {hostname}
+    Public IP Address: {public_ip}
+
+    Best regards,
+    CSCIE-11 Team
+"""
+
+
 
 # Time Constants
 SIX_MONTHS = 60 * 60 * 24 * 180  # 180 days in seconds
@@ -77,6 +100,8 @@ users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
 route53_client : Route53Client = boto3.client('route53', region_name=AWS_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=AWS_REGION)
+sqs_client :SQSClient = boto3.client("sqs", region_name=AWS_REGION)
+
 
 # S3
 s3_client : S3Client = boto3.client("s3", region_name=AWS_REGION)
@@ -252,18 +277,23 @@ def add_grade(user, lab, public_ip, summary):
     ret = users_table.put_item(Item=item)
     get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
-def add_image(user, lab, bucket, s3key):
+def add_image(user_id, lab, bucket, key):
     now = datetime.datetime.now().isoformat()
     item = {
-        A.USER_ID: user.user_id,
+        A.USER_ID: user_id,
         A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now),
         A.BUCKET: bucket,
         A.LAB: lab,
-        A.KEY: s3key,
+        A.KEY: key,
     }
     ret = users_table.put_item(Item=item)
-    get_logger().info("add_image user=%s bucket=%s s3key=%s ret=%s", user, bucket, s3key, ret)
+    get_logger().info("add_image user_id=%s bucket=%s key=%s ret=%s", user_id, bucket, key, ret)
 
+def delete_image(user_id, sk, bucket, key):
+    get_logger().info("delete_image user=%s sk=%s bucket=%s key=%s", user_id, sk, bucket, key)
+    r1 = users_table.delete_item(Key={A.USER_ID:user_id, A.SK:sk})
+    r2 = s3_client.delete_object(Bucket=bucket, Key=key)
+    get_logger().info("delete_image r1=%s r2=%s", r1, r2)
 
 ################################################################
 ## get functions
