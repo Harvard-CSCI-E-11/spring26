@@ -95,7 +95,7 @@ def dynamodb_local():
         pytest.skip("DynamoDB Local is not running. Run 'make start_local_dynamodb' first.")
 
     dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_LOCAL_ENDPOINT, region_name=AWS_REGION)
-    
+
     # Create users table
     users_table_name = os.environ.get('USERS_TABLE_NAME', 'e11-users')
     try:
@@ -166,7 +166,7 @@ def dynamodb_local():
             while True:
                 scan_kwargs = {'ExclusiveStartKey': last_evaluated_key} if last_evaluated_key else {}
                 scan = table.scan(**scan_kwargs)
-                
+
                 if scan.get('Items'):
                     with table.batch_writer() as batch:
                         for item in scan['Items']:
@@ -174,7 +174,7 @@ def dynamodb_local():
                                 batch.delete_item(Key={'user_id': item['user_id'], 'sk': item['sk']})
                             elif 'sid' in item:
                                 batch.delete_item(Key={'sid': item['sid']})
-                
+
                 last_evaluated_key = scan.get('LastEvaluatedKey')
                 if not last_evaluated_key:
                     break
@@ -185,11 +185,11 @@ def dynamodb_local():
 def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     """Set up fake Secrets Manager and configure DynamoDB to use local endpoint"""
     from e11 import e11_common
-    
+
     class FakeSecrets:
         def __init__(self, discovery_url):
             self.discovery_url = discovery_url
-            
+
         def get_secret_value(self, SecretId):
             # Handle OIDC secrets
             if "oidc" in SecretId.lower() or SecretId == "fake-secret-id":
@@ -206,26 +206,26 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
                 return {"SecretString": json.dumps({"cscie-bot": "fake-ssh-key-pem"})}
             # Default fallback
             return {"SecretString": json.dumps({})}
-    
+
     class FakeRoute53:
         def list_resource_record_sets(self, **kwargs):
             # Return empty list - no existing records
             return {"ResourceRecordSets": []}
-        
+
         def change_resource_record_sets(self, **kwargs):
             # Return success response
             return {"ChangeInfo": {"Id": "fake-change-id", "Status": "PENDING"}}
-    
+
     class FakeS3:
         def generate_presigned_post(self, **kwargs):
             return {"url": "https://fake-s3-url", "fields": {}}
-        
+
         def generate_presigned_url(self, **kwargs):
             return "https://fake-s3-presigned-url"
-        
+
         def head_object(self, **kwargs):
             return {"ContentLength": 0}
-    
+
     def fake_send_email(to_addr, email_subject, email_body):
         # Mock send_email function
         return {"MessageId": "fake-message-id"}
@@ -234,15 +234,15 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     monkeypatch.setenv("OIDC_SECRET_ID", "fake-secret-id")
     monkeypatch.setenv("SSH_SECRET_ID", "fake-ssh-secret-id")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
-    
+
     # Recreate DynamoDB clients with local endpoint
     dynamodb_resource = boto3.resource('dynamodb', endpoint_url=DYNAMODB_LOCAL_ENDPOINT, region_name=AWS_REGION)
     users_table = dynamodb_resource.Table(os.environ.get('USERS_TABLE_NAME', 'e11-users'))
     sessions_table = dynamodb_resource.Table(os.environ.get('SESSIONS_TABLE_NAME', 'home-app-sessions'))
-    
+
     fake_route53 = FakeRoute53()
     fake_s3 = FakeS3()
-    
+
     monkeypatch.setattr(e11_common, "secretsmanager_client", FakeSecrets(fake_idp_server["discovery"]))
     monkeypatch.setattr(e11_common, "dynamodb_resource", dynamodb_resource)
     monkeypatch.setattr(e11_common, "users_table", users_table)
@@ -250,11 +250,11 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     monkeypatch.setattr(e11_common, "route53_client", fake_route53)
     monkeypatch.setattr(e11_common, "send_email", fake_send_email)
     monkeypatch.setattr(e11_common, "s3_client", fake_s3)
-    
+
     # Also patch the modules that import these directly
     import home_app.sessions as sessions_module
     monkeypatch.setattr(sessions_module, "sessions_table", sessions_table)
-    
+
     # Patch api.py's direct imports
     import home_app.api as api_module
     monkeypatch.setattr(api_module, "users_table", users_table)
@@ -262,5 +262,5 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     monkeypatch.setattr(api_module, "route53_client", fake_route53)
     monkeypatch.setattr(api_module, "send_email", fake_send_email)
     monkeypatch.setattr(api_module, "s3_client", fake_s3)
-    
+
     yield

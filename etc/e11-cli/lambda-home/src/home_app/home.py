@@ -75,6 +75,7 @@ from .api import resp_json, make_presigned_url
 from .sqs_support import (
     is_sqs_event,
     handle_sqs_event,
+    sqs_send_signed_message,
 )
 
 from .sessions import (
@@ -390,6 +391,37 @@ def do_logout(event):
     )
 
 
+def queue_grade(email: str, lab: str) -> Dict[str, Any]:
+    """
+    Queue a grading request for a student's lab via SQS.
+
+    Args:
+        email: Student email address
+        lab: Lab name (e.g., 'lab0', 'lab1')
+
+    Returns:
+        SQS send_message response (includes MessageId)
+
+    Raises:
+        EmailNotRegistered: If the email is not registered
+    """
+    # Get the user to retrieve their course_key for authentication
+    user = get_user_from_email(email)
+
+    # Create the payload that api_grader expects
+    payload = {
+        "auth": {
+            A.EMAIL: user.email,
+            A.COURSE_KEY: user.course_key,
+        },
+        "lab": lab,
+    }
+
+    # Send the signed message to SQS
+    LOGGER.info("Queueing grade request for email=%s lab=%s", email, lab)
+    result = sqs_send_signed_message(action="grade", method="POST", payload=payload)
+    LOGGER.info("Queued grade request MessageId=%s", result.get("MessageId"))
+    return result
 
 
 ################################################################
@@ -492,7 +524,7 @@ def lambda_handler(event, context):
             action = (payload.get("action") or "").lower()
 
             if path == API_PATH:
-                return api.dispatch(method, action, event, context, payload, path)
+                return api.dispatch(method, action, event, context, payload)
             ################################################################
             # Non-API routes
             #
