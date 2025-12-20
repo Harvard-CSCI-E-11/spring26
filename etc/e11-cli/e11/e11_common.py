@@ -9,9 +9,10 @@ import time
 import uuid
 import json
 import copy
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
-import datetime
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
@@ -53,19 +54,52 @@ CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
 # GitHub Repository
 GITHUB_REPO_URL = "https://github.com/Harvard-CSCI-E-11/spring26"
 
-# Lab Redirect URLs
-LAB_REDIRECTS = {
-    0: 'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
-    1: 'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
-    2: 'https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link',
-    3: 'https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link',
-    4: 'https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link',
-    5: 'https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link',
-    6: 'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
-    7: 'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
-    8: 'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'
+# Lab Configuration
+# Each lab has a redirect URL and a deadline (ISO-8601 format, Eastern time, no timezone)
 
+LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
+
+LAB_CONFIG = {
+    "lab0": {
+        "redirect": "https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link",
+        "deadline": "2026-02-02T23:59:59"
+    },
+    "lab1": {
+        "redirect": "https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link",
+        "deadline": "2026-02-09T23:59:59"
+    },
+    "lab2": {
+        "redirect": "https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link",
+        "deadline": "2026-02-16T23:59:59"
+    },
+    "lab3": {
+        "redirect": "https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link",
+        "deadline": "2026-02-23T23:59:59"
+    },
+    "lab4": {
+        "redirect": "https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link",
+        "deadline": "2026-03-09T23:59:59"
+    },
+    "lab5": {
+        "redirect": "https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link",
+        "deadline": "2026-03-30T23:59:59"
+    },
+    "lab6": {
+        "redirect": "https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link",
+        "deadline": "2026-04-13T23:59:59"
+    },
+    "lab7": {
+        "redirect": "https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link",
+        "deadline": "2026-04-27T23:59:59"
+    },
+    "lab8": {
+        "redirect": "https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link",
+        "deadline": "2026-05-11T23:59:59"
+    }
 }
+
+# Backward compatibility: LAB_REDIRECTS for existing code
+LAB_REDIRECTS = {i: LAB_CONFIG[f"lab{i}"]["redirect"] for i in range(9)}
 
 EMAIL_BODY = """
     Hi {preferred_name},
@@ -251,7 +285,7 @@ def add_user_log(event, user_id, message, **extra):
         client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     else:
         client_ip = extra.get('client_ip')
-    now = datetime.datetime.now().isoformat()
+    now = datetime.now().isoformat()
     logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
     ret = users_table.put_item(Item={A.USER_ID:user_id,
                                      A.SK:f'{A.SK_LOG_PREFIX}{now}',
@@ -263,7 +297,7 @@ def add_user_log(event, user_id, message, **extra):
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
-    now = datetime.datetime.now().isoformat()
+    now = datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
         A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
@@ -278,7 +312,7 @@ def add_grade(user, lab, public_ip, summary):
     get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
 def add_image(user_id, lab, bucket, key):
-    now = datetime.datetime.now().isoformat()
+    now = datetime.now().isoformat()
     item = {
         A.USER_ID: user_id,
         A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now),
