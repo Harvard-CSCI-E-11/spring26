@@ -1,14 +1,20 @@
 # ===== e11 home Makefile (Poetry Version) =====
 # Uses Poetry for dependency management and Make for SAM/AWS task running.
+#
+# Note: everything must be in same AWS region
 
 # SAM/AWS Configuration (unchanged)
 STACK_PROD      ?= home-app-prod
 STACK_STAGE     ?= home-app-stage
 CAPS            ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
-REGION          ?= us-east-1
+AWS_REGION      ?= us-east-1
+REGION          ?= $(AWS_REGION)  # Alias for backward compatibility
 PROFILE         ?= fas
 DJLINT_FLAGS    ?= --profile=jinja --lint --quiet --ignore J004,J018
 TEMPLATE_DIR    := src/home_app/templates
+S3_BUCKET       ?= csci-e-11
+AWS_PROFILE     ?= fas
+ROOT_DOMAIN     ?= csci-e-11.org
 
 # Shell Configuration (unchanged)
 SHELL := /bin/bash
@@ -34,8 +40,9 @@ install-sam-ubuntu:
 	sam --version
 	/bin/rm -rf aws-sam-cli-linux-x86_64.zip sam-installation
 
-
 lint: vend-e11
+	@echo "--- Validating imports from vendored wheel ---"
+	poetry run pytest -xvs tests/test_import_validation.py
 	poetry run djlint $(DJLINT_FLAGS) $(TEMPLATE_DIR)/*.html
 	poetry run ruff check --fix
 	poetry run pylint src
@@ -77,19 +84,17 @@ vend-e11: install
 # They now depend on the new poetry-based targets.
 
 .PHONY: prod-vbd stage-vbd
-prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
-	make lint
-	make check
+prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11 lint
 	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-prod.toml"  --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml
-	curl --silent  https://csci-e-11.org/ | head -3
+	curl --silent  https://$(ROOT_DOMAIN)/ | head -3
 
-stage-vbd: template-stage.yaml samconfig-stage.toml src/requirements.txt vend-e11 lint
+stage-vbd: template.yaml samconfig-stage.toml src/requirements.txt vend-e11
 	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml
-	curl --silent  https://stage.csci-e-11.org/ | head -3
+	curl --silent  https://stage.$(ROOT_DOMAIN)/ | head -3
 
 # Show function names
 .PHONY: functions
@@ -137,8 +142,8 @@ fetch-zip-prod:
 # Show stage URL
 .PHONY: urls
 urls:
-	@echo "Production URL: https://csci-e-11.org/"
-	@echo "Stage URL: https://stage.csci-e-11.org/"
+	@echo "Production URL: https://$(ROOT_DOMAIN).org/"
+	@echo "Stage URL: https://stage.$(ROOT_DOMAIN).org/"
 
 # Show deployment info
 .PHONY: info
@@ -149,8 +154,8 @@ info:
 	@echo "Profile: $(PROFILE)"
 	@echo ""
 	@echo "Environments:"
-	@echo "  Production: https://csci-e-11.org/"
-	@echo "  Stage:    https://stage.csci-e-11.org/"
+	@echo "  Production: https://$(ROOT_DOMAIN).org/"
+	@echo "  Stage:    https://stage.$(ROOT_DOMAIN).org/"
 	@echo ""
 	@echo "Deployment Options:"
 	@echo "  make deploy          - Deploy stage only (default)"
@@ -165,3 +170,17 @@ info:
 	@echo "  make functions      - Show function names from stacks"
 	@echo "  make tail           - Tail production logs"
 	@echo "  make tail-stage     - Tail stage logs"
+
+
+#
+# Validate S3 rules
+#
+s3-install-rules:
+	aws s3api --profile $(AWS_PROFILE) put-bucket-notification-configuration \
+	    --bucket $(S3_BUCKET) \
+	    --notification-configuration '{ "EventBridgeConfiguration": {} }'
+
+s3-validate-rules-and-region:
+	aws s3api --profile $(AWS_PROFILE) get-bucket-notification-configuration --bucket $(S3_BUCKET) | \
+		grep EventBridgeConfiguration && echo "✅ EventBridge is ENABLED"
+	aws --profile=$(AWS_PROFILE) s3api get-bucket-location --bucket $(S3_BUCKET) | sed s/null/$(AWS_REGION)/ | grep $(AWS_REGION) && echo "✅ S3 bucket in correct region"

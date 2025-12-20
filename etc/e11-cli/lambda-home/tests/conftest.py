@@ -1,22 +1,28 @@
 import json
+import os
 import pytest
 import base64
 import logging
+import boto3
+import requests
+from botocore.exceptions import ClientError
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
+from e11.e11core.constants import COURSE_DOMAIN
+from e11.e11_common import AWS_REGION
 
 expected_hostnames = [
-    'testcsci-e-11.csci-e-11.org',
-    'testcsci-e-11-lab1.csci-e-11.org',
-    'testcsci-e-11-lab2.csci-e-11.org',
-    'testcsci-e-11-lab3.csci-e-11.org',
-    'testcsci-e-11-lab4.csci-e-11.org',
-    'testcsci-e-11-lab5.csci-e-11.org',
-    'testcsci-e-11-lab6.csci-e-11.org',
-    'testcsci-e-11-lab7.csci-e-11.org',
-    'testcsci-e-11-lab8.csci-e-11.org'
+    f'testcsci-e-11.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab1.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab2.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab3.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab4.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab5.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab6.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab7.{COURSE_DOMAIN}',
+    f'testcsci-e-11-lab8.{COURSE_DOMAIN}'
 ]
 
 
@@ -60,160 +66,201 @@ def fake_idp_server():
     }
     server.stop()
 
+# Configure boto3 to use local DynamoDB endpoint
+DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8010/')
+
+def pytest_configure(config):
+    """Configure pytest to use local DynamoDB"""
+    # Set environment variables if not already set
+    if 'AWS_ENDPOINT_URL_DYNAMODB' not in os.environ:
+        os.environ['AWS_ENDPOINT_URL_DYNAMODB'] = DYNAMODB_LOCAL_ENDPOINT
+    if 'AWS_ACCESS_KEY_ID' not in os.environ:
+        os.environ['AWS_ACCESS_KEY_ID'] = 'test'
+    if 'AWS_SECRET_ACCESS_KEY' not in os.environ:
+        os.environ['AWS_SECRET_ACCESS_KEY'] = 'test'
+    if 'AWS_DEFAULT_REGION' not in os.environ:
+        os.environ['AWS_DEFAULT_REGION'] = AWS_REGION
+    if 'USERS_TABLE_NAME' not in os.environ:
+        os.environ['USERS_TABLE_NAME'] = 'e11-users'
+    if 'SESSIONS_TABLE_NAME' not in os.environ:
+        os.environ['SESSIONS_TABLE_NAME'] = 'home-app-sessions'
+
+@pytest.fixture(scope="session")
+def dynamodb_local():
+    """Ensure local DynamoDB is running and tables exist"""
+    # Check if DynamoDB Local is running
+    try:
+        requests.get(DYNAMODB_LOCAL_ENDPOINT, timeout=1)
+    except requests.exceptions.RequestException:
+        pytest.skip("DynamoDB Local is not running. Run 'make start_local_dynamodb' first.")
+
+    dynamodb = boto3.resource('dynamodb', endpoint_url=DYNAMODB_LOCAL_ENDPOINT, region_name=AWS_REGION)
+    
+    # Create users table
+    users_table_name = os.environ.get('USERS_TABLE_NAME', 'e11-users')
+    try:
+        table = dynamodb.Table(users_table_name)
+        table.load()
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            table = dynamodb.create_table(
+                TableName=users_table_name,
+                KeySchema=[
+                    {'AttributeName': 'user_id', 'KeyType': 'HASH'},
+                    {'AttributeName': 'sk', 'KeyType': 'RANGE'}
+                ],
+                AttributeDefinitions=[
+                    {'AttributeName': 'user_id', 'AttributeType': 'S'},
+                    {'AttributeName': 'sk', 'AttributeType': 'S'},
+                    {'AttributeName': 'email', 'AttributeType': 'S'}
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        'IndexName': 'GSI_Email',
+                        'KeySchema': [
+                            {'AttributeName': 'email', 'KeyType': 'HASH'}
+                        ],
+                        'Projection': {'ProjectionType': 'ALL'}
+                    }
+                ],
+                BillingMode='PAY_PER_REQUEST'
+            )
+            table.wait_until_exists()
+
+    # Create sessions table
+    sessions_table_name = os.environ.get('SESSIONS_TABLE_NAME', 'home-app-sessions')
+    try:
+        table = dynamodb.Table(sessions_table_name)
+        table.load()
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+            table = dynamodb.create_table(
+                TableName=sessions_table_name,
+                KeySchema=[
+                    {'AttributeName': 'sid', 'KeyType': 'HASH'}
+                ],
+                AttributeDefinitions=[
+                    {'AttributeName': 'sid', 'AttributeType': 'S'},
+                    {'AttributeName': 'email', 'AttributeType': 'S'}
+                ],
+                GlobalSecondaryIndexes=[
+                    {
+                        'IndexName': 'GSI_Email',
+                        'KeySchema': [
+                            {'AttributeName': 'email', 'KeyType': 'HASH'}
+                        ],
+                        'Projection': {'ProjectionType': 'ALL'}
+                    }
+                ],
+                BillingMode='PAY_PER_REQUEST'
+            )
+            table.wait_until_exists()
+
+    yield dynamodb
+
+    # Cleanup: delete all items from tables
+    for table_name in [users_table_name, sessions_table_name]:
+        try:
+            table = dynamodb.Table(table_name)
+            last_evaluated_key = None
+            while True:
+                scan_kwargs = {'ExclusiveStartKey': last_evaluated_key} if last_evaluated_key else {}
+                scan = table.scan(**scan_kwargs)
+                
+                if scan.get('Items'):
+                    with table.batch_writer() as batch:
+                        for item in scan['Items']:
+                            if 'user_id' in item and 'sk' in item:
+                                batch.delete_item(Key={'user_id': item['user_id'], 'sk': item['sk']})
+                            elif 'sid' in item:
+                                batch.delete_item(Key={'sid': item['sid']})
+                
+                last_evaluated_key = scan.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    break
+        except Exception as e:
+            logging.warning("Failed to clean up DynamoDB table %s: %s", table_name, e)
+
 @pytest.fixture
-def fake_aws(monkeypatch):
-    """Monkeypatch Secrets Manager + DynamoDB used by home.py."""
-    from home_app import home
+def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
+    """Set up fake Secrets Manager and configure DynamoDB to use local endpoint"""
     from e11 import e11_common
-
+    
     class FakeSecrets:
+        def __init__(self, discovery_url):
+            self.discovery_url = discovery_url
+            
         def get_secret_value(self, SecretId):
-            # Provide exactly what home.get_odic_config expects
-            secret = {
-                "oidc_discovery_endpoint": pytest.discovered,
-                "client_id": "client-123",
-                "redirect_uri": "https://app.example.org/auth/callback",
-                "hmac_secret": "super-secret-hmac",
-                "secret_key": "client-secret-xyz",
-            }
-            return {"SecretString": json.dumps(secret)}
+            # Handle OIDC secrets
+            if "oidc" in SecretId.lower() or SecretId == "fake-secret-id":
+                secret = {
+                    "oidc_discovery_endpoint": self.discovery_url,
+                    "client_id": "client-123",
+                    "redirect_uri": "https://app.example.org/auth/callback",
+                    "hmac_secret": "super-secret-hmac",
+                    "secret_key": "client-secret-xyz",
+                }
+                return {"SecretString": json.dumps(secret)}
+            # Handle SSH secrets
+            elif "ssh" in SecretId.lower() or SecretId == "fake-ssh-secret-id":
+                return {"SecretString": json.dumps({"cscie-bot": "fake-ssh-key-pem"})}
+            # Default fallback
+            return {"SecretString": json.dumps({})}
+    
+    class FakeRoute53:
+        def list_resource_record_sets(self, **kwargs):
+            # Return empty list - no existing records
+            return {"ResourceRecordSets": []}
+        
+        def change_resource_record_sets(self, **kwargs):
+            # Return success response
+            return {"ChangeInfo": {"Id": "fake-change-id", "Status": "PENDING"}}
+    
+    class FakeS3:
+        def generate_presigned_post(self, **kwargs):
+            return {"url": "https://fake-s3-url", "fields": {}}
+        
+        def generate_presigned_url(self, **kwargs):
+            return "https://fake-s3-presigned-url"
+        
+        def head_object(self, **kwargs):
+            return {"ContentLength": 0}
+    
+    def fake_send_email(to_addr, email_subject, email_body):
+        # Mock send_email function
+        return {"MessageId": "fake-message-id"}
 
-    class FakeTable:
-        def __init__(self):
-            self.db = {}
-            # For GSI support, maintain a separate index
-            self.gsi_email_index = {}
-
-        def put_item(self, Item):
-            # Handle different key structures
-            if "email" in Item and "sk" in Item:
-                self.db[(Item["email"], Item["sk"])] = Item
-                # Also add to GSI index if email exists
-                self.gsi_email_index[Item["email"]] = Item
-            elif "user_id" in Item and "sk" in Item:
-                # For log entries that use user_id instead of email
-                self.db[(Item["user_id"], Item["sk"])] = Item
-            else:
-                # Fallback for other cases
-                key = tuple(sorted(Item.items()))
-                self.db[key] = Item
-
-        def get_item(self, Key):
-            # Handle different key structures
-            if "email" in Key and "sk" in Key:
-                return {"Item": self.db.get((Key["email"], Key["sk"]))}
-            elif "user_id" in Key and "sk" in Key:
-                return {"Item": self.db.get((Key["user_id"], Key["sk"]))}
-            else:
-                # Fallback for other cases
-                key = tuple(sorted(Key.items()))
-                return {"Item": self.db.get(key)}
-
-        def delete_item(self, Key):
-            # Handle different key structures
-            if "email" in Key and "sk" in Key:
-                self.db.pop((Key["email"], Key["sk"]), None)
-            elif "user_id" in Key and "sk" in Key:
-                self.db.pop((Key["user_id"], Key["sk"]), None)
-            else:
-                # Fallback for other cases
-                key = tuple(sorted(Key.items()))
-                self.db.pop(key, None)
-
-        def update_item(self, Key, UpdateExpression, ExpressionAttributeValues):
-            # Simple implementation for testing
-            key_tuple = (Key["user_id"], Key["sk"])
-            if key_tuple in self.db:
-                item = self.db[key_tuple]
-                # Apply updates based on UpdateExpression
-                if "SET public_ip = :ip, hostname = :hn, host_registered = :t, name = :name" in UpdateExpression:
-                    item["public_ip"] = ExpressionAttributeValues[":ip"]
-                    item["hostname"] = ExpressionAttributeValues[":hn"]
-                    item["host_registered"] = ExpressionAttributeValues[":t"]
-                    item["name"] = ExpressionAttributeValues[":name"]
-
-        def query(self, **kwargs):
-            items = []
-
-            # Handle GSI queries
-            if kwargs.get("IndexName") == "GSI_Email":
-                _key_condition = kwargs.get("KeyConditionExpression")
-
-                # For GSI queries, we need to extract the email from the Key condition
-                # The condition will be something like Key("email").eq(email)
-                # We'll look for items with matching email
-                for (_email, _sk), item in self.db.items():
-                    if "email" in item:
-                        items.append(item)
-                        break  # GSI should only return one item per email
-
-            # Handle regular queries
-            else:
-                _key_condition = kwargs.get("KeyConditionExpression")
-
-                # Handle Key(USER_ID).eq(user_id) case
-                # We'll look for items with matching user_id
-                for (email, sk), item in self.db.items():
-                    if "user_id" in item:
-                        items.append(item)
-
-                # Handle complex conditions like Key(USER_ID).eq(user_id) & Key('sk').begins_with('log#')
-                # For now, we'll return all items and let the application filter
-                if not items:
-                    items = list(self.db.values())
-
-            # Handle pagination
-            exclusive_start_key = kwargs.get("ExclusiveStartKey")
-            if exclusive_start_key:
-                # Simple pagination - just return empty for now
-                items = []
-
-            return {
-                "Items": items,
-                "Count": len(items),
-                "LastEvaluatedKey": None if len(items) < 10 else "fake_last_key"
-            }
-
-    class FakeSessionsTable:
-        def __init__(self):
-            self.db = {}
-
-        def put_item(self, Item):
-            self.db[Item["sid"]] = Item
-
-        def get_item(self, Key):
-            return {"Item": self.db.get(Key["sid"])}
-
-        def delete_item(self, Key):
-            self.db.pop(Key["sid"], None)
-
-        # optional scan support if you want to unit-test heartbeat locally
-        def scan(self, **kwargs):
-            return {"Items": list(self.db.values())}
-
-        def query(self, **kwargs):
-            items = []
-            key_condition = kwargs.get("KeyConditionExpression")
-            if key_condition == "email = :e":
-                email = kwargs.get("ExpressionAttributeValues", {}).get(":e")
-                for item in self.db.values():
-                    if item.get("email") == email:
-                        items.append(item)
-
-            return {
-                "Items": items,
-                "Count": len(items),
-                "LastEvaluatedKey": None
-            }
-
-    # capture discovery URL from test after fixture wiring
+    # Configure DynamoDB to use local endpoint
     monkeypatch.setenv("OIDC_SECRET_ID", "fake-secret-id")
-    monkeypatch.setenv("DDB_REGION", "us-east-1")
-    monkeypatch.setenv("DDB_TABLE_ARN", "arn:aws:dynamodb:us-east-1:000000000000:table/fake-table")
-    monkeypatch.setenv("SESSIONS_TABLE_NAME", "sessions-table")
+    monkeypatch.setenv("SSH_SECRET_ID", "fake-ssh-secret-id")
     monkeypatch.setenv("COOKIE_DOMAIN", "app.example.org")
-
-    monkeypatch.setattr(e11_common, "secretsmanager_client", FakeSecrets())
-    monkeypatch.setattr(home, "users_table", FakeTable())
-    monkeypatch.setattr(home, "sessions_table", FakeSessionsTable())
+    
+    # Recreate DynamoDB clients with local endpoint
+    dynamodb_resource = boto3.resource('dynamodb', endpoint_url=DYNAMODB_LOCAL_ENDPOINT, region_name=AWS_REGION)
+    users_table = dynamodb_resource.Table(os.environ.get('USERS_TABLE_NAME', 'e11-users'))
+    sessions_table = dynamodb_resource.Table(os.environ.get('SESSIONS_TABLE_NAME', 'home-app-sessions'))
+    
+    fake_route53 = FakeRoute53()
+    fake_s3 = FakeS3()
+    
+    monkeypatch.setattr(e11_common, "secretsmanager_client", FakeSecrets(fake_idp_server["discovery"]))
+    monkeypatch.setattr(e11_common, "dynamodb_resource", dynamodb_resource)
+    monkeypatch.setattr(e11_common, "users_table", users_table)
+    monkeypatch.setattr(e11_common, "sessions_table", sessions_table)
+    monkeypatch.setattr(e11_common, "route53_client", fake_route53)
+    monkeypatch.setattr(e11_common, "send_email", fake_send_email)
+    monkeypatch.setattr(e11_common, "s3_client", fake_s3)
+    
+    # Also patch the modules that import these directly
+    import home_app.sessions as sessions_module
+    monkeypatch.setattr(sessions_module, "sessions_table", sessions_table)
+    
+    # Patch api.py's direct imports
+    import home_app.api as api_module
+    monkeypatch.setattr(api_module, "users_table", users_table)
+    monkeypatch.setattr(api_module, "sessions_table", sessions_table)
+    monkeypatch.setattr(api_module, "route53_client", fake_route53)
+    monkeypatch.setattr(api_module, "send_email", fake_send_email)
+    monkeypatch.setattr(api_module, "s3_client", fake_s3)
+    
     yield

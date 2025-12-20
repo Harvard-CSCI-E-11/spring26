@@ -18,8 +18,13 @@ def test_invalid_state_signature(fake_idp_server):
     auth_url, _ = oidc.build_oidc_authorization_url_stateless(openid_config=cfg)
     r = requests.get(auth_url, allow_redirects=False)
     qs = dict(urllib.parse.parse_qsl(urllib.parse.urlparse(r.headers["Location"]).query))
-    # Corrupt the state (break signature)
-    bad_state = qs["state"][:-1] + ("A" if qs["state"][-1] != "A" else "B")
+    # Corrupt the state (break signature) by replacing the last several characters
+    # This ensures we corrupt the signature portion, not just the payload
+    original_state = qs["state"]
+    # Replace the last 10 characters (or all if shorter) with garbage to reliably break the signature
+    # URLSafeTimedSerializer creates payload.signature format, so corrupting the end breaks the signature
+    corrupt_length = min(10, len(original_state))
+    bad_state = original_state[:-corrupt_length] + "X" * corrupt_length
     with pytest.raises(BadSignature) as e:
         oidc.handle_oidc_redirect_stateless(
             openid_config=cfg,

@@ -162,6 +162,8 @@ files = [
 [package.dependencies]
 botocore-stubs = "*"
 mypy-boto3-route53 = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"route53\""}
+mypy-boto3-s3 = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"s3\""}
+mypy-boto3-sqs = {version = ">=1.41.0,<1.42.0", optional = true, markers = "extra == \"sqs\""}
 types-s3transfer = "*"
 
 [package.extras]
@@ -1488,6 +1490,18 @@ files = [
 ]
 
 [[package]]
+name = "mypy-boto3-s3"
+version = "1.41.1"
+description = "Type annotations for boto3 S3 1.41.1 service generated with mypy-boto3-builder 8.12.0"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy_boto3_s3-1.41.1-py3-none-any.whl", hash = "sha256:140e065ed6cbb147f27e5875e174ad81f48492a43e7ea2dd4a1b2eb46919625e"},
+    {file = "mypy_boto3_s3-1.41.1.tar.gz", hash = "sha256:1431bb6af31baffcd17860be19f7bf25586e3312372f433ccfaf0632b1e32097"},
+]
+
+[[package]]
 name = "mypy-boto3-secretsmanager"
 version = "1.41.0"
 description = "Type annotations for boto3 SecretsManager 1.41.0 service generated with mypy-boto3-builder 8.12.0"
@@ -1509,6 +1523,18 @@ groups = ["dev"]
 files = [
     {file = "mypy_boto3_ses-1.40.60-py3-none-any.whl", hash = "sha256:26cf7bfcbb787a8a9281a10e83db47c62eb33ac40c33362b6c514d1eae811f05"},
     {file = "mypy_boto3_ses-1.40.60.tar.gz", hash = "sha256:ab31a8937e9e29f93e5a6a359bb344615255f466b20a3a814f73fefa930af97a"},
+]
+
+[[package]]
+name = "mypy-boto3-sqs"
+version = "1.41.0"
+description = "Type annotations for boto3 SQS 1.41.0 service generated with mypy-boto3-builder 8.12.0"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "mypy_boto3_sqs-1.41.0-py3-none-any.whl", hash = "sha256:feb7d88ff4c1415d5d823e55b177ae661d9ab82c23c384a1b70b7465ce278fef"},
+    {file = "mypy_boto3_sqs-1.41.0.tar.gz", hash = "sha256:806a8f6eb9348eaf8765ee2dda18883b1e882832cc99d12ae770f83b642885da"},
 ]
 
 [[package]]
@@ -2829,4 +2855,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "75145192100bc17553d5dcec1409535ba50ebfa079a87e96eaff6e830a4c9472"
+content-hash = "92f47bf42b454e53d31c911a03e155013bac77835217a882eaac7df94aeb9ef6"

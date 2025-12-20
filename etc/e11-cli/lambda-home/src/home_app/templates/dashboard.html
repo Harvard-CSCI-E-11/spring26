@@ -66,6 +66,28 @@
   </tbody>
 </table>
 
+{% if images %}
+<h3>Lab8 Images</h3>
+<table class="pure-table">
+  <thead>
+    <tr><th>sk</th><th>image</th><th>delete</th></tr>
+  </thead>
+  <tbody>
+    {% for image in images %}
+    <tr>
+      <th>{{ image.sk }}</th>
+      <th><img src="{{ image.url }}" width="320" height="240" alt="image you uploaded"></th>
+      <td><span class="delete-image"
+                data-user_id="{{ user.user_id }}"
+                data-sk="{{ image.sk }}"
+                data-bucket="{{ image.bucket }}"
+                data-key="{{ image.key }}">×</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 <h3>Authenticated Sessions</h3>
   <h4>Active Sessions Table</h4>
   <table class="pure-table">
@@ -80,7 +102,7 @@
       <td>{{ session.client_ip }}</td>
       <td>{{ session.session_created | eastern }}</td>
       <td>{{ session.session_expire |eastern }}</td>
-      <td><span class="delete-btn" data-sid="{{ session.sid }}">×</span></td>
+      <td><span class="delete-session"  data-sid="{{ session.sid }}">×</span></td>
     </tr>
     {% endfor %}
   </tbody>
@@ -90,12 +112,45 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-   document.querySelectorAll(".delete-btn").forEach(btn => {
+   document.querySelectorAll(".delete-image").forEach(btn => {
+     btn.style.cursor = "pointer"; // make it obvious it is clickable
+     btn.addEventListener("click", async (event) => {
+       const user_id = btn.dataset.user_id;
+       const sk = btn.dataset.sk;
+       const bucket = btn.dataset.bucket;
+       const key = btn.dataset.key;
+       console.log("user_id=",user_id,"bucket=",bucket,"sk=",sk,"key=",key);
+       try {
+         const resp = await fetch("{{ API_PATH }}", {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ action: "delete-image", user_id:user_id, bucket:bucket, sk:sk, key:key
+           })
+         });
+
+         if (resp.ok) {           // Remove the row containing the clicked button
+           btn.closest("tr").remove();
+         } else {
+           btn.textContent = "failed";
+           btn.classList.add = "failed";
+           console.error("Delete failed:", resp.status, resp.statusText, "body:",await resp.text());
+         }
+       } catch (err) {
+         btn.textContent = "delete image failed";
+         btn.classList.add = "failed";
+         console.error("Fetch error:", err);
+       }
+     });
+   });
+
+
+
+   document.querySelectorAll(".delete-session").forEach(btn => {
      btn.style.cursor = "pointer"; // make it obvious it is clickable
      btn.addEventListener("click", async (event) => {
        const sid = btn.dataset.sid;
        try {
-         const resp = await fetch("/api/v1", {
+         const resp = await fetch("{{ API_PATH }}", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({ action: "delete-session", sid: sid
@@ -123,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
        btn.textContent = "Checking...";
        const sid = btn.dataset.sid;
        try {
-         const resp = await fetch("/api/v1", {
+         const resp = await fetch("{{ API_PATH }}", {
            method: "POST",
            headers: { "Content-Type": "application/json" },
            body: JSON.stringify({

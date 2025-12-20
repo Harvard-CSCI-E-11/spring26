@@ -3,33 +3,15 @@ import requests
 import logging
 
 import home_app.home as home
-import home_app.sessions as sessions
 import home_app.oidc as oidc
-import e11.e11_common as e11_common
-from e11.e11_common import User
+from e11.e11_common import create_new_user
 
-from test_utils import create_lambda_event, setup_oidc_mocks, setup_sessions_mocks, apply_all_aws_mocks
+from test_utils import create_lambda_event
 
-def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
-    apply_all_aws_mocks(monkeypatch)                # Centralized AWS mocks
-    setup_oidc_mocks(monkeypatch, fake_idp_server)  # Then override with OIDC-specific mocks
-    setup_sessions_mocks(monkeypatch)
-
-    # Mock the get_user_from_email function to return a test user
-    def mock_get_user_from_email(email):
-        return User(**{
-            'user_id': 'test-user-id',
-            'email': email,
-            'course_key': '123456',
-            'sk': '#',
-            'user_registered': 1000000,
-            'claims': {}
-        })
-
-    monkeypatch.setattr(sessions, 'get_user_from_email', mock_get_user_from_email)
-
-    # Debug: Check if the monkeypatch worked
-    print(f"**1 secretsmanager_client type: {type(e11_common.secretsmanager_client)}")
+def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch, dynamodb_local):
+    # Create a test user in DynamoDBLocal
+    test_email = "test@example.com"
+    create_new_user(test_email, {"email": test_email, "name": "Test User"})
 
     # 1) GET "/" should embed login URL
     resp = home.lambda_handler(create_lambda_event("/"), None)
@@ -64,7 +46,7 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     # 4) Dashboard route with cookies
     dash_resp = home.lambda_handler(create_lambda_event("/dashboard", cookies=cb_resp['cookies']), None)
     logging.getLogger().debug("dash_resp with cookies (%s) = %s",cb_resp['cookies'],dash_resp)
-    logging.getLogger().warning("Not validating dashboard loging. Requires mocking DynamodB")
+    logging.getLogger().warning("Not validating dashboard logging. Requires DynamoDBLocal data")
 
     # 5) Logout route
     logout_resp = home.lambda_handler(create_lambda_event("/logout"), None)
@@ -74,4 +56,5 @@ def test_lambda_routes_without_aws(fake_idp_server, fake_aws, monkeypatch):
     assert "You have been logged out" in logout_resp['body']
 
     # 6) Check point
-    home.lambda_handler(create_lambda_event('/api/v1', method='POST', body='{"action":"ping"}'), None)
+    from e11.e11core.constants import API_PATH
+    home.lambda_handler(create_lambda_event(API_PATH, method='POST', body='{"action":"ping"}'), None)
