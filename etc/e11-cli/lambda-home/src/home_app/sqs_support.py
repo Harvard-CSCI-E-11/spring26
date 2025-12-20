@@ -19,36 +19,34 @@ which provides authentication at the infrastructure level. However, HMAC provide
 layer of validation that the message content hasn't been tampered with.
 """
 
+import functools
 import json
 import os
 from typing import Any, Dict, Optional
 
+from botocore.exceptions import ClientError
 from itsdangerous import Signer, BadSignature
 
 from e11.e11core.utils import get_logger
 from e11.e11_common import sqs_client, secretsmanager_client
+
+from . import api
 
 LOGGER = get_logger("home")
 SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
 SQS_QUEUE_ARN = os.environ.get("SQS_QUEUE_ARN", "")
 SQS_AUTH_SECRET_ID = os.environ.get("SQS_SECRET_ID", "")
 
-# Cache for the shared secret to avoid repeated Secrets Manager calls
-_sqs_auth_secret_cache: Optional[str] = None
 
-
+@functools.lru_cache(maxsize=1)
 def _get_sqs_auth_secret() -> Optional[str]:
     """
     Get the shared secret for SQS message authentication from Secrets Manager.
     Returns None if SQS_AUTH_SECRET_ID is not configured (authentication disabled).
+    Results are cached to avoid repeated Secrets Manager calls.
     """
-    global _sqs_auth_secret_cache
-
     if not SQS_AUTH_SECRET_ID:
         return None
-
-    if _sqs_auth_secret_cache is not None:
-        return _sqs_auth_secret_cache
 
     try:
         secret_response = secretsmanager_client.get_secret_value(SecretId=SQS_AUTH_SECRET_ID)
@@ -57,17 +55,17 @@ def _get_sqs_auth_secret() -> Optional[str]:
         try:
             secret_dict = json.loads(secret_string)
             # Try common key names
-            _sqs_auth_secret_cache = secret_dict.get("sqs_auth_secret") or secret_dict.get("auth_secret") or secret_dict.get("secret")
+            secret = secret_dict.get("sqs_auth_secret") or secret_dict.get("auth_secret") or secret_dict.get("secret")
         except json.JSONDecodeError:
             # Plain string
-            _sqs_auth_secret_cache = secret_string
+            secret = secret_string
 
-        if not _sqs_auth_secret_cache:
+        if not secret:
             LOGGER.warning("SQS auth secret found but empty in Secrets Manager")
             return None
 
-        return _sqs_auth_secret_cache
-    except Exception as e:
+        return secret
+    except (ClientError, json.JSONDecodeError, KeyError) as e:
         LOGGER.error("Failed to get SQS auth secret from Secrets Manager: %s", e)
         return None
 
@@ -310,8 +308,6 @@ def handle_sqs_event(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - 'payload': optional payload data (if None, will be set to None)
     - 'auth_token': optional authentication token for SQS message validation
     """
-    from . import api
-
     results = []
     for record in event.get("Records", []):
         msg_id = record.get("messageId")
