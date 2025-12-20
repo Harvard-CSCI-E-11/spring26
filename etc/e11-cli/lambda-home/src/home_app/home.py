@@ -313,6 +313,13 @@ def do_dashboard(event):  # pylint: disable=too-many-locals
     grades = [item for item in items if item[A.SK].startswith(A.SK_GRADE_PREFIX)]
     images = [item for item in items if item[A.SK].startswith(A.SK_IMAGE_PREFIX)]
 
+    # Get the lab out of the grades
+    for grade in grades:
+        try:
+            grade['lab'] = grade['sk'].split('#')[1]
+        except IndexError:
+            grade['lab'] = 'n/a'
+
     # sign the image URLs
     for image in images:
         image['url'] = make_presigned_url(image[A.BUCKET], image[A.KEY])

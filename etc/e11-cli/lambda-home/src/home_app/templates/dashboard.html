@@ -2,8 +2,8 @@
 {% block content %}
 <h2> Dashboard </h2>
 {% if next_lab and next_deadline %}
-<p>Lab {{ next_lab }} due: <span id="deadline-display">{{ next_deadline }}</span> 
-       (<span id="days">0</span> days, <span id="hours">0</span> hours, <span id="minutes">0</span> minutes, 
+<p>Lab {{ next_lab }} due: <span id="deadline-display">{{ next_deadline }}</span>
+       (<span id="days">0</span> days, <span id="hours">0</span> hours, <span id="minutes">0</span> minutes,
        <span id="seconds">0</span> seconds) <i>({{ timezone_display }})</i>
 </p>
 {% endif %}
@@ -45,12 +45,20 @@
 <h3>Grades</h3>
 <table class="pure-table">
   <thead>
-    <tr><th class="sk">sk</th><th class="lab">lab</th><th class="public_ip">public_ip</th><th class="score">score</th><th>pass names</th><th>fail names</th></tr>
+    <tr>
+      <th class="sk">sk</th>
+      <th class="lab">lab</th>
+      <th class="public_ip">public_ip</th>
+      <th class="score">score</th>
+      <th class="names">pass names</th>
+      <th class="names">fail names</th>
+    </tr>
   </thead>
   <tbody>
   {% for grade in grades %}
   <tr>
     <th class="sk">{{ grade.sk }}</th>
+    <th class="lab">{{ grade.lab }}</th>
     <th class="public_ip">{{ grade.public_ip }}</th>
     <th class="score">{{ grade.score }}</th>
     <th class="pass_names">
@@ -124,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
      const deadline = new Date("{{ next_deadline }}");
      const now = new Date();
      const diff = deadline - now;
-     
+
      if (diff <= 0) {
        document.getElementById("days").textContent = "0";
        document.getElementById("hours").textContent = "0";
@@ -132,17 +140,17 @@ document.addEventListener("DOMContentLoaded", () => {
        document.getElementById("seconds").textContent = "0";
        return;
      }
-     
+
      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-     
+
      document.getElementById("days").textContent = days.toString();
      document.getElementById("hours").textContent = hours.toString();
      document.getElementById("minutes").textContent = minutes.toString();
      document.getElementById("seconds").textContent = seconds.toString();
-     
+
      setTimeout(updateCountdown, 1000);
    })();
    {% endif %}
