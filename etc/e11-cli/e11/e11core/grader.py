@@ -237,9 +237,9 @@ def create_email(summary):
     if summary.get("error",None):
         return ("Error",f"Error: {summary['error']}")
 
-    subject = f"[E11] {summary['lab']} score {summary['score']}/5.0"
+    subject = f"[E11] {summary['lab']} score {summary['score']}/{POINTS_PER_LAB}"
     body_lines = [subject, "", "Passes:"]
-    body_lines += [f"  ✔ {n}" for n in summary["passes"]]
+    body_lines += [f"  ✔ {p}" for p in summary["passes"]]
     if summary["fails"]:
         body_lines += ["", "Failures:"]
         for t in summary["tests"]:

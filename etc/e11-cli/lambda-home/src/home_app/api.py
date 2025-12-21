@@ -1,5 +1,9 @@
 """
 API support for dashboard and SQS.
+
+api calls do not use sessions. Authenticated APIs (e.g. api_register, api_grade)
+authenticate with api_authenticate(payload), which returns the user directory.
+
 """
 
 import os
@@ -259,7 +263,7 @@ def api_grader(event, context, payload):
     """
     Get ready for grading, run the grader, store the results in the users table.
     sk format: "grade#lab2#time"
-    
+
     Rejects grading requests if the lab deadline has passed, unless the request
     comes from SQS (which allows late grading for administrative purposes).
     """
