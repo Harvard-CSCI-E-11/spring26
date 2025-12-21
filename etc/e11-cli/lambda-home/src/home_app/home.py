@@ -35,9 +35,7 @@ from itsdangerous import BadSignature, SignatureExpired
 import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
-from e11.e11core.e11ssh import E11Ssh
-from e11.e11core.utils import (smash_email,get_log_level)
-from e11.e11core import grader
+from e11.e11core.utils import (get_log_level)
 from e11.e11_common import (
     A,
     EmailNotRegistered,
