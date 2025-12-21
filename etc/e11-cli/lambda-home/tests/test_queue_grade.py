@@ -4,7 +4,7 @@ Test for queue_grade function and SQS message processing.
 
 import json
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -130,7 +130,6 @@ def mock_grader(monkeypatch):
 @pytest.fixture
 def test_user(fake_aws, dynamodb_local):
     """Create a test user in DynamoDB."""
-    import uuid
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email, {
         "email": test_email,
