@@ -6,6 +6,7 @@ import pytest
 
 import home_app.home as home
 import home_app.common as common
+from e11.e11core.constants import COURSE_DOMAIN
 
 def test_is_staging_environment():
     """Test staging environment detection"""
@@ -42,7 +43,7 @@ def test_get_cookie_domain():
             "stage": "prod"
         }
     }
-    assert home.get_cookie_domain(prod_event) == "csci-e-11.org"
+    assert home.get_cookie_domain(prod_event) == COURSE_DOMAIN
 
     # Staging should use production domain for session sharing
     stage_event = {
@@ -50,7 +51,7 @@ def test_get_cookie_domain():
             "stage": "stage"
         }
     }
-    assert home.get_cookie_domain(stage_event) == "csci-e-11.org"
+    assert home.get_cookie_domain(stage_event) == COURSE_DOMAIN
 
 
 def test_make_cookie_with_dynamic_domain():
@@ -62,8 +63,8 @@ def test_make_cookie_with_dynamic_domain():
             "stage": "prod"
         }
     }
-    cookie = home.make_cookie("test", "value", domain=home.get_cookie_domain(prod_event))
-    assert "Domain=csci-e-11.org" in cookie
+    cookie = common.make_cookie("test", "value", domain=home.get_cookie_domain(prod_event))
+    assert f"Domain={COURSE_DOMAIN}" in cookie
 
     # Test staging cookie (should use same domain)
     stage_event = {
@@ -71,8 +72,8 @@ def test_make_cookie_with_dynamic_domain():
             "stage": "stage"
         }
     }
-    cookie = home.make_cookie("test", "value", domain=home.get_cookie_domain(stage_event))
-    assert "Domain=csci-e-11.org" in cookie
+    cookie = common.make_cookie("test", "value", domain=home.get_cookie_domain(stage_event))
+    assert f"Domain={COURSE_DOMAIN}" in cookie
 
 
 def test_environment_detection_integration():
@@ -94,7 +95,7 @@ def test_environment_detection_integration():
     }
 
     assert common.is_staging_environment(stage_event)
-    assert home.get_cookie_domain(stage_event) == "csci-e-11.org"
+    assert home.get_cookie_domain(stage_event) == COURSE_DOMAIN
 
     # Simulate a real API Gateway event for production
     prod_event = {
@@ -112,7 +113,7 @@ def test_environment_detection_integration():
     }
 
     assert not common.is_staging_environment(prod_event)
-    assert home.get_cookie_domain(prod_event) == "csci-e-11.org"
+    assert home.get_cookie_domain(prod_event) == COURSE_DOMAIN
 
 
 if __name__ == "__main__":

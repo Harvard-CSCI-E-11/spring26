@@ -12,11 +12,13 @@ from time import monotonic
 import inspect
 from types import FunctionType
 
+from e11.e11_common import S3_BUCKET
+
 from .assertions import TestFail
 from .testrunner import TestRunner
 from .utils import get_logger, smash_email, get_error_location, read_s3
 from .e11ssh import E11Ssh
-from .constants import COURSE_DOMAIN,POINTS_PER_LAB,STAFF_S3_BUCKET,SUCCESS_KEY_TEMPLATE,POINTS_PER_LAB
+from .constants import COURSE_DOMAIN,POINTS_PER_LAB,SUCCESS_KEY_TEMPLATE,POINTS_PER_LAB
 
 from .context import build_ctx, E11Context
 
@@ -153,7 +155,7 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
     message = ""
     if len(passes) == len(tests):
         try:
-            message = read_s3(STAFF_S3_BUCKET, SUCCESS_KEY_TEMPLATE.format(lab=ctx.lab))
+            message = read_s3(S3_BUCKET, SUCCESS_KEY_TEMPLATE.format(lab=ctx.lab))
         except FileNotFoundError as e:
             message = str(e)
 

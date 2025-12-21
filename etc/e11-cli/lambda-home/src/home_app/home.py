@@ -8,14 +8,14 @@ Allows users to see all active sessions and results of running the grader.
 
 Data Model:
 Users table:
-PK: user#<user_id>
-SK: PROFILE (and other items as needed)
+PK: user_id
+SK determines if we are storing user record or the log#, grade#, image#,
+See e11_common.py for details
 
 Sessions table:
-PK: SID#<sid>
-Item: object including email, and user_id
+PK: session_id
 
-Cookies - just have sid (session ID)
+Cookies - just have sid (session ID). If you know it, you are authenticated (they are hard to guess)
 """
 
 # at top of home_app/home.py (module import time)
@@ -23,22 +23,17 @@ import base64
 import json
 import os
 from os.path import join
-import sys
 import binascii
 import time
-import ipaddress
 import datetime
 
 from typing import Any, Dict, Tuple, Optional
-from zoneinfo import ZoneInfo
 
 from boto3.dynamodb.conditions import Key
 
-import paramiko.ssh_exception
 from itsdangerous import BadSignature, SignatureExpired
 import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
-from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import (smash_email,get_log_level)
@@ -47,38 +42,57 @@ from e11.e11_common import (
     A,
     EmailNotRegistered,
     User,
-    add_grade,
-    add_user_log,
     convert_dynamodb_item,
-    route53_client,
-    secretsmanager_client,
-    sessions_table,
     users_table,
     queryscan_table,
     SES_VERIFIED_EMAIL,
-    ses_client as _ses_client
+    ses_client,
+    GITHUB_REPO_URL,
+    LAB_CONFIG,
+    LAB_TIMEZONE,
 )
 
-from e11.e11core.constants import COURSE_DOMAIN
+from e11.e11core.constants import (
+    API_PATH,
+    HTTP_OK,
+    HTTP_FOUND,
+    HTTP_BAD_REQUEST,
+    HTTP_FORBIDDEN,
+    HTTP_NOT_FOUND,
+    HTTP_INTERNAL_ERROR,
+    HTML_CONTENT_TYPE,
+    PNG_CONTENT_TYPE,
+    CSS_CONTENT_TYPE,
+    CORS_HEADER,
+    CORS_WILDCARD,
+    CONTENT_TYPE_HEADER
+)
 from e11.main import __version__
 from e11.e11core.utils import get_logger
 
 from . import oidc
 from . import sessions
+from . import api
+from .api import resp_json, make_presigned_url
+
+from .sqs_support import (
+    is_sqs_event,
+    handle_sqs_event,
+    sqs_send_signed_message,
+)
 
 from .sessions import (
-    new_session,
+    get_user_from_email, new_session,
     get_session_from_event,
     all_sessions_for_email,
     delete_session_from_event,
 )
-from .sessions import get_user_from_email, delete_session, expire_batch
+
 from .common import (
     make_cookie,
     get_cookie_domain,
     COOKIE_NAME,
     SESSION_TTL_SECS,
-    DNS_TTL,
     TEMPLATE_DIR,
     STATIC_DIR,
     NESTED
@@ -86,9 +100,6 @@ from .common import (
 
 
 LOGGER = get_logger("home")
-CSCIE_BOT = "cscie-bot"
-
-ses_client = _ses_client
 
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
@@ -102,18 +113,7 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
     return r
 
-LAB_REDIRECTS = {0:'https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link',
-                 1:'https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link',
-                 2:'https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link',
-                 3:'https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link',
-                 4:'https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link',
-                 5:'https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link',
-                 6:'https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link',
-                 7:'https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link',
-                 8:'https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link'}
 
-
-eastern = ZoneInfo("America/New_York")
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
 
 
@@ -122,7 +122,7 @@ def eastern_filter(value):
     if value in (None, jinja2.Undefined):  # catch both
         return ""
     try:
-        dt = datetime.datetime.fromtimestamp(round(value), tz=eastern)
+        dt = datetime.datetime.fromtimestamp(round(value), tz=LAB_TIMEZONE)
     except TypeError as e:
         LOGGER.debug("value=%s type(value)=%s e=%s", value, type(value), e)
         return "n/a"
@@ -131,32 +131,18 @@ def eastern_filter(value):
 
 # ---------- Setup AWS Services  ----------
 
-# jinja2
+# jinja2 environment for template substitution
 env = Environment(
     loader=FileSystemLoader(
         ["templates", TEMPLATE_DIR, os.path.join(NESTED, "templates")]
     )
 )
+env.globals["API_PATH"] = API_PATH
 env.filters["eastern"] = eastern_filter
+env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
+env.globals["LAB_CONFIG"] = LAB_CONFIG
 
-# Route53 config for this course
-HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # from route53
-
-EMAIL_BODY = """
-    Hi {preferred_name},
-
-    You have successfully registered your AWS instance.
-
-    Your course key is: {course_key}
-
-    The following DNS record has been created:
-
-    Hostname: {hostname}
-    Public IP Address: {public_ip}
-
-    Best regards,
-    CSCIE-11 Team
-"""
+# Route53 config for this course (imported from e11_common)
 
 # Email subject constants
 EMAIL_SUBJECT_PREFIX = "CSCI E-11 Update: "
@@ -165,23 +151,6 @@ EMAIL_SUBJECT_NEW_DNS_RECORDS = "New DNS records created for {hostname}"
 EMAIL_SUBJECT_DNS_RECORDS_UPDATED = "DNS records updated for {hostname}"
 
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
-DASHBOARD = f"https://{COURSE_DOMAIN}"
-
-
-def resp_json(
-    status: int, body: Dict[str, Any], headers: Optional[Dict[str, str]] = None
-) -> Dict[str, Any]:
-    """End HTTP event processing with a JSON object"""
-    LOGGER.debug("resp_json(status=%s) body=%s", status, body)
-    return {
-        "statusCode": status,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
-            **(headers or {}),
-        },
-        "body": json.dumps(body, default=str),
-    }
 
 
 def resp_text(
@@ -195,8 +164,8 @@ def resp_text(
     return {
         "statusCode": status,
         "headers": {
-            "Content-Type": "text/html; charset=utf-8",
-            "Access-Control-Allow-Origin": "*",
+            CONTENT_TYPE_HEADER: HTML_CONTENT_TYPE,
+            CORS_HEADER: CORS_WILDCARD,
             **(headers or {}),
         },
         "body": body,
@@ -214,8 +183,8 @@ def resp_png(
     return {
         "statusCode": status,
         "headers": {
-            "Content-Type": "image/png",
-            "Access-Control-Allow-Origin": "*",
+            CONTENT_TYPE_HEADER: PNG_CONTENT_TYPE,
+            CORS_HEADER: CORS_WILDCARD,
             **(headers or {}),
         },
         "body": base64.b64encode(png_bytes).decode("ascii"),
@@ -232,13 +201,13 @@ def redirect(
     headers = {"Location": location}
     if extra_headers:
         headers.update(extra_headers)
-    return {"statusCode": 302, "headers": headers, "cookies": cookies or [], "body": ""}
+    return {"statusCode": HTTP_FOUND, "headers": headers, "cookies": cookies or [], "body": ""}
 
 
 def error_404(page):
     """Generate an error"""
     template = env.get_template("404.html")
-    return resp_text(404, template.render(page=page))
+    return resp_text(HTTP_NOT_FOUND, template.render(page=page))
 
 
 def static_file(fname):
@@ -250,12 +219,12 @@ def static_file(fname):
     try:
         if fname.endswith(".png"):
             with open(join(STATIC_DIR, fname), "rb") as f:
-                return resp_png(200, f.read())
+                return resp_png(HTTP_OK, f.read())
 
         with open(join(STATIC_DIR, fname), "r", encoding="utf-8") as f:
             if fname.endswith(".css"):
-                headers["Content-Type"] = "text/css; charset=utf-8"
-            return resp_text(200, f.read(), headers=headers)
+                headers[CONTENT_TYPE_HEADER] = CSS_CONTENT_TYPE
+            return resp_text(HTTP_OK, f.read(), headers=headers)
     except FileNotFoundError:
         return error_404(fname)
 
@@ -306,7 +275,7 @@ def do_page(event, status="", extra=""):
     if page:
         try:
             template = env.get_template(page)
-            return resp_text(200, template.render(ses=ses, status=status, extra=extra))
+            return resp_text(HTTP_OK, template.render(ses=ses, status=status, extra=extra))
         except TemplateNotFound:
             return error_404(page)
 
@@ -323,10 +292,10 @@ def do_page(event, status="", extra=""):
     )
     LOGGER.debug("url=%s issued_at=%s", url, issued_at)
     template = env.get_template("login.html")
-    return resp_text(200, template.render(harvard_key=url, status=status, extra=extra))
+    return resp_text(HTTP_OK, template.render(harvard_key=url, status=status, extra=extra))
 
 
-def do_dashboard(event):
+def do_dashboard(event):  # pylint: disable=too-many-locals
     """/dashboard
     If the session exists, then the user was created in new_session().
     """
@@ -337,21 +306,11 @@ def do_dashboard(event):
     try:
         user = get_user_from_email(ses.email)
     except EmailNotRegistered:
-        # User has been deleted - delete their session cookie and show error page
-        email = ses.email
-        delete_session_from_event(event)
-        del_cookie = make_cookie(
-            COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event)
-        )
-        template = env.get_template("error_user_deleted.html")
-        return resp_text(
-            200,
-            template.render(email=email),
-            cookies=[del_cookie],
-        )
+        return resp_text(HTTP_INTERNAL_ERROR, f"Internal error: no user for email address {ses.email}")
 
     # Get the dashboard items --- everything from DynamoDB for this user_id
-    # This is faster than separately getting the logs and the grades
+
+    # This is faster than separately getting the logs, the grades, the images, etc...
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
@@ -359,27 +318,63 @@ def do_dashboard(event):
     for item in items:
         item['datetime'] = item['sk'][-26:-7].replace("T"," ")
 
-    # logs = all_logs_for_userid(user.user_id)
-    logs   = [item for item in items if item['sk'].startswith(A.SK_LOG_PREFIX)]
-    grades = [item for item in items if item['sk'].startswith(A.SK_GRADE_PREFIX)]
+    # Extract out the data
+    logs   = [item for item in items if item[A.SK].startswith(A.SK_LOG_PREFIX)]
+    grades = [item for item in items if item[A.SK].startswith(A.SK_GRADE_PREFIX)]
+    images = [item for item in items if item[A.SK].startswith(A.SK_IMAGE_PREFIX)]
 
-    LOGGER.debug("logs=%s",logs)
-    LOGGER.info("grades=%s",grades)
-    #print("items AFTER CONVERT:\n",json.dumps(items,default=str,indent=4))
+    # Get the lab out of the grades
+    for grade in grades:
+        try:
+            grade['lab'] = grade['sk'].split('#')[1]
+        except IndexError:
+            grade['lab'] = 'n/a'
+
+    # sign the image URLs
+    for image in images:
+        image['url'] = make_presigned_url(image[A.BUCKET], image[A.KEY])
+
+    # Compute next_lab: the next lab that is due
+    now = datetime.datetime.now(LAB_TIMEZONE)
+    next_lab = None
+    next_deadline = None
+
+    for lab_num in range(9):
+        lab_key = f"lab{lab_num}"
+        if lab_key in LAB_CONFIG:
+            deadline_str = LAB_CONFIG[lab_key]["deadline"]
+            # Deadline is in Eastern time (no timezone in string)
+            deadline = datetime.datetime.fromisoformat(deadline_str).replace(tzinfo=LAB_TIMEZONE)
+            if deadline > now:
+                if next_deadline is None or deadline < next_deadline:
+                    next_lab = lab_key
+                    next_deadline = deadline
+
     user_sessions = all_sessions_for_email(user.email)
     template = env.get_template("dashboard.html")
-    return resp_text(
-        200,
-        template.render(
-            user=user,
-            ses=ses,
-            client_ip=client_ip,
-            sessions=user_sessions,
-            logs=logs,
-            grades=grades,
-            now=round(time.time()),
-        ),
-    )
+    # Get timezone name for display from LAB_TIMEZONE
+    timezone_name = LAB_TIMEZONE.key if hasattr(LAB_TIMEZONE, 'key') else str(LAB_TIMEZONE)
+    # Convert to a more readable format
+    if timezone_name == "America/New_York":
+        timezone_display = "Eastern Time"
+    else:
+        # For other timezones, use the key as-is (e.g., "America/Los_Angeles")
+        timezone_display = timezone_name
+    return resp_text( HTTP_OK,
+                      template.render(
+                          user=user,
+                          ses=ses,
+                          client_ip=client_ip,
+                          sessions=user_sessions,
+                          logs=logs,
+                          grades=grades,
+                          images = images,
+                          next_lab=next_lab,
+                          next_deadline=next_deadline.isoformat() if next_deadline else None,
+                          timezone_display=timezone_display,
+                          now=round(time.time()) ) )
+
+
 
 
 def oidc_callback(event):
@@ -389,7 +384,7 @@ def oidc_callback(event):
     code = params.get("code")
     state = params.get("state")
     if not code:
-        return {"statusCode": 400, "body": "Missing 'code' in query parameters"}
+        return {"statusCode": HTTP_BAD_REQUEST, "body": "Missing 'code' in query parameters"}
     try:
         obj = oidc.handle_oidc_redirect_stateless(
             openid_config=oidc.get_oidc_config(),
@@ -434,274 +429,49 @@ def do_logout(event):
     )
     LOGGER.debug("url=%s issued_at=%s ", url, issued_at)
     return resp_text(
-        200,
+        HTTP_OK,
         env.get_template("logout.html").render(harvard_key=url),
         cookies=[del_cookie],
     )
 
 
+def queue_grade(email: str, lab: str) -> Dict[str, Any]:
+    """
+    Queue a grading request for a student's lab via SQS.
 
-################################################################
-## api code.
-## api calls do not use sessions. Authenticated APIs (e.g. api_register, api_grade)
-## authenticate with api_authenticate(payload), which returns the user directory.
+    Args:
+        email: Student email address
+        lab: Lab name (e.g., 'lab0', 'lab1')
 
+    Returns:
+        SQS send_message response (includes MessageId)
 
-class APINotAuthenticated(Exception):
-    def __init__(self, msg):
-        super().__init__(msg)
+    Raises:
+        EmailNotRegistered: If the email is not registered
+    """
+    # Get the user to retrieve their course_key for authentication
+    user = get_user_from_email(email)
 
-
-def api_auth(payload):
-    # See if there is an existing user_id for this email address.
-    try:
-        auth = payload["auth"]
-    except KeyError as e:
-        raise APINotAuthenticated("payload does not contain auth") from e
-
-    email = auth.get(A.EMAIL, "")
-    try:
-        user = get_user_from_email(email)
-    except EmailNotRegistered as e:
-        raise APINotAuthenticated(
-            f"User email {email} is not registered. Please visit {DASHBOARD} to register."
-        ) from e
-
-    # See if the user's course_key matches
-    if user.course_key != auth.get(A.COURSE_KEY, ""):
-        raise APINotAuthenticated(
-            f"User course_key does not match registration course_key for email {email}. "
-            f"Please visit {DASHBOARD} to find correct course_key."
-        )
-    return user
-
-
-# pylint: disable=too-many-locals
-def api_register(event, payload):
-    """Register a VM"""
-    LOGGER.info("api_register payload=%s event=%s", payload, event)
-    if payload.get("auth", {}).get("email", "") != payload.get("registration", {}).get(
-        "email", ""
-    ):
-        LOGGER.debug("*** auth.email != registration.email payload=%s", payload)
-        return resp_json(403, {"message": "API auth.email != registration.email"})
-
-    user = api_auth(payload)
-
-    # Get the registration information
-    verbose = payload.get('verbose',True)
-    registration = payload['registration']
-    email = registration.get('email')
-    public_ip = registration.get('public_ip')
-    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
-    hostname = smash_email(email)
-
-    # update the user record in table to match registration information
-    users_table.update_item(
-        Key={
-            "user_id": user.user_id,
-            "sk": user.sk,
+    # Create the payload that api_grader expects
+    payload = {
+        "auth": {
+            A.EMAIL: user.email,
+            A.COURSE_KEY: user.course_key,
         },
-        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t, {A.PREFERRED_NAME} = :preferred_name",
-        ExpressionAttributeValues={
-            ":ip": public_ip,
-            ":hn": hostname,
-            ":t": int(time.time()),
-            ":preferred_name": registration.get(A.PREFERRED_NAME),
-        },
-    )
-    add_user_log(
-        event,
-        user.user_id,
-        f"User registered instanceId={instanceId} public_ip={public_ip}",
-    )
+        "lab": lab,
+    }
 
-    # Hosts that need to be created
-    hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
-
-    #
-    # Count records that will be changed or created
-    #
-    changed_records = 0
-    new_records = 0
-    for fqdn in hostnames:
-        resp = route53_client.list_resource_record_sets(
-            HostedZoneId=HOSTED_ZONE_ID,
-            StartRecordName=fqdn,
-            StartRecordType="A",
-            MaxItems="1",
-        )
-        rrs = resp.get("ResourceRecordSets", [])
-        match = next((r for r in rrs if r.get("Name", "").rstrip(".") == fqdn and r.get("Type") == "A"), None)
-        if match:
-            existing_vals = sorted(v["Value"] for v in match.get("ResourceRecords", []))
-            if existing_vals != [public_ip]:
-                changed_records += 1
-        else:
-            new_records += 1
-
-    # Create DNS records in Route53
-    changes: list[ChangeTypeDef] = [
-        ChangeTypeDef( Action="UPSERT",
-                       ResourceRecordSet={ "Name": hostname,
-                                           "Type": "A",
-                                           "TTL": DNS_TTL, "ResourceRecords": [{"Value": public_ip}]
-                                          }
-                      ) for hostname in hostnames ]
-
-    change_batch = ChangeBatchTypeDef(Changes=changes)
-    route53_response = route53_client.change_resource_record_sets(
-        HostedZoneId=HOSTED_ZONE_ID, ChangeBatch=change_batch
-    )
-    LOGGER.info("Route53 response: %s", route53_response)
-    for h in hostnames:
-        add_user_log(event, user.user_id, f"DNS updated for {h}.{COURSE_DOMAIN}")
-
-    # Send email notification using SES if there is a new record or a changed record
-    if new_records > 0 or changed_records > 0 or verbose:
-        subject_parts = []
-        if new_records > 0:
-            subject_parts.append(EMAIL_SUBJECT_NEW_DNS_RECORDS.format(hostname=hostnames[0]))
-        if changed_records > 0:
-            subject_parts.append(EMAIL_SUBJECT_DNS_RECORDS_UPDATED.format(hostname=hostnames[0]))
-        subject = EMAIL_SUBJECT_PREFIX + "; ".join(subject_parts) if subject_parts else EMAIL_SUBJECT_BASE
-        send_email(to_addr=email,
-                   email_subject = subject,
-                   email_body = EMAIL_BODY.format(
-                       hostname=hostnames[0],
-                       public_ip=public_ip,
-                       course_key=user.course_key,
-                       preferred_name=user.preferred_name))
-        add_user_log(event, user.user_id, f'Registration email sent to {email}')
-        return resp_json(200,{'message':f'DNS updated and email sent successfully. new_records={new_records} changed_records={changed_records}'})
-    return resp_json(200,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
-
-
-def api_heartbeat(event, context):
-    """Called periodically. Not authenticated. Main purpose is to remove expired sessions from database"""
-    LOGGER.info("heartbeat event=%s context=%s", event, context)
-    t0 = time.time()
-    now = int(time.time())
-    expired = 0
-    scan_kwargs: dict[str, Any] = {"ProjectionExpression": "sid, session_expire"}
-    while True:
-        page = sessions_table.scan(**scan_kwargs)
-        expired += expire_batch(now, page.get("Items", []))
-        if LastEvaluatedKey not in page:
-            break
-        scan_kwargs["ExclusiveStartKey"] = page[LastEvaluatedKey]
-    return resp_json(200, {"now": now, "expired": expired, "elapsed": time.time() - t0})
-
-
-def get_pkey_pem(key_name):
-    """Return the PEM key"""
-    ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
-    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
-    json_key = secret.get("SecretString")
-    keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
-    try:
-        return keys[key_name]
-    except KeyError:
-        LOGGER.error("keys  %s not found", key_name)
-        raise
-
-def api_grader(event, context, payload):
-    """
-    Get ready for grading, run the grader, store the results in the users table.
-    sk format: "grade#lab2#time"
-    """
-    LOGGER.info("do_grade event=%s context=%s payload=%s",event,context,payload)
-    user = api_auth(payload)
-
-    lab = payload["lab"]
-    public_ip = user.public_ip
-    email = user.email
-    if email is None:
-        return resp_json(400, {"error":True, "message":email is None})
-    add_user_log(None, user.user_id, f"Grading lab {lab} starts")
-    summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
-    if summary['error']:
-        LOGGER.error("summary=%s",summary)
-        return resp_json(500, summary)
-    LOGGER.info("summary=%s",summary)
-
-    add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-    add_grade(user, lab, public_ip, summary)
-
-    # Send email
-    (subject, body) = grader.create_email(summary)
-    send_email(to_addr=email, email_subject=subject, email_body=body)
-    return resp_json(200, {"summary": summary})
-
-
-def api_check_access(event, payload, check_me=False):
-    """Check to see if we can access the user's VM.
-    Authentication requires knowing the user's email and the course_key.
-    """
-    if check_me is False:
-        user = api_auth(payload)
-        public_ip = str(user.public_ip)
-        try:
-            ipaddress.ip_address(public_ip)
-        except ValueError as e:
-            return resp_json(
-                400,
-                {
-                    "error": "user.ipaddress is not valid",
-                    "e": e,
-                    "public_ip": public_ip,
-                },
-            )
-        LOGGER.info("api_check_access user=%s public_ip=%s", user, public_ip)
-    else:
-        # Try to get the source IP
-        public_ip = (
-            event.get("requestContext", {}).get("identity", {}).get("sourceIp", None)
-        )
-        if public_ip is None:
-            public_ip = (
-                event.get("headers", {}).get("x-forwarded-for", ",").split(",")[0]
-            )
-        LOGGER.info("api_check_access check_me=True public_ip=%s", public_ip)
-
-    ssh = E11Ssh(public_ip, pkey_pem=get_pkey_pem(CSCIE_BOT))
-
-    try:
-        rc, out, err = ssh.exec("hostname")
-        return resp_json(
-            200,
-            {
-                "error": False,
-                "public_ip": public_ip,
-                "message": f"Access On for IP address {public_ip}",
-                "rc": rc,
-                "out": out,
-                "err": err,
-            },
-        )
-    except paramiko.ssh_exception.AuthenticationException as e:
-        return resp_json(
-            200,
-            {
-                "error": False,
-                "public_ip": public_ip,
-                "message": f"Access Off for IP address {public_ip}",
-                "e": str(e),
-            },
-        )
-
-
-def api_delete_session(payload):
-    """Delete the specified session. If the user knows the sid, that's good enough (we don't require that the sid be sealed)."""
-    sid = payload.get("sid", "")
-    if sid:
-        return resp_json(200, {"result": delete_session(sid)})
-    return resp_json(400, {"error": "no sid provided"})
+    # Send the signed message to SQS
+    LOGGER.info("Queueing grade request for email=%s lab=%s", email, lab)
+    result = sqs_send_signed_message(action="grade", method="POST", payload=payload)
+    LOGGER.info("Queued grade request MessageId=%s", result.get("MessageId"))
+    return result
 
 
 ################################################################
 ## Parse Lambda Events and cookies
 # This is the entry point
+# pylint: disable=too-many-locals
 def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
     """parser HTTP API v2 event"""
     stage = event.get("requestContext", {}).get("stage", "")
@@ -725,14 +495,47 @@ def parse_event(event: Dict[str, Any]) -> Tuple[str, str, Dict[str, Any]]:
         payload = {}
     return method, path, payload
 
+def parse_s3_event(event):
+    if event.get('source','')=='aws.s3' and event.get('detail-type','')=='Object Created':
+        detail = event.get('detail',{})
+
+        request_id = detail.get('request-id','')
+
+        bucket = detail.get('bucket',{}).get('name')
+        key = detail.get('object',{}).get('key')
+        if (bucket is None) or (key is None):
+            LOGGER.error("bucket=%s key=%s event=%s",bucket,key,event)
+            return resp_json(200, {"error":True, 'bucket':bucket, 'key':key}) # 200 so we do not get retried
+        return request_id, bucket, key
+    return None, None, None
 
 ################################################################
 ## main entry point from lambda system
 
+def safe_dump_environment():
+    for k,v in sorted(os.environ.items()):
+        if k in ('AWS_SECRET_ACCESS_KEY','AWS_SESSION_TOKEN'):
+            v = '********'
+        print(f"{k} = {v}")
+
 
 # pylint: disable=too-many-return-statements, disable=too-many-branches, disable=unused-argument
 def lambda_handler(event, context):
-    """called by lambda"""
+    """called by lambda.
+    break out the HTTP method, the HTTP path, and the JSON body as a payload.
+    """
+
+    # Check for upload
+    request_id, bucket, key = parse_s3_event(event)
+    if bucket is not None:
+        LOGGER.info("request_id=%s",request_id)         # Make sure this is not a duplicate request?
+        return api.api_upload_callback(bucket, key)
+
+    # Check for sqs
+    if is_sqs_event(event):
+        return handle_sqs_event(event, context)
+
+    # regular HTTP
     method, path, payload = parse_event(event)
 
     # Detect if this is a browser request vs API request
@@ -759,143 +562,78 @@ def lambda_handler(event, context):
             )
             action = (payload.get("action") or "").lower()
 
-            match (method, path, action):
+            if path == API_PATH:
+                return api.dispatch(method, action, event, context, payload)
+            ################################################################
+            # Non-API routes
+            #
+            match (method, path):
                 ################################################################
                 # Authentication callback
                 #
-                case ("GET", "/auth/callback", _):
+                case ("GET", "/auth/callback"):
                     return oidc_callback(event)
 
                 ################################################################
-                # JSON API Actions
-                #
-                case ("POST", "/api/v1", "ping"):
-                    return resp_json(
-                        200,
-                        {
-                            "error": False,
-                            "message": "ok",
-                            "path": sys.path,
-                            "context": dict(context),
-                            "environ": dict(os.environ),
-                        },
-                    )
-                case ("POST", "/api/v1", "ping-mail"):
-                    hostnames = ["first"]
-                    public_ip = "<address>"
-                    resp = send_email(
-                        email_subject="E11 email ping",
-                        email_body=EMAIL_BODY.format(
-                            hostname=hostnames[0], public_ip=public_ip
-                        ),
-                        to_addr=payload[A.EMAIL],
-                    )
-
-                    return resp_json(
-                        200,
-                        {
-                            "error": False,
-                            "message": "ok",
-                            "path": sys.path,
-                            "resp": resp,
-                            "environ": dict(os.environ),
-                        },
-                    )
-
-                case ("POST", "/api/v1", "register"):
-                    return api_register(event, payload)
-
-                case ("POST", "/api/v1", "grade"):
-                    return api_grader(event, context, payload)
-
-                case ("POST", "/api/v1", "delete-session"):
-                    return api_delete_session(payload)
-
-                case ("POST", "/api/v1", "check-access"):
-                    return api_check_access(event, payload, check_me=False)
-
-                case ("POST", "/api/v1", "check-me"):
-                    return api_check_access(event, payload, check_me=True)
-
-                case ("POST", "/api/v1", "heartbeat"):
-                    return api_heartbeat(event, context)
-
-                case ("POST", "/api/v1", "version"):
-                    return resp_json(200, {
-                        'error':False,
-                        'version':__version__,
-                        'deployment_timestamp':os.environ.get('DEPLOYMENT_TIMESTAMP')})
-
-                # Must be last API call - match all actions
-                case (_, "/api/v1", _):
-                    return resp_json( 400,{
-                        "error": True,
-                        "message": "unknown or missing action.",
-                        "method": method,
-                        "path": path,
-                        "action": action,
-                        "version": __version__ })
-
-                ################################################################
                 # Human actions
-                case ("GET", "/heartbeat", _):  # also called by lambda cron
-                    return api_heartbeat(event, context)
+                case ("GET", "/heartbeat"):  # also called by lambda cron
+                    return api.api_heartbeat(event, context)
 
-                case ("GET", "/dashboard", _):
+                case ("GET", "/dashboard"):
                     return do_dashboard(event)
 
-                case ("GET", "/logout", _):
+                case ("GET", "/logout"):
                     return do_logout(event)
 
                 # note that / handles all pages. Specify html template with page= option
-                case ("GET", "/", _):
+                case ("GET", "/"):
                     return do_page(event)
 
                 # lab redirects
-                case ("GET", "/lab0", _):
-                    return redirect(LAB_REDIRECTS[0])
-                case ("GET", "/lab1", _):
-                    return redirect(LAB_REDIRECTS[1])
-                case ("GET", "/lab2", _):
-                    return redirect(LAB_REDIRECTS[2])
-                case ("GET", "/lab3", _):
-                    return redirect(LAB_REDIRECTS[3])
-                case ("GET", "/lab4", _):
-                    return redirect(LAB_REDIRECTS[4])
-                case ("GET", "/lab5", _):
-                    return redirect(LAB_REDIRECTS[5])
-                case ("GET", "/lab6", _):
-                    return redirect(LAB_REDIRECTS[6])
-                case ("GET", "/lab7", _):
-                    return redirect(LAB_REDIRECTS[7])
-                case ("GET", "/lab8", _):
-                    return redirect(LAB_REDIRECTS[8])
+                case ("GET", "/lab0"):
+                    return redirect(LAB_CONFIG["lab0"]["redirect"])
+                case ("GET", "/lab1"):
+                    return redirect(LAB_CONFIG["lab1"]["redirect"])
+                case ("GET", "/lab2"):
+                    return redirect(LAB_CONFIG["lab2"]["redirect"])
+                case ("GET", "/lab3"):
+                    return redirect(LAB_CONFIG["lab3"]["redirect"])
+                case ("GET", "/lab4"):
+                    return redirect(LAB_CONFIG["lab4"]["redirect"])
+                case ("GET", "/lab5"):
+                    return redirect(LAB_CONFIG["lab5"]["redirect"])
+                case ("GET", "/lab6"):
+                    return redirect(LAB_CONFIG["lab6"]["redirect"])
+                case ("GET", "/lab7"):
+                    return redirect(LAB_CONFIG["lab7"]["redirect"])
+                case ("GET", "/lab8"):
+                    return redirect(LAB_CONFIG["lab8"]["redirect"])
 
-                case ("GET", "/version", _):
-                    return resp_text(200, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
+                case ("GET", "/version"):
+                    return resp_text(HTTP_OK, f"version: {__version__} of {os.environ.get('DEPLOYMENT_TIMESTAMP')}\n")
 
                 # This must be last - catch all GETs, check for /static
                 # used for serving css and javascript
-                case ("GET", p, _):
+                case ("GET", p):
                     if p.startswith("/static"):
                         return static_file(p.removeprefix("/static/"))
                     return error_404(p)
 
                 ################################################################
                 # error
-                case (_, _, _):
+                case (_, _):
                     return error_404(path)
 
-        except APINotAuthenticated as e:
-            return resp_json(403, {"message": str(e)})
+        except api.APINotAuthenticated as e:
+            return resp_json(HTTP_FORBIDDEN, {"message": str(e)})
 
         except EmailNotRegistered as e:
             LOGGER.info("EmailNotRegistered: %s", e)
 
             if is_browser_request:
                 template = env.get_template("error_user_not_registered.html")
-                return resp_text(403, template.render())
-            return resp_json(403, {"error": f"Email not registered {e}"})
+                return resp_text(HTTP_FORBIDDEN, template.render())
+            return resp_json(HTTP_FORBIDDEN, {"error": f"Email not registered {e}"})
 
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Try to get session ID from cookies for better debugging
@@ -914,9 +652,9 @@ def lambda_handler(event, context):
                 # Return HTML error page for browser requests
                 template = env.get_template("error_generic.html")
                 return resp_text(
-                    500, template.render(session_id=session_id, error_message=str(e))
+                    HTTP_INTERNAL_ERROR, template.render(session_id=session_id, error_message=str(e))
                 )
             # Return JSON for API requests
             return resp_json(
-                500, {"error": True, "message": str(e), "session_id": session_id}
+                HTTP_INTERNAL_ERROR, {"error": True, "message": str(e), "session_id": session_id}
             )

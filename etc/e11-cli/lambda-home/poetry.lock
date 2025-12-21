@@ -153,7 +153,7 @@ mypy-boto3-ec2 = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extr
 mypy-boto3-lambda = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"essential\""}
 mypy-boto3-rds = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"essential\""}
 mypy-boto3-route53 = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"route53\""}
-mypy-boto3-s3 = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"essential\""}
+mypy-boto3-s3 = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"essential\" or extra == \"s3\""}
 mypy-boto3-secretsmanager = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"secretsmanager\""}
 mypy-boto3-sqs = {version = ">=1.42.0,<1.43.0", optional = true, markers = "extra == \"essential\""}
 types-s3transfer = "*"
@@ -2464,4 +2464,4 @@ watchdog = ["watchdog (>=2.3)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<3.14"
-content-hash = "e3e99b82eec1649a66fa9790cf84c999cf7a8db0b2b8bac5a6e6ec9e8bbb7ee0"
+content-hash = "b0100eccfb125fd1e631740f15be09dd43fdfbc5e70de9aa8d551ae784d2d9f0"

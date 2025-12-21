@@ -14,7 +14,8 @@ disable_rollback = false
 image_repositories = []
 
 # --- Parameters ---
-parameter_overrides = "EnvironmentName=\"prod\" UsersTableName=\"e11-users\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" LogLevel=\"DEBUG\""
+LogLevel = "DEBUG"
+parameter_overrides = "EnvironmentName=\"prod\" UsersTableName=\"e11-users\" HostedZoneId=\"Z05034072HOMXYCK23BRA\" CertificateArn=\"\" OidcSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:harvardkey-oidc-JGPzjb\" SshSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:ssh-keys-EqRSxl\" SqsSecretId=\"arn:aws:secretsmanager:us-east-1:586794483136:secret:sqs-auth-secret-CkrRul\" LogLevel=\"DEBUG\""
 
 [default.global.parameters]
 region = "us-east-1"

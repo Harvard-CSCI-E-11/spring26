@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email, add_user_log)
+from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email)
 from e11.e11core import grader
 
 __version__ = '0.9.3'
@@ -30,12 +30,7 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), 'templates')
 INACTIVE_SECONDS = 120
 DEFAULT_LEADERBOARD_TABLE = 'Leaderboard'
 
-# Use local DynamoDB endpoint if specified
-dynamodb_endpoint = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB')
-if dynamodb_endpoint:
-    dynamodb = boto3.resource('dynamodb', endpoint_url=dynamodb_endpoint)
-else:
-    dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource( 'dynamodb')
 leaderboard_table = dynamodb.Table(os.environ.get('LEADERBOARD_TABLE', DEFAULT_LEADERBOARD_TABLE))
 SECRET_KEY = 'to be changed'    # for its dangerous
 MAX_ITEMS = 100                 # we have 90 students in the class
@@ -121,10 +116,10 @@ def get_leaderboard():
             if start_key is None:
                 break
     except ClientError as err:
-        if hasattr(err,'response'):
-            r = err.response
-            app.logger.error( "Couldn't scan for leaders: %s: %s",
-                              r.get('Error',{}).get('Code',''), r.get('Error',{}).get('Message','')
+        app.logger.error(
+            "Couldn't scan for leaders: %s: %s",
+            err.response['Error']['Code'],
+            err.response['Error']['Message']
         )
         raise
 
@@ -155,10 +150,10 @@ def update_leaderboard(*,data,ip_address,user_agent):
     try:
         leaderboard_table.put_item(Item=this_leader) # replaces if already there
     except ClientError as err:
-        if hasattr(err,'response'):
-            r = err.response
-            app.logger.error( "Couldn't put_item for leaders: %s: %s",
-                              r.get('Error',{}).get('Code',''), r.get('Error',{}).get('Message','')
+        app.logger.error(
+            "Couldn't put_item on leaders: %s: %s",
+            err.response['Error']['Code'],
+            err.response['Error']['Message']
         )
         raise
 
@@ -182,10 +177,10 @@ def update_leaderboard(*,data,ip_address,user_agent):
             for leader in to_delete:
                 batch.delete_item(Key={'name':leader['name']})
     except ClientError as err:
-        if hasattr(err,'response'):
-            r = err.response
-            app.logger.error( "Couldn't delete_item for leaders: %s: %s",
-                              r.get('Error',{}).get('Code',''), r.get('Error',{}).get('Message','')
+        app.logger.error(
+            "Couldn't delete_item on leaders: %s: %s",
+            err.response['Error']['Code'],
+            err.response['Error']['Message']
         )
         raise
     return leaders
@@ -270,9 +265,7 @@ def api_post_register():
         tests[1]['status'] = 'fail'
         fails = 1
 
-
     # if score is higher than current score, record that
-    # See grader.py for how to construct summary...
     old_score = get_grade(user, LAB)
     app.logger.debug("user=%s score=%s, old_score=%s",user,score,old_score)
     summary = {'lab':LAB,
@@ -290,12 +283,7 @@ def api_post_register():
                email_subject = subject,
                email_body=body)
 
-    reg = new_registration()
-    add_user_log(None,
-                 user_id = user.user_id,
-                 message=f'Registered {reg["name"]} with Leaderboard. user_agent={user_agent}',
-                 client_ip=request.remote_addr)
-    return  jsonify(reg)
+    return  jsonify(new_registration())
 
 @app.route('/api/update', methods=['POST'])
 def api_update():   # pylint disable=missing-function-docstring

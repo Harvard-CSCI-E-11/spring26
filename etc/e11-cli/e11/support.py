@@ -5,9 +5,12 @@ from pathlib import Path
 
 import requests
 
-REPO_YEAR='spring26'
-CONFIG_FILE_NAME =  'e11-config.ini'
-CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
+from .e11core.constants import VERSION, CONFIG_FILENAME, COURSE_ROOT
+from .e11_common import CSCIE_BOT_KEYFILE
+
+# Use constants from e11core.constants and e11_common
+REPO_YEAR = VERSION  # Alias for backward compatibility
+CONFIG_FILE_NAME = CONFIG_FILENAME  # Alias for backward compatibility
 DEFAULT_TIMEOUT = 3
 STUDENT='student'               # section
 
@@ -30,6 +33,10 @@ def authorized_keys_path():
 
 def bot_pubkey_path():
     """Find the full path of the bot public key"""
+    # Try COURSE_ROOT first, then fallback to home-based paths
+    course_root_key = COURSE_ROOT / "etc" / CSCIE_BOT_KEYFILE
+    if course_root_key.exists():
+        return course_root_key
     for path in [ home() / REPO_YEAR / "etc" / CSCIE_BOT_KEYFILE,
                   home() / "gits" / "csci-e-11" / "etc" / CSCIE_BOT_KEYFILE]:
         if path.exists():

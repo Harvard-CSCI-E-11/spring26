@@ -9,52 +9,140 @@ import time
 import uuid
 import json
 import copy
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
-import datetime
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 from boto3.dynamodb.conditions import Key
 
-from e11.e11core.constants import COURSE_KEY_LEN
+from e11.e11core.constants import COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11core.utils import get_logger
 
 if TYPE_CHECKING:
-    from mypy_boto3_route53.client import Route53Client
-    from mypy_boto3_secretsmanager.client import SecretsManagerClient
-    from mypy_boto3_dynamodb.client import DynamoDBClient
+    from mypy_boto3_s3 import S3Client
+    from mypy_boto3_route53 import Route53Client
+    from mypy_boto3_secretsmanager import SecretsManagerClient
+    from mypy_boto3_dynamodb import DynamoDBClient
     from mypy_boto3_dynamodb.service_resource import DynamoDBServiceResource, Table as DynamoDBTable
+    from mypy_boto3_sqs.client import SQSClient
 else:
+    S3Client = Any                 # pylint: disable=invalid-name
     Route53Client = Any            # pylint: disable=invalid-name
     SecretsManagerClient = Any     # pylint: disable=invalid-name
     DynamoDBClient = Any           # pylint: disable=invalid-name
     DynamoDBServiceResource = Any  # pylint: disable=invalid-name
     DynamoDBTable = Any            # pylint: disable=invalid-name
+    SQSClient = Any                 # pylint: disable=invalid-name
 
-# COURSE_KEY_LEN is imported from e11.e11core.constants
+# COURSE_KEY_LEN and COURSE_DOMAIN are imported from e11.e11core.constants
 
+S3_BUCKET  = 'csci-e-11'
+AWS_REGION = 'us-east-1'
+DASHBOARD = f"https://{COURSE_DOMAIN}"
+DNS_TTL = 30
+
+# Route53
+HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # Route53 hosted zone for course domain
+
+# SSH/Bot Configuration
+CSCIE_BOT = "cscie-bot"
+CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
+
+# GitHub Repository
+GITHUB_REPO_URL = "https://github.com/Harvard-CSCI-E-11/spring26"
+
+# Lab Configuration
+# Each lab has a redirect URL and a deadline (ISO-8601 format, Eastern time, no timezone)
+
+LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
+
+LAB_CONFIG = {
+    "lab0": {
+        "redirect": "https://docs.google.com/document/d/1ywWJy6i2BK1qDZcWMWXXFibnDtOmeWFqX1MomPFYEN4/edit?usp=drive_link",
+        "deadline": "2026-02-02T23:59:59"
+    },
+    "lab1": {
+        "redirect": "https://docs.google.com/document/d/1okJLytuKSqsq0Dz5GUZHhEVj0UqQoWRTsxCac1gWiW4/edit?usp=drive_link",
+        "deadline": "2026-02-09T23:59:59"
+    },
+    "lab2": {
+        "redirect": "https://docs.google.com/document/d/1-3Wrh1coGqYvgfIbGvei8lw3XJQod85zzuvfdMStsvs/edit?usp=drive_link",
+        "deadline": "2026-02-16T23:59:59"
+    },
+    "lab3": {
+        "redirect": "https://docs.google.com/document/d/1pOeS03gJRGaUTezjs4-K6loY3SoVx4xRYk6Prj7WClU/edit?usp=drive_link",
+        "deadline": "2026-02-23T23:59:59"
+    },
+    "lab4": {
+        "redirect": "https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link",
+        "deadline": "2026-03-09T23:59:59"
+    },
+    "lab5": {
+        "redirect": "https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link",
+        "deadline": "2026-03-30T23:59:59"
+    },
+    "lab6": {
+        "redirect": "https://docs.google.com/document/d/1aRFFRaWmMrmgn3ONQDGhYghC-823GbGzAP-7qdt5E0U/edit?usp=drive_link",
+        "deadline": "2026-04-13T23:59:59"
+    },
+    "lab7": {
+        "redirect": "https://docs.google.com/document/d/14RdMZr3MYGiazjtEklW-cYWj27ek8YV2ERFOblZhIoM/edit?usp=drive_link",
+        "deadline": "2026-04-27T23:59:59"
+    },
+    "lab8": {
+        "redirect": "https://docs.google.com/document/d/1WEuKLVKmudsOgrpEqaDvIHE55kWKZDqAYbEvPWaA4gY/edit?usp=drive_link",
+        "deadline": "2026-05-11T23:59:59"
+    }
+}
+
+# Backward compatibility: LAB_REDIRECTS for existing code
+LAB_REDIRECTS = {i: LAB_CONFIG[f"lab{i}"]["redirect"] for i in range(9)}
+
+EMAIL_BODY = """
+    Hi {preferred_name},
+
+    You have successfully registered your AWS instance.
+
+    Your course key is: {course_key}
+
+    The following DNS record has been created:
+
+    Hostname: {hostname}
+    Public IP Address: {public_ip}
+
+    Best regards,
+    CSCIE-11 Team
+"""
+
+
+
+# Time Constants
+SIX_MONTHS = 60 * 60 * 24 * 180  # 180 days in seconds
 
 # DynamoDB config
-DDB_REGION = os.environ.get("DDB_REGION","us-east-1")
-SECRETS_REGION = os.environ.get("SECRETS_REGION","us-east-1")
-ROUTE53_REGION = "us-east-1"
-USERS_TABLE_NAME = os.environ.get("USERS_TABLE_NAME","e11-users")
+USERS_TABLE_NAME    = os.environ.get("USERS_TABLE_NAME","e11-users")
 SESSIONS_TABLE_NAME = os.environ.get("SESSIONS_TABLE_NAME","home-app-sessions")
+IMAGE_BUCKET_NAME   = S3_BUCKET
 
-# DynamoDB values:
-dynamodb_client : DynamoDBClient = boto3.client("dynamodb", region_name=DDB_REGION)
-dynamodb_resource : DynamoDBServiceResource = boto3.resource( 'dynamodb', region_name=DDB_REGION )
+# DynamoDB
+dynamodb_client : DynamoDBClient = boto3.client("dynamodb", region_name=AWS_REGION)
+dynamodb_resource : DynamoDBServiceResource = boto3.resource( 'dynamodb', region_name=AWS_REGION )
 users_table : DynamoDBTable   = dynamodb_resource.Table(USERS_TABLE_NAME)
 sessions_table: DynamoDBTable = dynamodb_resource.Table(SESSIONS_TABLE_NAME)
-route53_client : Route53Client = boto3.client('route53', region_name=ROUTE53_REGION)
-secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=SECRETS_REGION)
+route53_client : Route53Client = boto3.client('route53', region_name=AWS_REGION)
+secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=AWS_REGION)
+sqs_client :SQSClient = boto3.client("sqs", region_name=AWS_REGION)
+
+
+# S3
+s3_client : S3Client = boto3.client("s3", region_name=AWS_REGION)
 
 # Simple Email Service
-SES_VERIFIED_EMAIL = "admin@csci-e-11.org"  # Verified SES email address
-SES_REGION = os.environ.get("SES_REGION","us-east-1")
-ses_client = boto3.client("ses", region_name=SES_REGION)
-
+SES_VERIFIED_EMAIL = f"admin@{COURSE_DOMAIN}"  # Verified SES email address
+ses_client = boto3.client("ses", region_name=AWS_REGION)
 
 # Classes
 
@@ -72,6 +160,7 @@ class InvalidCookie(RuntimeError):
 class A:                        # pylint: disable=too-few-public-methods
     CLAIMS = 'claims'
     COURSE_KEY = 'course_key'
+    BUCKET = 'bucket'           # for S3
     EMAIL = 'email'
     HOSTNAME = 'hostname'
     HOST_REGISTERED = 'host_registered'
@@ -81,11 +170,14 @@ class A:                        # pylint: disable=too-few-public-methods
     SCORE = 'score'
     SESSION_CREATED = 'session_created'  # time_t
     SESSION_EXPIRE = 'session_expire'    # time_t
+    KEY = 'key'                          # typically for S3
     SK = 'sk'                   # sort key
     SK_GRADE_PREFIX = 'grade#'         # sort key prefix for log entries
     SK_GRADE_PATTERN = SK_GRADE_PREFIX + "{lab}#{now}"
     SK_LOG_PREFIX = 'log#'         # sort key prefix for log entries
-    SK_USER = '#'               # sort key for the user record
+    SK_USER = '#'                  # sort key for the user record
+    SK_IMAGE_PREFIX = 'image#'     # sort key for images
+    SK_IMAGE_PATTERN = SK_IMAGE_PREFIX + "{lab}#{now}"
     USER_ID = 'user_id'
     USER_REGISTERED = 'user_registered'
 
@@ -149,7 +241,7 @@ def make_course_key():
     return str(uuid.uuid4())[0:COURSE_KEY_LEN]
 
 def create_new_user(email, claims=None):
-    """Create a new user. claims must include 'email'"""
+    """Create a new user."""
     now = int(time.time())
     user_id = str(uuid.uuid4())
     user = {
@@ -183,7 +275,6 @@ def get_user_from_email(email) -> User:
     logger.debug("get_user_from_email - item=%s", item)
     return User(**convert_dynamodb_item(item))
 
-
 def add_user_log(event, user_id, message, **extra):
     """
     :param user_id: user_id
@@ -194,7 +285,7 @@ def add_user_log(event, user_id, message, **extra):
         client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     else:
         client_ip = extra.get('client_ip')
-    now = datetime.datetime.now().isoformat()
+    now = datetime.now().isoformat()
     logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
     ret = users_table.put_item(Item={A.USER_ID:user_id,
                                      A.SK:f'{A.SK_LOG_PREFIX}{now}',
@@ -206,8 +297,7 @@ def add_user_log(event, user_id, message, **extra):
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
-    logger = get_logger()
-    now = datetime.datetime.now().isoformat()
+    now = datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
         A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
@@ -219,8 +309,28 @@ def add_grade(user, lab, public_ip, summary):
         "raw": json.dumps(summary, default=str)[:35000],
     }
     ret = users_table.put_item(Item=item)
-    logger.info("add_grade to %s user=%s ret=%s", users_table, user, ret)
+    get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
+def add_image(user_id, lab, bucket, key):
+    now = datetime.now().isoformat()
+    item = {
+        A.USER_ID: user_id,
+        A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now),
+        A.BUCKET: bucket,
+        A.LAB: lab,
+        A.KEY: key,
+    }
+    ret = users_table.put_item(Item=item)
+    get_logger().info("add_image user_id=%s bucket=%s key=%s ret=%s", user_id, bucket, key, ret)
+
+def delete_image(user_id, sk, bucket, key):
+    get_logger().info("delete_image user=%s sk=%s bucket=%s key=%s", user_id, sk, bucket, key)
+    r1 = users_table.delete_item(Key={A.USER_ID:user_id, A.SK:sk})
+    r2 = s3_client.delete_object(Bucket=bucket, Key=key)
+    get_logger().info("delete_image r1=%s r2=%s", r1, r2)
+
+################################################################
+## get functions
 def queryscan_table(what, kwargs):
     """use the users table and return the items"""
     kwargs = copy.copy(kwargs)  # it will be modified
@@ -250,6 +360,8 @@ def get_grade(user, lab):
     return float(score)
 
 
+################################################################
+## SES
 def send_email(to_addr: str, email_subject: str, email_body: str):
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,

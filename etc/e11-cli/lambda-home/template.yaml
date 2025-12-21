@@ -12,7 +12,7 @@
 #   EnvironmentName = "stage"
 #   ...
 #
-# Example (samconfig.toml for prod):
+# Example (samconfig-prod.toml for prod):
 #   [default.deploy.parameters]
 #   stack_name = "home-app"
 #   EnvironmentName = "prod"
@@ -43,10 +43,16 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         OIDC_SECRET_ID: !Ref OidcSecretId
         SSH_SECRET_ID: !Ref SshSecretId
+        SQS_SECRET_ID: !Ref SqsSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable
         PYTHONPATH: "/var/task/home_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
+        IMAGE_BUCKET_NAME: !Ref ImageBucketName
+        STAGE_NAME: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
+        SQS_QUEUE_URL: !Ref HomeQueue
+        SQS_QUEUE_ARN: !GetAtt HomeQueue.Arn
+
 
 Parameters:
   EnvironmentName:
@@ -54,6 +60,9 @@ Parameters:
     Default: stage
     AllowedValues: [prod, stage]
     Description: The deployment environment (prod or stage).
+  ImageBucketName:
+    Type: String
+    Default: csci-e-11
   UsersTableName:
     Type: String
     Default: "e11-users"
@@ -71,6 +80,10 @@ Parameters:
   SshSecretId:
     Type: String
     Description: Secrets Manager ARN for SSH secrets (e11-ssh)
+  SqsSecretId:
+    Type: String
+    Description: Secrets Manager ARN for SQS authentication secret
+    Default: arn:aws:secretsmanager:us-east-1:586794483136:secret:sqs-auth-secret-CkrRul
   LogLevel:
     Type: String
     Default: INFO
@@ -84,6 +97,7 @@ Parameters:
 Conditions:
   CreateAcmCert: !Equals [!Ref CertificateArn, ""]
 
+# Resources are things that the SAM creates
 Resources:
   # Optional, auto-created ACM cert for the custom domain (regional, DNS validated)
   HomeCertificate:
@@ -158,6 +172,7 @@ Resources:
               Resource:
                 - !Ref OidcSecretId
                 - !Ref SshSecretId
+                - !Ref SqsSecretId
 
             - Sid: AllowRoute53Changes
               Effect: Allow
@@ -173,6 +188,27 @@ Resources:
                 - ses:SendEmail
                 - ses:SendRawEmail
               Resource: "*"
+
+            - Sid: AccessExistingBucket
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource:
+                - !Sub 'arn:aws:s3:::${ImageBucketName}'      # The Bucket itself
+                - !Sub 'arn:aws:s3:::${ImageBucketName}/*'    # The Objects inside
+
+
+            - Sid: HomeQueueRW
+              Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:ReceiveMessage
+                - sqs:DeleteMessage
+                - sqs:GetQueueAttributes
+                - sqs:ChangeMessageVisibility
+              Resource: !GetAtt HomeQueue.Arn
 
       Events:
         AnyRoot:
@@ -194,8 +230,31 @@ Resources:
           Properties:
             Schedule: rate(5 minutes)
             Input: '{"action":"heartbeat"}'
+        FileUpload:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - aws.s3
+              detail-type:
+                - "Object Created"
+              detail:
+                bucket:
+                  name:
+                    - !Ref ImageBucketName
+                object:
+                  key:
+                    - prefix: "images/"
+        FromHomeQueue:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt HomeQueue.Arn
+            BatchSize: 1
+            MaximumBatchingWindowInSeconds: 2
 
-  # Sessions table holds the cookie sessions
+
+  # Sessions table holds the cookie sessions.
+  # It's a "Resource", so it's created and owned by the Lambda. The users table is not!
   SessionsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Delete
@@ -222,6 +281,30 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # SQS is used to queue grading requests.
+  # Dead Letter Queue is for messages that don't get processed
+  HomeQueueDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-home-dlq"
+      MessageRetentionPeriod: 1209600  # 14 days
+
+  HomeQueue:
+    Type: AWS::SQS::Queue
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-home-queue"
+      VisibilityTimeout: 75            # must be > Lambda Timeout (60s)
+      MessageRetentionPeriod: 3600     # 1 hour
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt HomeQueueDeadLetterQueue.Arn
+        maxReceiveCount: 5
+
+
+# This is what the script prints
 Outputs:
   ApiId:
     Description: HTTP API ID
@@ -238,3 +321,9 @@ Outputs:
   UsersTableIndexArn:
     Description: ARN for Users Table Index
     Value: !Sub "${SessionsTable.Arn}/index/*"
+  HomeQueueUrl:
+    Description: URL of the Home SQS queue
+    Value: !Ref HomeQueue
+  HomeQueueArn:
+    Description: ARN of the Home SQS queue
+    Value: !GetAtt HomeQueue.Arn

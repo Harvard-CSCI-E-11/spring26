@@ -4,17 +4,20 @@ MEMENTO Leaderboard Client
 
 import os
 import time
+import sys
+
 import wifi                     # pyright: ignore[reportMissingModuleSource]
 import adafruit_connection_manager
 import adafruit_requests
 import digitalio
 import board
-import sys
-import displayio
 
 # WiFi configuration
 ssid     = os.getenv("CIRCUITPY_WIFI_SSID")
 password = os.getenv("CIRCUITPY_WIFI_PASSWORD")
+email    = os.getenv("E11_EMAIL")
+course_key = os.getenv("E11_COURSE_KEY")
+
 
 # --- Button Setup (The "Kill Switch") ---
 # The Momento Shutter button is usually board.BUTTON
@@ -43,8 +46,17 @@ URL_UPDATE = ENDPOINT + "api/update"
 
 def register():
     """Register the Momento with the leaderboard"""
-    response = requests.get(URL_REGISTER, timeout=TIMEOUT)
-    my_data = response.json()
+    response = requests.post(URL_REGISTER,
+                             data={"email":email,
+                                   "course_key":course_key},
+                             timeout=TIMEOUT)
+    try:
+        my_data = response.json()
+    except ValueError as e:
+        print("API Error: ",e)
+        print("response:",response.text)
+        print("Please alert course staff.")
+        sys.exit(0)
     name = my_data["name"]
     opaque = my_data["opaque"]
     print("Registered Name: ", name)
@@ -59,17 +71,19 @@ def run_leaderboard():
         run += 1
         print("\nrun:",run)
         response = requests.post(URL_UPDATE, data={"opaque": opaque}, timeout=TIMEOUT)
-	data = response.json()
-        now = int(time.time())
-        for leader in data["leaderboard"]:
-            if leader.get("active", False):
-		if leader["name"] == name:
+        data = response.json()
+        # The leaderboard API returns an array of leaders
+        # Check it to see if it is active.
+        # Then check to see if it is this particular MEMENTO!
+        for row in data["leaderboard"]:
+            if row.get("active", False):
+                if row["name"] == name:
                     me = "me -->"
                 else:
                     me = ""
-                age = int(leader["last_seen"]) - int(leader["first_seen"])
+                age = int(row["last_seen"]) - int(row["first_seen"])
                 if (count < 4) or me:
-                    print(count, me, leader["name"], age)
+                    print(count, me, row["name"], age)
             count += 1
         # Wait for 10 seconds, checking the button every tenth of a second
         print("")
