@@ -8,6 +8,7 @@ import sys
 import time
 import uuid
 import ipaddress
+from datetime import datetime
 from typing import Any, Dict, Optional
 
 import paramiko.ssh_exception
@@ -36,6 +37,8 @@ from e11.e11_common import (
     EMAIL_BODY,
     send_email,
     secretsmanager_client,
+    LAB_CONFIG,
+    LAB_TIMEZONE,
 )
 from e11.e11core.constants import (
     COURSE_DOMAIN,
@@ -256,11 +259,41 @@ def api_grader(event, context, payload):
     """
     Get ready for grading, run the grader, store the results in the users table.
     sk format: "grade#lab2#time"
+    
+    Rejects grading requests if the lab deadline has passed, unless the request
+    comes from SQS (which allows late grading for administrative purposes).
     """
     LOGGER.info("api_grader event=%s context=%s payload=%s",event,context,payload)
     user = validate_payload(payload)
 
     lab = payload["lab"]
+
+    # Check if request is from SQS (allow late grading for SQS requests)
+    is_sqs_request = event.get("source") == "sqs"
+
+    # Check deadline unless this is an SQS request
+    if not is_sqs_request:
+        # Normalize lab name to "lab0", "lab1", etc.
+        if lab.startswith("lab"):
+            lab_key = lab
+        else:
+            # Extract number if lab is just a number or "lab0" format
+            lab_num = lab.replace("lab", "").strip()
+            lab_key = f"lab{lab_num}"
+
+        if lab_key in LAB_CONFIG:
+            deadline_str = LAB_CONFIG[lab_key]["deadline"]
+            # Deadline is in Eastern time (no timezone in string)
+            deadline = datetime.fromisoformat(deadline_str).replace(tzinfo=LAB_TIMEZONE)
+            now = datetime.now(LAB_TIMEZONE)
+            if now > deadline:
+                LOGGER.warning("Grading request for %s rejected: deadline %s has passed (current time: %s)",
+                             lab, deadline, now)
+                return resp_json(HTTP_FORBIDDEN, {
+                    "error": True,
+                    "message": f"Lab {lab} deadline has passed. The deadline was {deadline_str}."
+                })
+
     public_ip = user.public_ip
     email = user.email
     if email is None:

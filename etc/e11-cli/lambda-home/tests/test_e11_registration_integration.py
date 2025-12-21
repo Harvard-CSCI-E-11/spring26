@@ -55,7 +55,7 @@ def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local
 
             print(f"DEBUG: json_data = {json_data}")
             registration_payload = json_data.get('registration', json_data)
-            response = api.dispatch("POST", "register", event, None, registration_payload, API_PATH)
+            response = api.dispatch("POST", "register", event, None, registration_payload)
             return Mock(
                 ok=response['statusCode'] == 200,
                 text=response['body'],

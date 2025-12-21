@@ -669,7 +669,6 @@ def test_api_dispatch_routes_all_actions():
     # Create minimal event and context
     event = {"rawPath": API_PATH}
     context = {}
-    path = API_PATH
 
     # Test that all known actions are handled (structure check only)
     known_actions = [
@@ -683,7 +682,7 @@ def test_api_dispatch_routes_all_actions():
         # Most actions will fail due to missing dependencies (auth, etc.),
         # but we can check they don't fail on routing (unknown action error)
         try:
-            response = dispatch("POST", action, event, context, payload, path)
+            response = dispatch("POST", action, event, context, payload)
             # Should return a response dict with statusCode
             assert isinstance(response, dict)
             assert "statusCode" in response
@@ -704,9 +703,8 @@ def test_api_dispatch_unknown_action():
     event = {"rawPath": API_PATH}
     context = {}
     payload = {"action": "unknown-action-12345"}
-    path = API_PATH
 
-    response = dispatch("POST", "unknown-action-12345", event, context, payload, path)
+    response = dispatch("POST", "unknown-action-12345", event, context, payload)
 
     assert response["statusCode"] == 400
     assert "error" in response["body"].lower() or "unknown" in response["body"].lower()
@@ -720,10 +718,9 @@ def test_api_dispatch_wrong_method():
     event = {"rawPath": API_PATH}
     context = {}
     payload = {"action": "ping"}
-    path = API_PATH
 
     # GET method with POST action should return 400
-    response = dispatch("GET", "ping", event, context, payload, path)
+    response = dispatch("GET", "ping", event, context, payload)
 
     assert response["statusCode"] == 400
 

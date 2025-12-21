@@ -73,7 +73,7 @@ def test_registration_api_flow(monkeypatch, fake_aws, dynamodb_local):
         # Call the registration handler via dispatch
         # Wrap in try/except to handle APINotAuthenticated like lambda_handler does
         try:
-            response = api.dispatch("POST", "register", event, None, registration_payload, API_PATH)
+            response = api.dispatch("POST", "register", event, None, registration_payload)
         except api.APINotAuthenticated as e:
             from home_app.api import resp_json
             response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})
@@ -104,7 +104,7 @@ def test_registration_api_invalid_user(monkeypatch, fake_aws, dynamodb_local):
     # Call the registration handler via dispatch - should raise APINotAuthenticated
     # Wrap in try/except to handle APINotAuthenticated like lambda_handler does
     try:
-        response = api.dispatch("POST", "register", event, None, registration_payload, API_PATH)
+        response = api.dispatch("POST", "register", event, None, registration_payload)
     except api.APINotAuthenticated as e:
         from home_app.api import resp_json
         response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})
@@ -136,7 +136,7 @@ def test_registration_api_invalid_course_key(monkeypatch, fake_aws, dynamodb_loc
     # Call the registration handler via dispatch - should raise APINotAuthenticated
     # Wrap in try/except to handle APINotAuthenticated like lambda_handler does
     try:
-        response = api.dispatch("POST", "register", event, None, registration_payload, API_PATH)
+        response = api.dispatch("POST", "register", event, None, registration_payload)
     except api.APINotAuthenticated as e:
         from home_app.api import resp_json
         response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})
@@ -175,7 +175,7 @@ def test_registration_api_returning_user_flow(monkeypatch, fake_aws, dynamodb_lo
         # Call the registration handler via dispatch
         # Wrap in try/except to handle APINotAuthenticated like lambda_handler does
         try:
-            response = api.dispatch("POST", "register", event, None, registration_payload, API_PATH)
+            response = api.dispatch("POST", "register", event, None, registration_payload)
         except api.APINotAuthenticated as e:
             from home_app.api import resp_json
             response = resp_json(HTTP_FORBIDDEN, {"message": str(e)})

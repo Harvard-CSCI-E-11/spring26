@@ -83,6 +83,7 @@ Parameters:
   SqsSecretId:
     Type: String
     Description: Secrets Manager ARN for SQS authentication secret
+    Default: arn:aws:secretsmanager:us-east-1:586794483136:secret:sqs-auth-secret-CkrRul
   LogLevel:
     Type: String
     Default: INFO
