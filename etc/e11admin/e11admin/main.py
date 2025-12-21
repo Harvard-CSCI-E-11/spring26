@@ -4,6 +4,7 @@ e11admin main program
 
 import time
 import argparse
+import sys
 
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
@@ -14,13 +15,21 @@ dynamodb = boto3.resource('dynamodb')
 users_table = dynamodb.Table('e11-users')
 
 def validate_dynamodb():
+    missing = 0
+    correct = 0
     r = dynamodb_client.list_tables()
     print("DynamoDB Tables:")
     for table_name in r['TableNames']:
         print(f"- {table_name}")
+        correct += 1
     for name in ['Leaderboard','e11-users','home-app-prod-sessions','home-app-stage-sessions']:
-        assert name in r['TableNames']
+        if name not in r['TableNames']:
+            print(f"missing table: {name}")
+            missing += 1
     print("")
+    if missing>0:
+        print("Wrong AWS_PROFILE?")
+        sys.exit(1)
 
 def get_all(*, sk=None, user_id=None, projection=None):
     """Search the users table and returns all of the recoreds with a particular sk.
@@ -53,10 +62,13 @@ def get_all(*, sk=None, user_id=None, projection=None):
     print(f"Scan complete. Found {len(items)} users. calls={calls}")
     return items
 
+def name(user):
+    return user.get('preferred_name',user.get('claims',{}).get('name','n/a'))
+
 def show_registered_users():
     print("================ show_registered_users ================")
     users = get_all(sk='#',projection='user_id,user_registered,email,public_ip,claims,preferred_name')
-    pusers = [ (user.get('preferred_name','n/a'),
+    pusers = [ (name(user),
                 user.get('email','n/a'),
                 time.asctime(time.localtime(int(user.get('user_registered',0)))),
                 user.get('public_ip','n/a'),
@@ -73,15 +85,21 @@ def dump_users_table(args,user_id=None):
     items = get_all(user_id=user_id)
     print(f"Scan complete. Found {len(items)} items")
     printable = {}
+    sk_prev = ''
     for item in items:
         user_id = item['user_id']
         if user_id not in printable:
-            printable[user_id] = user_id[0:3] + " " + item.get('preferred_name','')[0:15]
-        print(printable[user_id],item['sk'],item.get('message','')[0:40])
-        if item['sk']=='#':
-            print(item)
+            if args.dump:
+                print("")
+            printable[user_id] = user_id[0:3] + " " + name(item)
+        sk0 = item['sk'].split('#')[0]
+        if sk0=='':
+            print(printable[user_id],item['sk'],item.get('message','')[0:40])
         if args.dump:
+            if sk0 != sk_prev:
+                print("---")
             print(item)
+        sk_prev = sk0
     return items
 
 def delete_items(items):

@@ -35,6 +35,7 @@ from itsdangerous import BadSignature, SignatureExpired
 import jinja2
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
+from e11.e11core.utils import (get_log_level)
 from e11.e11_common import (
     A,
     EmailNotRegistered,
@@ -140,6 +141,12 @@ env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
 env.globals["LAB_CONFIG"] = LAB_CONFIG
 
 # Route53 config for this course (imported from e11_common)
+
+# Email subject constants
+EMAIL_SUBJECT_PREFIX = "CSCI E-11 Update: "
+EMAIL_SUBJECT_BASE = "CSCI E-11 Update"
+EMAIL_SUBJECT_NEW_DNS_RECORDS = "New DNS records created for {hostname}"
+EMAIL_SUBJECT_DNS_RECORDS_UPDATED = "DNS records updated for {hostname}"
 
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
 
@@ -305,8 +312,9 @@ def do_dashboard(event):  # pylint: disable=too-many-locals
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
-    # Convert to a User object. Additional records are kept
-    # items = [User(**convert_dynamodb_item(u)) for u in items]
+    # Create printable dates from the sortkeys
+    for item in items:
+        item['datetime'] = item['sk'][-26:-7].replace("T"," ")
 
     # Extract out the data
     logs   = [item for item in items if item[A.SK].startswith(A.SK_LOG_PREFIX)]
@@ -459,12 +467,6 @@ def queue_grade(email: str, lab: str) -> Dict[str, Any]:
 
 
 ################################################################
-## api code.
-## api calls do not use sessions. Authenticated APIs (e.g. api_register, api_grade)
-## authenticate with api_authenticate(payload), which returns the user directory.
-
-
-################################################################
 ## Parse Lambda Events and cookies
 # This is the entry point
 # pylint: disable=too-many-locals
@@ -549,7 +551,8 @@ def lambda_handler(event, context):
     with _with_request_log_level(payload):
         try:
             LOGGER.info(
-                "req method='%s' path='%s' action='%s' source_ip='%s'",
+                "log_level=%s req method='%s' path='%s' action='%s' source_ip='%s'",
+                get_log_level(),
                 method,
                 path,
                 payload.get("action"),
