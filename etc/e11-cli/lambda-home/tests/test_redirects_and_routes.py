@@ -518,7 +518,8 @@ def test_expire_batch_handles_missing_session_expire(fake_aws, dynamodb_local):
     resp = e11_common.sessions_table.get_item(Key={"sid": no_expire_sid})
     assert "Item" not in resp, "no_expire_sid should be deleted"
     # Note: items with session_expire=None will raise TypeError because None <= int fails
-    # This is actually a bug in the code, but we're testing current behavior
+    # This is actually a bug in the code, but we're testing current behavior for regression coverage.
+    # TODO: Track and fix this known bug in the production session handling logic.
 
 
 def test_eastern_filter_formats_timestamp():
