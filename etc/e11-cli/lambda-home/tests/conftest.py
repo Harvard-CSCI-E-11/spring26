@@ -195,12 +195,12 @@ def clean_dynamodb(dynamodb_local):
     """Fixture that ensures DynamoDB tables are clean before each test"""
     users_table_name = os.environ.get('USERS_TABLE_NAME', 'e11-users')
     sessions_table_name = os.environ.get('SESSIONS_TABLE_NAME', 'home-app-sessions')
-    
+
     # Clean up before test
     _cleanup_dynamodb_tables(dynamodb_local, users_table_name, sessions_table_name)
-    
+
     yield
-    
+
     # Clean up after test
     _cleanup_dynamodb_tables(dynamodb_local, users_table_name, sessions_table_name)
 
@@ -208,7 +208,7 @@ def clean_dynamodb(dynamodb_local):
 def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     """
     Set up fake Secrets Manager and configure DynamoDB to use local endpoint.
-    
+
     IMPORTANT: This fixture patches AWS service clients (Route53, SES, S3) but uses
     REAL DynamoDB Local tables. Do NOT mock DynamoDB operations - create actual
     records in DynamoDB Local and query the real tables.

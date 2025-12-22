@@ -396,7 +396,7 @@ def test_parse_cookies_handles_multiple_equals():
 def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
     """
     Test that expire_batch correctly identifies and deletes expired sessions.
-    
+
     IMPORTANT: Uses real DynamoDB Local, NOT mocking. Creates actual sessions
     in DynamoDB Local and verifies they are deleted.
     """
@@ -414,9 +414,9 @@ def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
     expired_sid2 = str(uuid.uuid4())
     active_sid1 = str(uuid.uuid4())
     active_sid2 = str(uuid.uuid4())
-    
+
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-    
+
     # Create expired sessions
     e11_common.sessions_table.put_item(Item={
         "sid": expired_sid1,
@@ -434,7 +434,7 @@ def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
         "client_ip": "1.2.3.4",
         "claims": {"email": test_email}
     })
-    
+
     # Create active sessions
     e11_common.sessions_table.put_item(Item={
         "sid": active_sid1,
@@ -463,13 +463,13 @@ def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
     count = expire_batch(now, items)
 
     assert count == 2  # Should delete 2 expired sessions
-    
+
     # Verify expired sessions were deleted from DynamoDB Local
     resp1 = e11_common.sessions_table.get_item(Key={"sid": expired_sid1})
     resp2 = e11_common.sessions_table.get_item(Key={"sid": expired_sid2})
     resp3 = e11_common.sessions_table.get_item(Key={"sid": active_sid1})
     resp4 = e11_common.sessions_table.get_item(Key={"sid": active_sid2})
-    
+
     assert "Item" not in resp1, "expired_sid1 should be deleted"
     assert "Item" not in resp2, "expired_sid2 should be deleted"
     assert "Item" in resp3, "active_sid1 should still exist"
@@ -479,7 +479,7 @@ def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
 def test_expire_batch_handles_missing_session_expire(fake_aws, dynamodb_local):
     """
     Test that expire_batch handles items without session_expire field.
-    
+
     IMPORTANT: Uses real DynamoDB Local, NOT mocking. Creates actual sessions
     in DynamoDB Local and verifies they are deleted.
     """
@@ -488,12 +488,12 @@ def test_expire_batch_handles_missing_session_expire(fake_aws, dynamodb_local):
     import uuid
 
     now = int(time.time())
-    
+
     # Create a session without session_expire field in DynamoDB Local
     from e11 import e11_common
     no_expire_sid = str(uuid.uuid4())
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-    
+
     # Create session without session_expire (only required fields)
     e11_common.sessions_table.put_item(Item={
         "sid": no_expire_sid,
@@ -513,7 +513,7 @@ def test_expire_batch_handles_missing_session_expire(fake_aws, dynamodb_local):
     # Items with missing session_expire use .get("session_expire", 0) which returns 0
     # and 0 <= now is True, so it should be deleted
     assert count == 1
-    
+
     # Verify the session was deleted from DynamoDB Local
     resp = e11_common.sessions_table.get_item(Key={"sid": no_expire_sid})
     assert "Item" not in resp, "no_expire_sid should be deleted"

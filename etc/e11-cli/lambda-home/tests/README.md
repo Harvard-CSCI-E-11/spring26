@@ -27,10 +27,10 @@ def test_example(fake_aws, dynamodb_local):
     test_email = "test@example.com"
     user = create_new_user(test_email, {"email": test_email, "name": "Test"})
     ses = new_session(event, {"email": test_email})
-    
+
     # ✅ CORRECT: Query the real DynamoDB Local table
     user = get_user_from_email(test_email)
-    
+
     # ❌ WRONG: Don't mock DynamoDB operations
     # users_table.query = MagicMock(...)  # DON'T DO THIS
 ```

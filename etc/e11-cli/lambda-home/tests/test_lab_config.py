@@ -242,7 +242,7 @@ def test_api_grader_sqs_bypasses_deadline(monkeypatch, fake_aws):
 def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
     """
     Test that do_dashboard correctly computes next_lab.
-    
+
     IMPORTANT: This test uses DynamoDB Local, NOT mocking. The user and session
     are created in the real DynamoDB Local tables. We only mock users_table.query
     to return empty items for logs/grades/images (to simplify the test), but the
@@ -307,7 +307,7 @@ def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
 def test_do_dashboard_no_next_lab_when_all_past(monkeypatch, fake_aws, dynamodb_local):
     """
     Test that do_dashboard handles case when all labs are past.
-    
+
     IMPORTANT: This test uses DynamoDB Local, NOT mocking. The user and session
     are created in the real DynamoDB Local tables. We only mock users_table.query
     to return empty items for logs/grades/images (to simplify the test), but the

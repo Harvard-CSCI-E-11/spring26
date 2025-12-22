@@ -18,7 +18,7 @@ logger = logging.getLogger()
 class MockedAWSServices:
     """
     Consolidated AWS services tracker for testing registration API.
-    
+
     NOTE: This class is used ONLY for tracking Route53 and SES calls.
     We use DynamoDB Local for testing, NOT mocking. DynamoDB operations
     should use the real DynamoDB Local tables via the `fake_aws` fixture.
