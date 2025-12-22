@@ -20,7 +20,7 @@ import requests
 from requests import Response
 
 from e11 import main
-from e11.support import get_config, config_path, get_public_ip, get_instanceId, on_ec2
+from e11.support import get_config
 from e11.e11core.constants import API_ENDPOINT, API_PATH, COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11_common import create_new_user, A
 
