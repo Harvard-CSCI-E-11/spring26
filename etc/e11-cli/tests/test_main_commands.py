@@ -472,8 +472,6 @@ class TestDoRegister:
         args.stage = False
         args.fixip = False
         
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
