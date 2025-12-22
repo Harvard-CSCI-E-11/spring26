@@ -409,7 +409,7 @@ class TestDoRegister:
         import io
         import sys
         old_stdout = sys.stdout
-        sys.stdout = captured_output = io.StringIO()
+        sys.stdout = io.StringIO()
         
         try:
             main.do_register(args)
