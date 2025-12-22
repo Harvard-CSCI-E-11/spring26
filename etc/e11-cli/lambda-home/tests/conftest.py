@@ -67,6 +67,9 @@ def fake_idp_server():
     server.stop()
 
 # Configure boto3 to use local DynamoDB endpoint
+# IMPORTANT: We use DynamoDB Local for testing, NOT monkeypatching for DynamoDB.
+# Tests should create actual records in DynamoDB Local using functions like create_new_user()
+# and new_session(), and query the real tables. Do NOT mock users_table.query or sessions_table.query.
 DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8010/')
 
 def pytest_configure(config):
@@ -84,6 +87,31 @@ def pytest_configure(config):
         os.environ['USERS_TABLE_NAME'] = 'e11-users'
     if 'SESSIONS_TABLE_NAME' not in os.environ:
         os.environ['SESSIONS_TABLE_NAME'] = 'home-app-sessions'
+
+def _cleanup_dynamodb_tables(dynamodb, users_table_name, sessions_table_name):
+    """Helper function to clean up all items from DynamoDB tables"""
+    for table_name in [users_table_name, sessions_table_name]:
+        try:
+            table = dynamodb.Table(table_name)
+            last_evaluated_key = None
+            while True:
+                scan_kwargs = {'ExclusiveStartKey': last_evaluated_key} if last_evaluated_key else {}
+                scan = table.scan(**scan_kwargs)
+
+                if scan.get('Items'):
+                    with table.batch_writer() as batch:
+                        for item in scan['Items']:
+                            if 'user_id' in item and 'sk' in item:
+                                batch.delete_item(Key={'user_id': item['user_id'], 'sk': item['sk']})
+                            elif 'sid' in item:
+                                batch.delete_item(Key={'sid': item['sid']})
+
+                last_evaluated_key = scan.get('LastEvaluatedKey')
+                if not last_evaluated_key:
+                    break
+        except Exception as e:
+            logging.warning("Failed to clean up DynamoDB table %s: %s", table_name, e)
+
 
 @pytest.fixture(scope="session")
 def dynamodb_local():
@@ -158,32 +186,33 @@ def dynamodb_local():
 
     yield dynamodb
 
-    # Cleanup: delete all items from tables
-    for table_name in [users_table_name, sessions_table_name]:
-        try:
-            table = dynamodb.Table(table_name)
-            last_evaluated_key = None
-            while True:
-                scan_kwargs = {'ExclusiveStartKey': last_evaluated_key} if last_evaluated_key else {}
-                scan = table.scan(**scan_kwargs)
+    # Final cleanup at end of session
+    _cleanup_dynamodb_tables(dynamodb, users_table_name, sessions_table_name)
 
-                if scan.get('Items'):
-                    with table.batch_writer() as batch:
-                        for item in scan['Items']:
-                            if 'user_id' in item and 'sk' in item:
-                                batch.delete_item(Key={'user_id': item['user_id'], 'sk': item['sk']})
-                            elif 'sid' in item:
-                                batch.delete_item(Key={'sid': item['sid']})
 
-                last_evaluated_key = scan.get('LastEvaluatedKey')
-                if not last_evaluated_key:
-                    break
-        except Exception as e:
-            logging.warning("Failed to clean up DynamoDB table %s: %s", table_name, e)
+@pytest.fixture(scope="function")
+def clean_dynamodb(dynamodb_local):
+    """Fixture that ensures DynamoDB tables are clean before each test"""
+    users_table_name = os.environ.get('USERS_TABLE_NAME', 'e11-users')
+    sessions_table_name = os.environ.get('SESSIONS_TABLE_NAME', 'home-app-sessions')
+    
+    # Clean up before test
+    _cleanup_dynamodb_tables(dynamodb_local, users_table_name, sessions_table_name)
+    
+    yield
+    
+    # Clean up after test
+    _cleanup_dynamodb_tables(dynamodb_local, users_table_name, sessions_table_name)
 
 @pytest.fixture
 def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
-    """Set up fake Secrets Manager and configure DynamoDB to use local endpoint"""
+    """
+    Set up fake Secrets Manager and configure DynamoDB to use local endpoint.
+    
+    IMPORTANT: This fixture patches AWS service clients (Route53, SES, S3) but uses
+    REAL DynamoDB Local tables. Do NOT mock DynamoDB operations - create actual
+    records in DynamoDB Local and query the real tables.
+    """
     from e11 import e11_common
 
     class FakeSecrets:
@@ -254,6 +283,10 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     # Also patch the modules that import these directly
     import home_app.sessions as sessions_module
     monkeypatch.setattr(sessions_module, "sessions_table", sessions_table)
+
+    # Patch home.py's direct imports (home.py imports users_table from e11_common)
+    import home_app.home as home_module
+    monkeypatch.setattr(home_module, "users_table", users_table)
 
     # Patch api.py's direct imports
     import home_app.api as api_module
