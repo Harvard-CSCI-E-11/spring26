@@ -44,7 +44,7 @@ except ImportError as e:
     pytestmark = pytest.mark.skip(reason=f"Could not import lambda-home modules: {e}")
 
 try:
-    from test_utils import create_lambda_event, create_test_config_data, create_test_auth_data
+    from test_utils import create_lambda_event
 except ImportError:
     # Fallback if test_utils not available
     def create_lambda_event(path: str, method: str = 'GET', body: Optional[str] = None,
