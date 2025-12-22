@@ -1,4 +1,4 @@
-name: CI for e11-cli
+name: CI for e11-cli, lambda-home and lambda-leaderboard
 
 on:
   push:
@@ -46,7 +46,7 @@ jobs:
 
       - name: Create default AWS credentials and Validate local DynamoDB endpoint
         run: |
-          (cd etc/e11-cli/; make start_local_dynamodb)
+          (make start_local_dynamodb)
 
       - name: e11 command tests with coverage
         run: |
@@ -64,6 +64,7 @@ jobs:
         if: matrix.python-version == '3.13'
         run: |
           (cd lambda-leaderboard; make install)
+          (cd lambda-leaderboard; make lint)
           (cd lambda-leaderboard; make check)
 
       - name: list coverage files
