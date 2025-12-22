@@ -44,6 +44,10 @@ jobs:
           poetry --version
           java -version
 
+      - name: Create default AWS credentials and Validate local DynamoDB endpoint
+        run: |
+          (cd etc/e11-cli/; make start_local_dynamodb)
+
       - name: e11 command tests with coverage
         run: |
           make lint
