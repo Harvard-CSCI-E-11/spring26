@@ -38,7 +38,7 @@ if str(lambda_home_tests) not in sys.path:
 try:
     import home_app.home as home_module
     from home_app.api import resp_json
-    from e11.e11core.constants import HTTP_OK, HTTP_FORBIDDEN, HTTP_INTERNAL_ERROR
+    from e11.e11core.constants import HTTP_INTERNAL_ERROR
 except ImportError as e:
     # If we can't import, mark tests to skip
     pytestmark = pytest.mark.skip(reason=f"Could not import lambda-home modules: {e}")
