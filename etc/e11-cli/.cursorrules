@@ -27,3 +27,4 @@ def test_example(fake_aws, dynamodb_local):
     # users_table.query = MagicMock(...)  # DON'T DO THIS
 ```
 
+
