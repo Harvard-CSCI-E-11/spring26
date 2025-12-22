@@ -455,7 +455,6 @@ class TestDoRegister:
         
         # Mock requests.post to raise timeout on first call, succeed on second
         call_count = [0]
-        original_post = requests.post
         
         def mock_post_with_timeout(url, json=None, timeout=None, **kwargs):
             call_count[0] += 1
