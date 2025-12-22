@@ -664,7 +664,7 @@ class TestDoGrade:
 
 
 def test_get_parser():
-    parser = main.get_parser
+    parser = main.get_parser()
     args   = parser.parse_args()
     assert args.debug is False
-    assert args.stage is True
+    assert args.stage is False
