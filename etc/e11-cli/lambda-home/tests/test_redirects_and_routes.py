@@ -393,67 +393,133 @@ def test_parse_cookies_handles_multiple_equals():
     assert cookies["Cookie"] == "value=with=equals"
 
 
-def test_expire_batch_deletes_expired_sessions(monkeypatch):
-    """Test that expire_batch correctly identifies and deletes expired sessions"""
+def test_expire_batch_deletes_expired_sessions(fake_aws, dynamodb_local):
+    """
+    Test that expire_batch correctly identifies and deletes expired sessions.
+
+    IMPORTANT: Uses real DynamoDB Local, NOT mocking. Creates actual sessions
+    in DynamoDB Local and verifies they are deleted.
+    """
     from home_app.sessions import expire_batch
     import time
+    import uuid
 
     now = int(time.time())
     expired_time = now - 1000  # Expired 1000 seconds ago
     future_time = now + 1000    # Expires in 1000 seconds
 
+    # Create sessions with expired times by directly putting items
+    from e11 import e11_common
+    expired_sid1 = str(uuid.uuid4())
+    expired_sid2 = str(uuid.uuid4())
+    active_sid1 = str(uuid.uuid4())
+    active_sid2 = str(uuid.uuid4())
+
+    test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+
+    # Create expired sessions
+    e11_common.sessions_table.put_item(Item={
+        "sid": expired_sid1,
+        "email": test_email,
+        "session_created": expired_time - 2000,
+        "session_expire": expired_time,
+        "client_ip": "1.2.3.4",
+        "claims": {"email": test_email}
+    })
+    e11_common.sessions_table.put_item(Item={
+        "sid": expired_sid2,
+        "email": test_email,
+        "session_created": expired_time - 2000,
+        "session_expire": expired_time,
+        "client_ip": "1.2.3.4",
+        "claims": {"email": test_email}
+    })
+
+    # Create active sessions
+    e11_common.sessions_table.put_item(Item={
+        "sid": active_sid1,
+        "email": test_email,
+        "session_created": now - 100,
+        "session_expire": future_time,
+        "client_ip": "1.2.3.4",
+        "claims": {"email": test_email}
+    })
+    e11_common.sessions_table.put_item(Item={
+        "sid": active_sid2,
+        "email": test_email,
+        "session_created": now - 100,
+        "session_expire": future_time,
+        "client_ip": "1.2.3.4",
+        "claims": {"email": test_email}
+    })
+
     items = [
-        {"sid": "expired1", "session_expire": expired_time},
-        {"sid": "active1", "session_expire": future_time},
-        {"sid": "expired2", "session_expire": expired_time},
-        {"sid": "active2", "session_expire": future_time},
+        {"sid": expired_sid1, "session_expire": expired_time},
+        {"sid": active_sid1, "session_expire": future_time},
+        {"sid": expired_sid2, "session_expire": expired_time},
+        {"sid": active_sid2, "session_expire": future_time},
     ]
-
-    deleted_sids = []
-
-    def mock_delete_item(Key):
-        deleted_sids.append(Key["sid"])
-        return {}
-
-    import home_app.sessions as sessions_module
-    monkeypatch.setattr(sessions_module.sessions_table, "delete_item", mock_delete_item)
 
     count = expire_batch(now, items)
 
     assert count == 2  # Should delete 2 expired sessions
-    assert "expired1" in deleted_sids
-    assert "expired2" in deleted_sids
-    assert "active1" not in deleted_sids
-    assert "active2" not in deleted_sids
+
+    # Verify expired sessions were deleted from DynamoDB Local
+    resp1 = e11_common.sessions_table.get_item(Key={"sid": expired_sid1})
+    resp2 = e11_common.sessions_table.get_item(Key={"sid": expired_sid2})
+    resp3 = e11_common.sessions_table.get_item(Key={"sid": active_sid1})
+    resp4 = e11_common.sessions_table.get_item(Key={"sid": active_sid2})
+
+    assert "Item" not in resp1, "expired_sid1 should be deleted"
+    assert "Item" not in resp2, "expired_sid2 should be deleted"
+    assert "Item" in resp3, "active_sid1 should still exist"
+    assert "Item" in resp4, "active_sid2 should still exist"
 
 
-def test_expire_batch_handles_missing_session_expire(monkeypatch):
-    """Test that expire_batch handles items without session_expire field"""
+def test_expire_batch_handles_missing_session_expire(fake_aws, dynamodb_local):
+    """
+    Test that expire_batch handles items without session_expire field.
+
+    IMPORTANT: Uses real DynamoDB Local, NOT mocking. Creates actual sessions
+    in DynamoDB Local and verifies they are deleted.
+    """
     from home_app.sessions import expire_batch
     import time
+    import uuid
 
     now = int(time.time())
+
+    # Create a session without session_expire field in DynamoDB Local
+    from e11 import e11_common
+    no_expire_sid = str(uuid.uuid4())
+    test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+
+    # Create session without session_expire (only required fields)
+    e11_common.sessions_table.put_item(Item={
+        "sid": no_expire_sid,
+        "email": test_email,
+        "session_created": now - 100,
+        "client_ip": "1.2.3.4",
+        "claims": {"email": test_email}
+        # Note: session_expire is missing
+    })
+
     items = [
-        {"sid": "no_expire1"},  # Missing session_expire - .get() returns 0
+        {"sid": no_expire_sid},  # Missing session_expire - .get() returns 0
     ]
-
-    deleted_sids = []
-
-    def mock_delete_item(Key):
-        deleted_sids.append(Key["sid"])
-        return {}
-
-    import home_app.sessions as sessions_module
-    monkeypatch.setattr(sessions_module.sessions_table, "delete_item", mock_delete_item)
 
     count = expire_batch(now, items)
 
     # Items with missing session_expire use .get("session_expire", 0) which returns 0
     # and 0 <= now is True, so it should be deleted
     assert count == 1
-    assert "no_expire1" in deleted_sids
+
+    # Verify the session was deleted from DynamoDB Local
+    resp = e11_common.sessions_table.get_item(Key={"sid": no_expire_sid})
+    assert "Item" not in resp, "no_expire_sid should be deleted"
     # Note: items with session_expire=None will raise TypeError because None <= int fails
-    # This is actually a bug in the code, but we're testing current behavior
+    # This is actually a bug in the code, but we're testing current behavior for regression coverage.
+    # TODO: Track and fix this known bug in the production session handling logic.
 
 
 def test_eastern_filter_formats_timestamp():

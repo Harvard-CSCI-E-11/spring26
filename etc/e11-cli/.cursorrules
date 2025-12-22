@@ -1,0 +1,30 @@
+# Cursor Rules for e11-cli
+
+## Testing with DynamoDB
+
+**IMPORTANT: We use DynamoDB Local for testing, NOT monkeypatching for DynamoDB.**
+
+- Tests use DynamoDB Local (running on localhost:8010) via the `dynamodb_local` fixture
+- The `fake_aws` fixture patches AWS service clients (Route53, SES, S3) but uses REAL DynamoDB Local tables
+- Do NOT mock or monkeypatch DynamoDB table operations (e.g., `users_table.query`, `sessions_table.query`)
+- Instead, create actual records in DynamoDB Local using functions like `create_new_user()` and `new_session()`
+- The tables are set up with proper GSI indexes (GSI_Email) in `conftest.py`
+- Use the `clean_dynamodb` fixture if you need a clean database state for each test
+
+## Example
+
+```python
+def test_example(fake_aws, dynamodb_local):
+    # ✅ CORRECT: Create actual records in DynamoDB Local
+    test_email = "test@example.com"
+    user = create_new_user(test_email, {"email": test_email, "name": "Test"})
+    ses = new_session(event, {"email": test_email})
+
+    # ✅ CORRECT: Query the real DynamoDB Local table
+    user = get_user_from_email(test_email)
+
+    # ❌ WRONG: Don't mock DynamoDB operations
+    # users_table.query = MagicMock(...)  # DON'T DO THIS
+```
+
+

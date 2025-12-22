@@ -1,5 +1,14 @@
 """
 Tests for LAB_CONFIG functionality including deadline checking and next_lab computation.
+
+IMPORTANT TESTING NOTE:
+======================
+We use DynamoDB Local for testing, NOT monkeypatching for DynamoDB operations.
+- Create actual records using create_new_user() and new_session()
+- Query the real DynamoDB Local tables (they have proper GSI indexes)
+- Do NOT mock users_table.query or sessions_table.query for user/session lookups
+- Only mock users_table.query if you need to return empty items for logs/grades/images
+  to simplify a test, but NEVER mock sessions_table.query - always use the real table!
 """
 
 import json
@@ -231,12 +240,19 @@ def test_api_grader_sqs_bypasses_deadline(monkeypatch, fake_aws):
 
 
 def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
-    """Test that do_dashboard correctly computes next_lab."""
+    """
+    Test that do_dashboard correctly computes next_lab.
+
+    IMPORTANT: This test uses DynamoDB Local, NOT mocking. The user and session
+    are created in the real DynamoDB Local tables. We only mock users_table.query
+    to return empty items for logs/grades/images (to simplify the test), but the
+    session query uses the real DynamoDB Local table.
+    """
     import uuid
     from e11.e11_common import create_new_user
     from home_app.sessions import new_session
 
-    # Create test user - this puts the user record in the table
+    # Create test user - this puts the user record in DynamoDB Local
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
     create_new_user(test_email, {
         "email": test_email,
@@ -245,7 +261,7 @@ def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
         "hostname": "test"
     })
 
-    # Create a session using new_session
+    # Create a session using new_session - this goes into DynamoDB Local
     event_for_session = {
         "requestContext": {"http": {"sourceIp": "1.2.3.4"}}
     }
@@ -268,29 +284,40 @@ def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
         mock_dt.datetime.now.return_value = test_time
         mock_dt.datetime.fromisoformat = datetime.fromisoformat
         with patch("home_app.home.LAB_TIMEZONE", LAB_TIMEZONE):
-            # Mock the users_table.query to avoid DynamoDB issues in test
-            from unittest.mock import MagicMock
-            import home_app.home as home_module
-            original_query = home_module.users_table.query
-            home_module.users_table.query = MagicMock(return_value={"Items": [], "Count": 0, "LastEvaluatedKey": None})
-            try:
-                response = home.do_dashboard(event)
-                assert response["statusCode"] == 200
+            # NOTE: We need to be careful about mocking. do_dashboard calls:
+            # 1. get_user_from_email() - uses e11_common.users_table.query with GSI_Email (NEED REAL TABLE)
+            # 2. users_table.query() for logs/grades/images - we can mock this
+            # 3. all_sessions_for_email() - uses sessions_table.query with GSI_Email (NEED REAL TABLE)
+            #
+            # We can't mock users_table.query globally because get_user_from_email needs it.
+            # Instead, we need to ensure the user exists and let the real queries work.
+            # For logs/grades/images, do_dashboard uses queryscan_table(users_table.query, ...)
+            # which we can't easily mock without breaking get_user_from_email.
+            #
+            # Solution: Don't mock users_table.query at all - just ensure the user exists
+            # and let the real queries work. The test will be slower but more accurate.
+            response = home.do_dashboard(event)
+            assert response["statusCode"] == 200
 
-                # Parse the HTML to check for next_lab
-                body = response["body"]
-                assert "lab0" in body or "next_lab" in body.lower()
-            finally:
-                home_module.users_table.query = original_query
+            # Parse the HTML to check for next_lab
+            body = response["body"]
+            assert "lab0" in body or "next_lab" in body.lower()
 
 
 def test_do_dashboard_no_next_lab_when_all_past(monkeypatch, fake_aws, dynamodb_local):
-    """Test that do_dashboard handles case when all labs are past."""
+    """
+    Test that do_dashboard handles case when all labs are past.
+
+    IMPORTANT: This test uses DynamoDB Local, NOT mocking. The user and session
+    are created in the real DynamoDB Local tables. We only mock users_table.query
+    to return empty items for logs/grades/images (to simplify the test), but the
+    session query uses the real DynamoDB Local table.
+    """
     import uuid
     from e11.e11_common import create_new_user
     from home_app.sessions import new_session
 
-    # Create test user - this puts the user record in the table
+    # Create test user - this puts the user record in DynamoDB Local
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
     create_new_user(test_email, {
         "email": test_email,
@@ -299,7 +326,7 @@ def test_do_dashboard_no_next_lab_when_all_past(monkeypatch, fake_aws, dynamodb_
         "hostname": "test"
     })
 
-    # Create a session using new_session
+    # Create a session using new_session - this goes into DynamoDB Local
     event_for_session = {
         "requestContext": {"http": {"sourceIp": "1.2.3.4"}}
     }
@@ -322,17 +349,21 @@ def test_do_dashboard_no_next_lab_when_all_past(monkeypatch, fake_aws, dynamodb_
         mock_dt.datetime.now.return_value = test_time
         mock_dt.datetime.fromisoformat = datetime.fromisoformat
         with patch("home_app.home.LAB_TIMEZONE", LAB_TIMEZONE):
-            # Mock the users_table.query to avoid DynamoDB issues in test
-            from unittest.mock import MagicMock
-            import home_app.home as home_module
-            original_query = home_module.users_table.query
-            home_module.users_table.query = MagicMock(return_value={"Items": [], "Count": 0, "LastEvaluatedKey": None})
-            try:
-                response = home.do_dashboard(event)
-                assert response["statusCode"] == 200
-                # Should not crash even when no next_lab
-            finally:
-                home_module.users_table.query = original_query
+            # NOTE: We need to be careful about mocking. do_dashboard calls:
+            # 1. get_user_from_email() - uses e11_common.users_table.query with GSI_Email (NEED REAL TABLE)
+            # 2. users_table.query() for logs/grades/images - we can mock this
+            # 3. all_sessions_for_email() - uses sessions_table.query with GSI_Email (NEED REAL TABLE)
+            #
+            # We can't mock users_table.query globally because get_user_from_email needs it.
+            # Instead, we need to ensure the user exists and let the real queries work.
+            # For logs/grades/images, do_dashboard uses queryscan_table(users_table.query, ...)
+            # which we can't easily mock without breaking get_user_from_email.
+            #
+            # Solution: Don't mock users_table.query at all - just ensure the user exists
+            # and let the real queries work. The test will be slower but more accurate.
+            response = home.do_dashboard(event)
+            assert response["statusCode"] == 200
+            # Should not crash even when no next_lab
 
 
 def test_lab_name_normalization():
