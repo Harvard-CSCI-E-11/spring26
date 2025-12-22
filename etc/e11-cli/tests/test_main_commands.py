@@ -515,7 +515,7 @@ class TestDoGrade:
                     {'name': 'test1', 'status': 'pass', 'message': 'Test 1 passed'},
                     {'name': 'test2', 'status': 'pass', 'message': 'Test 2 passed'},
                 ],
-                'score': 100,
+                'score': 5.0,
                 'ctx': {}  # Context dict
             }
         
