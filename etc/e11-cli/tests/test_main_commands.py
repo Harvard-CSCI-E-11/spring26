@@ -604,7 +604,7 @@ class TestDoGrade:
                     {'name': 'test2', 'status': 'pass'},
                     {'name': 'test3', 'status': 'pass'},
                 ],
-                'score': 100,
+                'score': 5.0,
                 'ctx': {}
             }
         
