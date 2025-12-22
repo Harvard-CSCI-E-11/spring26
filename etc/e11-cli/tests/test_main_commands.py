@@ -503,7 +503,7 @@ class TestDoGrade:
         monkeypatch.setenv("E11_CONFIG", str(config_file))
         
         # Mock grader.grade_student_vm to return test results
-        # Format must match what grader.create_email expects (see grader.py line 166-173)
+        # Format must match what grader.create_email expects (see grader.py line 234)
         def mock_grade_student_vm(email, public_ip, lab, pkey_pem=None, key_filename=None):
             return {
                 'error': False,
