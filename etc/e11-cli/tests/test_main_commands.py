@@ -519,7 +519,7 @@ class TestDoGrade:
             }
         
         # Patch the grader in the lambda-home module
-        import home_app.api as api_module
+        from home_app import api as api_module
         original_grade_student_vm = api_module.grader.grade_student_vm
         api_module.grader.grade_student_vm = mock_grade_student_vm
         
