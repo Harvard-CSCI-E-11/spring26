@@ -8,6 +8,7 @@ These tests use integration testing where HTTP requests are intercepted
 and routed to the actual lambda_handler for end-to-end validation.
 """
 
+import os
 import io
 import json
 import sys
