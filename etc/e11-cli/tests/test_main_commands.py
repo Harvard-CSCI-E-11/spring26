@@ -8,6 +8,7 @@ These tests use integration testing where HTTP requests are intercepted
 and routed to the actual lambda_handler for end-to-end validation.
 """
 
+import io
 import json
 import sys
 import uuid
@@ -186,8 +187,6 @@ class TestDoConfig:
         args.smash = False
         
         # Capture output
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
@@ -216,8 +215,6 @@ class TestDoConfig:
         args.setvalue = None
         args.smash = True
         
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
@@ -330,8 +327,6 @@ class TestDoRegister:
         args.fixip = False
         
         # Capture output
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
@@ -406,8 +401,6 @@ class TestDoRegister:
         args.fixip = True  # Should fix the IP
         
         # Should succeed because of --fixip
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         
@@ -472,8 +465,6 @@ class TestDoRegister:
         args.stage = False
         args.fixip = False
         
-        import io
-        import sys
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
         
@@ -543,8 +534,6 @@ class TestDoGrade:
             args.debug = False
             args.stage = False
             
-            import io
-            import sys
             old_stdout = sys.stdout
             sys.stdout = captured_output = io.StringIO()
             
@@ -622,8 +611,6 @@ class TestDoGrade:
             args.debug = False
             args.stage = False
             
-            import io
-            import sys
             old_stdout = sys.stdout
             sys.stdout = captured_output = io.StringIO()
             
