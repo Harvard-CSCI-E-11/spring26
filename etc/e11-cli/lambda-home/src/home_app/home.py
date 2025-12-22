@@ -293,14 +293,27 @@ def do_page(event, status="", extra=""):
     return resp_text(HTTP_OK, template.render(harvard_key=url, status=status, extra=extra))
 
 
-def do_dashboard(event):  # pylint: disable=too-many-locals
+def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     """/dashboard
     If the session exists, then the user was created in new_session().
+    Supports ?page=<template> to render specific pages (e.g., /dashboard?page=terms.html)
     """
     client_ip = event["requestContext"]["http"]["sourceIp"]
     ses = get_session_from_event(event)
     if not ses:
         return redirect("/")
+
+    # Check for page query parameter - if present, render that template
+    qs = event.get("queryStringParameters") or {}
+    page = qs.get("page")
+    if page:
+        try:
+            template = env.get_template(page)
+            return resp_text(HTTP_OK, template.render(ses=ses))
+        except TemplateNotFound:
+            return error_404(page)
+
+    # No page parameter - render the dashboard
     try:
         user = get_user_from_email(ses.email)
     except EmailNotRegistered:
