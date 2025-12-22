@@ -2,6 +2,12 @@
 #
 # The e11 module runs on both the student machine (python3.12) and on the Lambda (python3.13)
 
+# DynamoDB local stuff (see end)
+DYNAMODB_LOCAL_ENDPOINT=http://localhost:8010/
+E11_VARS := AWS_ENDPOINT_URL_DYNAMODB=$(DYNAMODB_LOCAL_ENDPOINT)
+REQ      := bin/DynamoDBLocal.jar
+
+
 PYTHON = python3.12
 
 .PHONY: pytest lint clean check test man
@@ -39,3 +45,39 @@ clean:
 distclean:
 	make clean
 	/bin/rm -rf .venv
+
+################################################################
+# DynamoDBLocal
+# Installations are used by the CI pipeline and by local developers
+# See https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/DynamoDBLocal.html for info about DynamoDB (local version)
+
+# installation:
+DDBL_DOWNLOAD_URL:=https://d1ni2b6xgvw0s0.cloudfront.net/v2.x/dynamodb_local_latest.zip
+bin/dynamodb_local_latest.zip:
+	test -f bin/dynamodb_local_latest.zip || curl $(DDBL_DOWNLOAD_URL) -o bin/dynamodb_local_latest.zip
+	test -f bin/dynamodb_local_latest.zip || (echo could not download $(DDBL_DOWNLOAD_URL); exit 1)
+	find bin -ls
+
+bin/DynamoDBLocal.jar: bin/dynamodb_local_latest.zip
+	(cd bin; unzip -uq dynamodb_local_latest.zip DynamoDBLocal.jar 'DynamoDBLocal_lib/*')
+	touch bin/DynamoDBLocal.jar
+
+# operation:
+start_local_dynamodb: bin/DynamoDBLocal.jar
+	bash bin/local_dynamodb_control.bash start
+
+stop_local_dynamodb:  bin/DynamoDBLocal.jar
+	bash bin/local_dynamodb_control.bash stop
+
+list-tables:
+	$(PT_VARS) aws dynamodb list-tables
+
+dump-tables:
+	for tn in "users" "sessions" ; do\
+		echo $$tn:; \
+		$(E11_VARS) aws dynamodb describe-table --table-name $$tn ; \
+		$(E11_VARS) aws dynamodb scan --max-items 5 --table-name $$tn ; \
+		done
+
+
+.PHONY: start_local_dynamodb stop_local_dynamodb list-tables dump-demo-tables

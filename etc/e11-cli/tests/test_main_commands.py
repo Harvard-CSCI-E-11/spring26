@@ -8,6 +8,7 @@ These tests use integration testing where HTTP requests are intercepted
 and routed to the actual lambda_handler for end-to-end validation.
 """
 
+import os
 import io
 import json
 import sys
@@ -81,10 +82,10 @@ def create_lambda_event_from_payload(endpoint_url: str, payload: Dict[str, Any])
         path = API_PATH
     else:
         path = "/api/v1"  # fallback
-    
+
     # Convert payload to JSON body
     body = json.dumps(payload) if payload else None
-    
+
     return create_lambda_event(path, method="POST", body=body)
 
 
@@ -92,20 +93,20 @@ def convert_lambda_response_to_requests_response(lambda_response: Dict[str, Any]
     """Convert Lambda response to requests.Response object"""
     response = Response()
     response.status_code = lambda_response.get("statusCode", 200)
-    
+
     # Set response body
     body = lambda_response.get("body", "")
     if isinstance(body, dict):
         body = json.dumps(body)
     response._content = body.encode("utf-8") if isinstance(body, str) else body
-    
+
     # Set headers
     headers = lambda_response.get("headers", {})
     response.headers = headers
-    
+
     # Make it look like a successful request
     response.encoding = "utf-8"
-    
+
     # Add json() method
     def json_method():
         if isinstance(body, str):
@@ -114,16 +115,16 @@ def convert_lambda_response_to_requests_response(lambda_response: Dict[str, Any]
             except json.JSONDecodeError:
                 return {}
         return body if isinstance(body, dict) else {}
-    
+
     response.json = json_method
-    
+
     return response
 
 
 def mock_requests_post_to_lambda(monkeypatch, lambda_handler):
     """Mock requests.post to intercept and route to lambda_handler"""
     original_post = requests.post
-    
+
     def mock_post(url, json=None, timeout=None, **kwargs):
         # Only intercept calls to our API endpoint
         if API_ENDPOINT in url or "csci-e-11.org" in url or "stage.csci-e-11.org" in url:
@@ -144,7 +145,7 @@ def mock_requests_post_to_lambda(monkeypatch, lambda_handler):
         else:
             # For other URLs, use original function
             return original_post(url, json=json, timeout=timeout, **kwargs)
-    
+
     monkeypatch.setattr(requests, 'post', mock_post)
 
 
@@ -153,13 +154,13 @@ def mock_ec2_functions(monkeypatch, public_ip: str = "1.2.3.4",
     """Mock EC2 metadata functions"""
     def mock_get_public_ip():
         return public_ip
-    
+
     def mock_get_instance_id():
         return instance_id
-    
+
     def mock_on_ec2():
         return on_ec2_value
-    
+
     monkeypatch.setattr(main, 'get_public_ip', mock_get_public_ip)
     monkeypatch.setattr(main, 'get_instanceId', mock_get_instance_id)
     monkeypatch.setattr(main, 'on_ec2', mock_on_ec2)
@@ -167,7 +168,7 @@ def mock_ec2_functions(monkeypatch, public_ip: str = "1.2.3.4",
 
 class TestDoConfig:
     """Tests for do_config command"""
-    
+
     def test_do_config_get_value(self, tmp_path, monkeypatch):
         """Test getting a config value"""
         # Set up test config
@@ -177,7 +178,7 @@ class TestDoConfig:
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Create args object
         args = Mock()
         args.get = True
@@ -185,39 +186,39 @@ class TestDoConfig:
         args.key = "email"
         args.setvalue = None
         args.smash = False
-        
+
         # Capture output
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
-        
+
         try:
             main.do_config(args)
             output = captured_output.getvalue().strip()
             assert output == "test@example.com"
         finally:
             sys.stdout = old_stdout
-    
+
     def test_do_config_get_email_smashed(self, tmp_path, monkeypatch):
         """Test getting email with smash option"""
         from e11.e11core.utils import smash_email
-        
+
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
             email="test.user@example.com",
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         args = Mock()
         args.get = True
         args.section = "student"
         args.key = "email"
         args.setvalue = None
         args.smash = True
-        
+
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
-        
+
         try:
             main.do_config(args)
             output = captured_output.getvalue().strip()
@@ -225,7 +226,7 @@ class TestDoConfig:
             assert output == expected
         finally:
             sys.stdout = old_stdout
-    
+
     def test_do_config_set_value(self, tmp_path, monkeypatch):
         """Test setting a config value"""
         config_file = tmp_path / "e11-config.ini"
@@ -234,19 +235,19 @@ class TestDoConfig:
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         args = Mock()
         args.get = False
         args.section = "student"
         args.key = "email"
         args.setvalue = "new@example.com"
-        
+
         main.do_config(args)
-        
+
         # Verify the value was set
         cp = get_config()
         assert cp["student"]["email"] == "new@example.com"
-    
+
     def test_do_config_new_section(self, tmp_path, monkeypatch):
         """Test creating a new section"""
         config_file = tmp_path / "e11-config.ini"
@@ -255,20 +256,20 @@ class TestDoConfig:
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         args = Mock()
         args.get = False
         args.section = "lab1"
         args.key = "answer"
         args.setvalue = "test-answer"
-        
+
         main.do_config(args)
-        
+
         # Verify the section was created
         cp = get_config()
         assert "lab1" in cp
         assert cp["lab1"]["answer"] == "test-answer"
-    
+
     @patch('builtins.input', side_effect=['Test User', 'test@example.com', '123456', '1.2.3.4', 'i-123'])
     def test_do_config_interactive(self, mock_input, tmp_path, monkeypatch):
         """Test interactive configuration mode"""
@@ -276,15 +277,15 @@ class TestDoConfig:
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text("[student]\n")
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         args = Mock()
         args.get = False
         args.section = None
         args.key = None
         args.setvalue = None
-        
+
         main.do_config(args)
-        
+
         # Verify values were set
         cp = get_config()
         assert cp["student"]["preferred_name"] == "Test User"
@@ -296,14 +297,14 @@ class TestDoConfig:
 
 class TestDoRegister:
     """Tests for do_register command with HTTP interception"""
-    
+
     def test_do_register_success(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test successful registration flow"""
         # Create test user in DynamoDB
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
-        
+
         # Set up test config
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
@@ -313,48 +314,48 @@ class TestDoRegister:
             instance_id="i-1234567890abcdef0"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Mock EC2 functions
         mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
-        
+
         # Mock requests.post to route to lambda_handler
         mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
-        
+
         # Create args
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = False
-        
+
         # Capture output
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
-        
+
         try:
             main.do_register(args)
             output = captured_output.getvalue()
             assert "Registered!" in output or "Attempting to register" in output
         finally:
             sys.stdout = old_stdout
-    
+
     def test_do_register_missing_config(self, tmp_path, monkeypatch):
         """Test registration with missing config fields"""
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text("[student]\nemail = test@example.com\n")
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         mock_ec2_functions(monkeypatch)
-        
+
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = False
-        
+
         # Should exit with error
         with pytest.raises(SystemExit) as exc_info:
             main.do_register(args)
         assert exc_info.value.code == 0  # do_register exits with 0 on errors
-    
+
     def test_do_register_invalid_email(self, tmp_path, monkeypatch):
         """Test registration with invalid email"""
         config_file = tmp_path / "e11-config.ini"
@@ -363,23 +364,23 @@ class TestDoRegister:
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         mock_ec2_functions(monkeypatch)
-        
+
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = False
-        
+
         with pytest.raises(SystemExit):
             main.do_register(args)
-    
+
     def test_do_register_ip_mismatch_with_fixip(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test registration with IP mismatch but --fixip flag"""
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
-        
+
         config_file = tmp_path / "e11-config.ini"
         # Config has wrong IP
         config_file.write_text(create_test_config_file_content(
@@ -389,21 +390,21 @@ class TestDoRegister:
             instance_id="i-1234567890abcdef0"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Mock EC2 to return different IP
         mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
-        
+
         mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
-        
+
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = True  # Should fix the IP
-        
+
         # Should succeed because of --fixip
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
-        
+
         try:
             main.do_register(args)
             # Verify IP was fixed
@@ -411,7 +412,7 @@ class TestDoRegister:
             assert cp["student"]["public_ip"] == "1.2.3.4"
         finally:
             sys.stdout = old_stdout
-    
+
     def test_do_register_invalid_course_key(self, tmp_path, monkeypatch):
         """Test registration with invalid course key length"""
         config_file = tmp_path / "e11-config.ini"
@@ -420,35 +421,35 @@ class TestDoRegister:
             course_key="123"  # Too short
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         mock_ec2_functions(monkeypatch)
-        
+
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = False
-        
+
         with pytest.raises(SystemExit):
             main.do_register(args)
-    
+
     def test_do_register_retry_on_timeout(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test retry logic on timeout"""
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
-        
+
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
             email=test_email,
             course_key=course_key
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         mock_ec2_functions(monkeypatch)
-        
+
         # Mock requests.post to raise timeout on first call, succeed on second
         call_count = [0]
-        
+
         def mock_post_with_timeout(url, json=None, timeout=None, **kwargs):
             call_count[0] += 1
             if call_count[0] == 1:
@@ -457,17 +458,17 @@ class TestDoRegister:
             event = create_lambda_event_from_payload(url, json)
             response = home_module.lambda_handler(event, None)
             return convert_lambda_response_to_requests_response(response)
-        
+
         monkeypatch.setattr(requests, 'post', mock_post_with_timeout)
-        
+
         args = Mock()
         args.quiet = False
         args.stage = False
         args.fixip = False
-        
+
         old_stdout = sys.stdout
         sys.stdout = captured_output = io.StringIO()
-        
+
         try:
             main.do_register(args)
             output = captured_output.getvalue()
@@ -479,20 +480,20 @@ class TestDoRegister:
 
 class TestDoGrade:
     """Tests for do_grade command with HTTP interception"""
-    
+
     def test_do_grade_success(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test successful grading request"""
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User", "public_ip": "1.2.3.4"})
         course_key = user['course_key']
-        
+
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
             email=test_email,
             course_key=course_key
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Mock grader.grade_student_vm to return test results
         # Format must match what grader.create_email expects (see grader.py line 234)
         def mock_grade_student_vm(email, public_ip, lab, pkey_pem=None, key_filename=None):
@@ -508,23 +509,23 @@ class TestDoGrade:
                 'score': 5.0,
                 'ctx': {}  # Context dict
             }
-        
+
         # Patch the grader in the lambda-home module
         from home_app import api as api_module
         original_grade_student_vm = api_module.grader.grade_student_vm
         api_module.grader.grade_student_vm = mock_grade_student_vm
-        
+
         # Also ensure get_pkey_pem is mocked to return a fake key
         def mock_get_pkey_pem(key_name):
             return "-----BEGIN RSA PRIVATE KEY-----\nfake-key\n-----END RSA PRIVATE KEY-----"
-        
+
         original_get_pkey_pem = api_module.get_pkey_pem
         api_module.get_pkey_pem = mock_get_pkey_pem
-        
+
         try:
             # Mock requests.post to route to lambda_handler
             mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
-            
+
             args = Mock()
             args.lab = "lab1"
             args.direct = None
@@ -533,10 +534,10 @@ class TestDoGrade:
             args.verbose = False
             args.debug = False
             args.stage = False
-            
+
             old_stdout = sys.stdout
             sys.stdout = captured_output = io.StringIO()
-            
+
             try:
                 # do_grade calls sys.exit(0) on success, so we need to catch it
                 with pytest.raises(SystemExit) as exc_info:
@@ -551,13 +552,13 @@ class TestDoGrade:
             # Restore original functions
             api_module.grader.grade_student_vm = original_grade_student_vm
             api_module.get_pkey_pem = original_get_pkey_pem
-    
+
     def test_do_grade_missing_config(self, tmp_path, monkeypatch):
         """Test grading with missing course_key"""
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text("[student]\nemail = test@example.com\n")
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         args = Mock()
         args.lab = "lab1"
         args.direct = None
@@ -566,12 +567,12 @@ class TestDoGrade:
         args.verbose = False
         args.debug = False
         args.stage = False
-        
+
         # Should exit with error
         with pytest.raises(SystemExit) as exc_info:
             main.do_grade(args)
         assert exc_info.value.code == 1
-    
+
     def test_do_grade_direct_mode(self, tmp_path, monkeypatch):
         """Test direct grading mode (mocked SSH)"""
         config_file = tmp_path / "e11-config.ini"
@@ -580,7 +581,7 @@ class TestDoGrade:
             course_key="123456"
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Mock grader.grade_student_vm for direct mode
         def mock_grade_student_vm(email, public_ip, lab, pkey_pem=None, key_filename=None):
             return {
@@ -596,11 +597,11 @@ class TestDoGrade:
                 'score': 5.0,
                 'ctx': {}
             }
-        
+
         from e11.e11core import grader
         original_grade = grader.grade_student_vm
         grader.grade_student_vm = mock_grade_student_vm
-        
+
         try:
             args = Mock()
             args.lab = "lab1"
@@ -610,10 +611,10 @@ class TestDoGrade:
             args.verbose = False
             args.debug = False
             args.stage = False
-            
+
             old_stdout = sys.stdout
             sys.stdout = captured_output = io.StringIO()
-            
+
             try:
                 main.do_grade(args)
                 output = captured_output.getvalue()
@@ -622,20 +623,20 @@ class TestDoGrade:
                 sys.stdout = old_stdout
         finally:
             grader.grade_student_vm = original_grade
-    
+
     def test_do_grade_http_error(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test grading with HTTP error response"""
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
-        
+
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
             email=test_email,
             course_key=course_key
         ))
         monkeypatch.setenv("E11_CONFIG", str(config_file))
-        
+
         # Mock requests.post to return error response
         def mock_post_error(url, json=None, timeout=None, **kwargs):
             response = Response()
@@ -644,9 +645,9 @@ class TestDoGrade:
             response.headers = {"Content-Type": "application/json"}
             response.json = lambda: {"error": True, "message": "Internal server error"}
             return response
-        
+
         monkeypatch.setattr(requests, 'post', mock_post_error)
-        
+
         args = Mock()
         args.lab = "lab1"
         args.direct = None
@@ -655,9 +656,18 @@ class TestDoGrade:
         args.verbose = False
         args.debug = False
         args.stage = False
-        
+
         # Should exit with error
         with pytest.raises(SystemExit) as exc_info:
             main.do_grade(args)
         assert exc_info.value.code == 1
 
+
+
+def test_get_parser():
+    test_args = ['version']
+    os.environ['E11_STAFF']='YES'
+    parser = main.get_parser()
+    args   = parser.parse_args(args=test_args)
+    assert args.debug is False
+    assert args.stage is False
