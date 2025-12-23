@@ -4,3 +4,6 @@ dist
 .coverage
 **/junit.xml
 debug
+bin/*.jar
+bin/*_lib
+bin/*.zip
