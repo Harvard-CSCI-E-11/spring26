@@ -1,10 +1,10 @@
-# Lab 6
-Welcome to Lab 6.
+# Lab 7
+Welcome to Lab 67
 
 The files in this folder are not a substitute for the excellent
 tutorials on the CircuitPython.org website. Instead, they are designed
 to provide you the minimum amount of information you need to be
-successful with Lab 6.
+successful with Lab 7.
 
 ## Getting Started
 Plug in the Circuit Python device. Find its serial port. If you are using a Mac, use the `ls` command and look at devices being `/dev/cu*`:
@@ -29,12 +29,7 @@ we want is `/dev/cu.usbmodem487F303F2B261`.
 I verify this with the `ampy` `ls` command:
 
 ```
-(venv) simsong@Seasons lab6 % ampy -p /dev/cu.usbmodem487F303F2B261 ls                                                                                                               (main)csci_e-11
-/.Trash-1000
-/.Trashes
-/._code.py
-/.fseventsd
-/.metadata_never_index
+% ampy -p /dev/cu.usbmodem487F303F2B261 ls
 /boot_out.txt
 /code.py
 /lib
@@ -42,6 +37,14 @@ I verify this with the `ampy` `ls` command:
 /settings.toml
 ```
 
-1. Several files begin with `demo_`. These are self-contained circuit python files that you can copy and paste into the Mu editor and save on to your Circuit Python computer. You can also send them to the computer using the `ampy` command line program. Remember - when the computer starts up, it runs the python program called `code.py`.
+(You may see additional files if you are running on a Macintosh. These files are used by the MacOS Trash and indexing system.)
 
-2. For ease of maintaining these demos, we store wifi configuration in a file called config.py. This file is not included in the git repo for security reasons, but there is a file called `config_dist.py` that you can copy to `config.py` and edit. Once you do that, send it to your device with:
+In the `demos/` directory you will find several self-contained circuit python files that you can copy and paste into the Thonny editor and save on to your MEMENTO. You can also send them to the MEMENTO using the `ampy` command line program. Remember - when the computer starts up, it runs the python program called `code.py`.
+
+Be sure to add your wifi settings to `/settings.toml` for the demos that require internet access!
+
+Two programs you should look at include:
+
+`code_bounce.py` - Draw a bouncing ball.
+
+`code_leaderboard_client.py` - The client for the leaderboard. This is what you need to complete lab7.

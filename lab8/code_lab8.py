@@ -1,3 +1,8 @@
+"""
+MEMENTO camera for Lab8
+"""
+
+
 import os
 import ssl
 import time
@@ -15,7 +20,17 @@ import adafruit_pycamera
 import board
 import neopixel
 
-# ---- Hardware configuration (adjust these to match your UF2/pinout) ----
+# ---- Software Configuration from settings.toml ----
+IMAGE_POST_API = os.getenv("LAB5_API")
+API_KEY = os.getenv("API_KEY")
+API_SECRET_KEY = os.getenv("API_SECRET_KEY")
+
+SSID = os.getenv("CIRCUITPY_WIFI_SSID")
+PASSWORD = os.getenv("CIRCUITPY_WIFI_PASSWORD")
+
+
+# ---- Hardware configuration ----
+# This works for Simson's MEMENTO...
 BUTTON_PINS = (
     board.BUTTON_UP,
     board.BUTTON_DOWN,
@@ -32,13 +47,6 @@ RING_BRIGHTNESS = 0.2
 
 SECONDS_CHOICES = [1, 5, 10, 30, 60, 120, 180, 300, 600]
 
-# ---- Config / env ----
-IMAGE_POST_API = os.getenv("IMAGE_POST_API")
-API_KEY = os.getenv("API_KEY")
-API_SECRET_KEY = os.getenv("API_SECRET_KEY")
-
-SSID = os.getenv("CIRCUITPY_WIFI_SSID")
-PASSWORD = os.getenv("CIRCUITPY_WIFI_PASSWORD")
 
 # ---- WiFi + NTP ----
 pool = None
@@ -256,86 +264,92 @@ reset_countdown()
 
 pycam.camera.continuous_capture_start()
 
-# ---- Main loop ----
-while True:
-    if display_on:
-        frame = pycam.continuous_capture()
-        preview_tilegrid.bitmap = frame
+def camera_snap():
+    """Called when the shutter button is clicked. Take a photo and return."""
 
-    now = time.monotonic()
-    now_sec = int(now)
+def main():
+    while True:
+        if display_on:
+            frame = pycam.continuous_capture()
+            preview_tilegrid.bitmap = frame
 
-    if running and now_sec != last_second:
-        delta = now_sec - last_second
-        if delta > 0:
-            remaining_seconds -= delta
-            if remaining_seconds <= 0:
-                remaining_seconds = 0
-                running = False
-                countdown_label.text = "0"
-                update_ring(0, total_seconds)
-                pycam.tone(2000, 0.08)
-                if display_on:
-                    flash_screen()
-                capture_and_store()
-                reset_countdown()
-            else:
-                countdown_label.text = str(remaining_seconds)
-                update_ring(remaining_seconds, total_seconds)
-        last_second = now_sec
+        now = time.monotonic()
+        now_sec = int(now)
 
-    event = keys.events.get()
-    while event:
-        if event.pressed:
-            if event.key_number == KEY_OK:
-                if remaining_seconds == 0:
+        if running and now_sec != last_second:
+            delta = now_sec - last_second
+            if delta > 0:
+                remaining_seconds -= delta
+                if remaining_seconds <= 0:
+                    remaining_seconds = 0
+                    running = False
+                    countdown_label.text = "0"
+                    update_ring(0, total_seconds)
+                    pycam.tone(2000, 0.08)
+                    if display_on:
+                        flash_screen()
+                    capture_and_store()
                     reset_countdown()
-                running = not running
-                last_second = int(time.monotonic())
-            elif event.key_number == KEY_SELECT:
-                reset_countdown()
-            elif event.key_number == KEY_UP:
-                running = False
-                if duration_index < len(SECONDS_CHOICES) - 1:
-                    duration_index += 1
-                total_seconds = SECONDS_CHOICES[duration_index]
-                reset_countdown()
-            elif event.key_number == KEY_DOWN:
-                running = False
-                if duration_index > 0:
-                    duration_index -= 1
-                total_seconds = SECONDS_CHOICES[duration_index]
-                reset_countdown()
-            elif event.key_number in (KEY_LEFT, KEY_RIGHT):
-                display_on = not display_on
-                display.brightness = 1.0 if display_on else 0.0
+                else:
+                    countdown_label.text = str(remaining_seconds)
+                    update_ring(remaining_seconds, total_seconds)
+            last_second = now_sec
+
         event = keys.events.get()
+        while event:
+            if event.pressed:
+                if event.key_number == KEY_OK:
+                    if remaining_seconds == 0:
+                        reset_countdown()
+                    running = not running
+                    last_second = int(time.monotonic())
+                elif event.key_number == KEY_SELECT:
+                    reset_countdown()
+                elif event.key_number == KEY_UP:
+                    running = False
+                    if duration_index < len(SECONDS_CHOICES) - 1:
+                        duration_index += 1
+                    total_seconds = SECONDS_CHOICES[duration_index]
+                    reset_countdown()
+                elif event.key_number == KEY_DOWN:
+                    running = False
+                    if duration_index > 0:
+                        duration_index -= 1
+                    total_seconds = SECONDS_CHOICES[duration_index]
+                    reset_countdown()
+                elif event.key_number in (KEY_LEFT, KEY_RIGHT):
+                    display_on = not display_on
+                    display.brightness = 1.0 if display_on else 0.0
+            event = keys.events.get()
 
-    # SD card hot-plug behavior
-    pycam.keys_debounce()
-    if pycam.card_detect.fell:
-        print("SD removed")
-        try:
-            pycam.unmount_sd_card()
-        except Exception:
-            pass
-        sd_mounted = False
-        photo_count = 0
-        total_photo_bytes = 0
-        update_counter_label()
-    if pycam.card_detect.rose:
-        print("SD inserted")
-        pycam.display_message("Mounting\nSD Card", color=0xFFFFFF)
-        for _ in range(3):
+        # SD card hot-plug behavior
+        pycam.keys_debounce()
+        if pycam.card_detect.fell:
+            print("SD removed")
             try:
-                pycam.mount_sd_card()
-                sd_mounted = True
-                break
-            except OSError as exc:
-                print("Retry mount:", exc)
-                time.sleep(0.5)
-        init_photo_stats()
-        update_counter_label()
+                pycam.unmount_sd_card()
+            except Exception:
+                pass
+            sd_mounted = False
+            photo_count = 0
+            total_photo_bytes = 0
+            update_counter_label()
+        if pycam.card_detect.rose:
+            print("SD inserted")
+            pycam.display_message("Mounting\nSD Card", color=0xFFFFFF)
+            for _ in range(3):
+                try:
+                    pycam.mount_sd_card()
+                    sd_mounted = True
+                    break
+                except OSError as exc:
+                    print("Retry mount:", exc)
+                    time.sleep(0.5)
+            init_photo_stats()
+            update_counter_label()
 
-    countdown_label.text = str(remaining_seconds)
-    time.sleep(0.1)
+        countdown_label.text = str(remaining_seconds)
+        time.sleep(0.1)
+
+if __name__=="__main__":
+    main()

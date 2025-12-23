@@ -309,7 +309,7 @@ version = "10.0.3"
 description = "PEP 561 type stubs for CircuitPython"
 optional = false
 python-versions = "*"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "circuitpython_stubs-10.0.3-py3-none-any.whl", hash = "sha256:cf7ac3bd1c3e7853785cb79ac848f30fc3f35f44bac6feccfbfc79a07f23c015"},
     {file = "circuitpython_stubs-10.0.3.tar.gz", hash = "sha256:0319d7b328add88d1a37d3fe95291fbb9ad1343c570cf7061724b49d63ef1cb8"},
@@ -684,4 +684,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "9a31bafbc4b3208521e8ba3a03a0ea816648aefe19f527b27edebb37406d790d"
+content-hash = "399095ab713a62c7408a1da400b1e2074186cb3b3ed137083cb22901980b1347"
