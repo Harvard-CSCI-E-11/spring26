@@ -1,0 +1,4 @@
+adafruit_pycamera
+adafruit_aw9523
+adafruit_display_text
+adafruit_imageload
