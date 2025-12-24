@@ -38,10 +38,9 @@ API_KEY = os.getenv("API_KEY")
 API_SECRET_KEY = os.getenv("API_SECRET_KEY")
 EMAIL   = os.getenv("EMAIL")
 COURSE_KEY = os.getenv("COURSE_KEY")
+LAB = os.getenv("LAB")
 
 DASHBOARD_ENDPOINT = "https://csci-e-11.org/api/v1"
-
-IMAGE_POST_API = "https://simsongacm-lab5.csci-e-11.org/api/post-image"
 
 
 if not SSID or not PASSWORD:
@@ -58,7 +57,6 @@ except ConnectionError:
 if not wifi.radio.connected:
     print("Wifi failed to connect. Exiting.")
     sys.exit(0)
-
 
 
 print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}.")
@@ -85,19 +83,7 @@ pycam = adafruit_pycamera.PyCamera()
 pycam.resolution = 2  # 2 is 640x480;  12 is 2560x1920
 pycam.camera.quality = 4  # decent compression
 
-def post_to_dashboard(jpeg):
-    """Send the jpeg to the CSCI E-11 dashboard"""
-    pycam.tone(1000,0.1)
-    auth = {"email":EMAIL, "course_key":COURSE_KEY}
-    r = requests.post(DASHBOARD_ENDPOINT,
-                      json={'action':'post-image', 'auth':auth},
-                      timeout=10)
-    if r.status_code//100 !=2:
-        print("post-image failed. r=",r," text==",r.text)
-        return
-
-    result = r.json()
-    presigned_data = result['presigned_post']
+def presigned_post_to_s3(presigned_data, jpeg):
     url = presigned_data['url']
     fields = presigned_data['fields']
     print("presigned_data:",presigned_data)
@@ -110,14 +96,13 @@ def post_to_dashboard(jpeg):
     eol  = b'\r\n'
     body = bytearray()
     
-    
     def add_part(name, value):
         body.extend(b"--" + eboundary + eol)
         body.extend(('Content-Disposition: form-data; name="%s"' % name).encode("utf-8"))
         body.extend(eol + eol)
         body.extend(str(value).encode("utf-8"))
         body.extend(eol)
-    
+  
     
     for k, v in fields.items():
         add_part(k, v)
@@ -147,18 +132,49 @@ def post_to_dashboard(jpeg):
     if r.status_code >= 400:
         print("Error:", r.text)
     
+
+def post_to_dashboard(jpeg):
+    """Send the jpeg to the CSCI E-11 dashboard"""
+    pycam.tone(1000,0.1)
+    auth = {"email":EMAIL, "course_key":COURSE_KEY}
+    r = requests.post(DASHBOARD_ENDPOINT,
+                      json={'action':'post-image', 'auth':auth},
+                      timeout=10)
+    if r.status_code//100 !=2:
+        print("post-image failed. r=",r," text==",r.text)
+        return
+
+    result = r.json()
+    presigned_post_to_s3(result['presigned_post'], jpeg)    
     pycam.tone(1100,0.1)
     return
 
 def post_to_imageboard(jpeg):
     """send the jpeg to the student imageboard"""
     pycam.tone(2000,0.1)
+    url = f"https://{smash_email(EMAIL)}-{LAB}.csci-e-11.org/api/post-image"
+    form_data = { 'api_key': API_KEY,
+                  'api_secret_key' : API_SECRET_KEY,
+                  'message' : "sent from MEMENTO"}
+    print("url",url)
+    r = requests.post(url,
+                      data=form_data,
+                      timeout=10)
+    if r.status_code//100 !=2:
+        print("post to imageboard failed. r=",r," text==",r.text)
+        return
+
+    result = r.json()
+    presigned_post_to_s3(result['presigned_post'], jpeg)
     pycam.tone(2100,0.1)
     return
 
 pycam.tone(400, 0.1)   # Play a ready tone
 pycam.tone(600, 0.05)
 
+def valid_jpeg(jpeg):
+    return (jpeg.startswith(b"\xFF\xD8")
+            and ((jpeg.endswith(b"\xFF\xD9") or jpeg.rfind(b"\xFF\xD9") > len(b) - 8)))
 
 while True:
     frame = pycam.continuous_capture()
@@ -173,16 +189,25 @@ while True:
         pycam.autofocus()
         pycam.tone(330, 0.05)
         pycam.tone(440, 0.1)
+        # grab the jpeg memoryview and immediate turn it into a byte array
         jpeg = pycam.capture_into_jpeg()
+        if jpeg is not None:
+            jpeg = bytes(jpeg)
+        # Go back into live preview
         pycam.live_preview_mode()
         if jpeg is None:
             print("jpeg is NONE.")
             pycam.tone(100,0.2)
             continue
-        print("jpeg=",jpeg,"size=",len(jpeg))
+        # Vadliate the jpeg
+        if not valid_jpeg(jpeg):
+            print("jpeg does not validate")
+            pycam.tone(150,0.2)
+            continue
         pycam.tone(660, 0.1)
         post_to_dashboard(jpeg)
-        post_to_imageboard(jpeg)
+        ### Uncomment this to post to your imageboard
+        ### post_to_imageboard(jpeg)
 
     # EXIT: Clean unmount and final report
     if pycam.ok.fell:
