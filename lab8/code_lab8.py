@@ -1,5 +1,8 @@
 """
 MEMENTO camera for Lab8
+
+Camera docs: https://docs.circuitpython.org/projects/pycamera/en/stable/index.html
+
 """
 
 
@@ -21,12 +24,13 @@ import board
 import neopixel
 
 # ---- Software Configuration from settings.toml ----
+SSID = os.getenv("CIRCUITPY_WIFI_SSID")
+PASSWORD = os.getenv("CIRCUITPY_WIFI_PASSWORD")
 IMAGE_POST_API = os.getenv("LAB5_API")
 API_KEY = os.getenv("API_KEY")
 API_SECRET_KEY = os.getenv("API_SECRET_KEY")
-
-SSID = os.getenv("CIRCUITPY_WIFI_SSID")
-PASSWORD = os.getenv("CIRCUITPY_WIFI_PASSWORD")
+E11_EMAIL = os.getenv("E11_EMAIL")
+E11_COURSE_KEY = os.getenv("E11_COURSE_KEY")
 
 
 # ---- Hardware configuration ----
@@ -47,8 +51,7 @@ RING_BRIGHTNESS = 0.2
 
 SECONDS_CHOICES = [1, 5, 10, 30, 60, 120, 180, 300, 600]
 
-
-# ---- WiFi + NTP ----
+# ---- WiFi + NTP Setup ----
 pool = None
 requests = None
 if SSID and PASSWORD:
@@ -75,12 +78,14 @@ sd_mounted = False
 try:
     pycam.mount_sd_card()
     sd_mounted = True
+    print("SD mounted")
 except Exception as e:  # noqa: BLE001
     print("No SD at startup:", e)
 
 # ---- Display setup ----
+# We require display.refresh()
 display = pycam.display
-display.auto_refresh = True
+display.auto_refresh = False
 
 root = displayio.Group()
 display.root_group = root
@@ -93,17 +98,6 @@ preview_tilegrid = displayio.TileGrid(
     y=(display.height - pycam.camera.height) // 2,
 )
 root.append(preview_tilegrid)
-
-countdown_label = label.Label(
-    terminalio.FONT,
-    text="",
-    color=0xFFFFFF,
-    scale=3,
-    anchor_point=(0.5, 0.5),
-    anchored_position=(display.width // 2, display.height // 2),
-)
-root.append(countdown_label)
-
 counter_label = label.Label(
     terminalio.FONT,
     text="",
@@ -114,18 +108,14 @@ counter_label = label.Label(
 )
 root.append(counter_label)
 
-# White flash bitmap/group
-flash_bitmap = displayio.Bitmap(display.width, display.height, 1)
-flash_palette = displayio.Palette(1)
-flash_palette[0] = 0xFFFFFF
-flash_tile = displayio.TileGrid(flash_bitmap, pixel_shader=flash_palette)
-flash_group = displayio.Group()
-flash_group.append(flash_tile)
-
 # ---- LED ring ----
 ring = neopixel.NeoPixel(RING_PIN, RING_PIXELS, brightness=RING_BRIGHTNESS, auto_write=True)
 
+# ---- Keys ----
+keys = keypad.Keys(BUTTON_PINS, value_when_pressed=False, pull=True)
+
 def update_ring(remaining, total):
+    """ Flash the ring """
     if total <= 0:
         ring.fill((0, 0, 0, 0))
         return
@@ -142,27 +132,10 @@ def update_ring(remaining, total):
         level = max(0.0, min(1.0, level))
         ring[i] = (int(255 * level), 0, 0, 0)
 
-# ---- Keys ----
-keys = keypad.Keys(BUTTON_PINS, value_when_pressed=False, pull=True)
 
 # ---- Photo accounting ----
 photo_count = 0
 total_photo_bytes = 0
-
-def init_photo_stats():
-    global photo_count, total_photo_bytes
-    if not sd_mounted:
-        return
-    try:
-        if "photos.zip" in os.listdir("/sd"):
-            with zipfile.ZipFile("/sd/photos.zip", "r") as z:
-                for info in z.infolist():
-                    if info.filename.endswith("/"):
-                        continue
-                    photo_count += 1
-                    total_photo_bytes += info.file_size
-    except Exception as e:  # noqa: BLE001
-        print("Zip init error:", e)
 
 def sd_free_bytes():
     if not sd_mounted:
@@ -172,7 +145,7 @@ def sd_free_bytes():
         f_frsize = st[1]
         f_bavail = st[4]
         return f_frsize * f_bavail
-    except Exception as e:  # noqa: BLE001
+    except (OSError,RuntimeError,ValueError) as e:
         print("statvfs error:", e)
         return None
 
@@ -190,17 +163,9 @@ def photos_possible():
 def update_counter_label():
     counter_label.text = f"{photo_count}/{photos_possible()}"
 
-init_photo_stats()
 update_counter_label()
 
 # ---- Capture + upload ----
-def flash_screen():
-    old_root = display.root_group
-    display.root_group = flash_group
-    display.refresh()
-    time.sleep(0.08)
-    display.root_group = old_root
-
 def capture_and_store():
     global photo_count, total_photo_bytes
     if not sd_mounted:
@@ -245,30 +210,17 @@ def capture_and_store():
         print("Capture error:", e)
 
 # ---- Countdown state ----
-duration_index = SECONDS_CHOICES.index(60) if 60 in SECONDS_CHOICES else len(SECONDS_CHOICES) - 1
-total_seconds = SECONDS_CHOICES[duration_index]
-remaining_seconds = total_seconds
-running = False
-last_second = int(time.monotonic())
-display_on = True
-
-def reset_countdown():
-    global remaining_seconds, running, last_second
-    remaining_seconds = total_seconds
-    running = False
-    last_second = int(time.monotonic())
-    countdown_label.text = str(remaining_seconds)
-    update_ring(remaining_seconds, total_seconds)
-
-reset_countdown()
-
-pycam.camera.continuous_capture_start()
 
 def camera_snap():
     """Called when the shutter button is clicked. Take a photo and return."""
 
 def main():
+    """Main loop. Put the camera in streaming mode. Take a picture when the shutter button is pressed."""
+    pycam.camera.continuous_capture_start()
+    display.auth_refresh = False
     while True:
+        pycam.camera.continuous_capture_get_frame()  # Grab the next frame
+        display.refresh()                            # show it
         if display_on:
             frame = pycam.continuous_capture()
             preview_tilegrid.bitmap = frame
@@ -345,7 +297,6 @@ def main():
                 except OSError as exc:
                     print("Retry mount:", exc)
                     time.sleep(0.5)
-            init_photo_stats()
             update_counter_label()
 
         countdown_label.text = str(remaining_seconds)

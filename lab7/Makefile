@@ -13,10 +13,14 @@ $(PYTHON):
 	poetry install		# installs the current poetry.lock, do not update
 	poetry install --with dev
 
-lint:
+memento-install: $(PYTHON) requirements_cp.txt
+	poetry run circup install -r requirements_cp.txt
+
+lint: $(PYTHON)
 	poetry run pylint *.py
 	poetry run pyright *.py
 
 distclean:
 	/bin/rm -rf .venv
-	/bin/rm -f instance/message_board.db
+
+.PHONY: distclean lint memento-install
