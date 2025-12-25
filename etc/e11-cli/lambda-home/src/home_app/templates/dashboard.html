@@ -107,23 +107,23 @@
   <h4>Active Sessions Table</h4>
   <table class="pure-table">
   <thead>
-    <tr><th>Session #</th><th>sid</th><th>IP Address</th><th>Created</th><th>Expires</th><th>Delete</th></tr>
+    <tr><th>Session #</th><th>sid</th><th colspan="2">Created</th><th>Expires</th><th>Delete</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
     <tr class="{% if session.sid==ses.sid %}current-session{% endif %}" >
       <th>{{ loop.index }}</th>
       <th>{{ session.sid }}</th>
-      <td>{{ session.client_ip }}</td>
-      <td>{{ session.session_created | eastern }}</td>
+      <td>{{ session.session_created | eastern }} {{ session.client_ip }}</td>
       <td>{{ session.session_expire |eastern }}</td>
       <td><span class="delete-session"  data-sid="{{ session.sid }}">×</span></td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
+<p>All times in {{ timezone_display }}.</i></p>
+<p><i>Note: Once a session is created from a specific IP address, it can be used from any IP address. This is required to allow users to transition between Wi-Fi access points or from Wi-Fi to cellular networks.</i></p>
 
-<p><i>(All times in {{ timezone_display }}.)</i></p>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
