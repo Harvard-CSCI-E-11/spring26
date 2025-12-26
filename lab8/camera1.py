@@ -26,7 +26,6 @@ import rtc
 import socketpool
 import ulab.numpy as np
 import wifi
-import json
 
 import adafruit_pycamera
 

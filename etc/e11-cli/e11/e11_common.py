@@ -136,7 +136,6 @@ route53_client : Route53Client = boto3.client('route53', region_name=AWS_REGION)
 secretsmanager_client : SecretsManagerClient = boto3.client("secretsmanager", region_name=AWS_REGION)
 sqs_client :SQSClient = boto3.client("sqs", region_name=AWS_REGION)
 
-
 # S3
 s3_client : S3Client = boto3.client("s3", region_name=AWS_REGION)
 
@@ -178,6 +177,7 @@ class A:                        # pylint: disable=too-few-public-methods
     SK_USER = '#'                  # sort key for the user record
     SK_IMAGE_PREFIX = 'image#'     # sort key for images
     SK_IMAGE_PATTERN = SK_IMAGE_PREFIX + "{lab}#{now}"
+    SK_LEADERBOARD_LOG_PREFIX = 'leaderboard-log#' # leaderboard-log
     USER_ID = 'user_id'
     USER_REGISTERED = 'user_registered'
 
@@ -294,6 +294,21 @@ def add_user_log(event, user_id, message, **extra):
                                      **extra})
     logger.debug("put_table=%s",ret)
 
+def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
+    """
+    :param user_id: user_id
+    :param message: Message to add to log
+    """
+    logger = get_logger()
+    now = datetime.now().isoformat()
+    logger.debug("client_ip=%s user_id=%s name=%s user_agent=%s",client_ip, user_id, name, user_agent)
+    ret = users_table.put_item(Item={A.USER_ID:user_id,
+                                     A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now}',
+                                     'client_ip':client_ip,
+                                     'name':name,
+                                     'user_agent':user_agent
+                                     **extra})
+    logger.debug("put_table=%s",ret)
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
@@ -332,7 +347,10 @@ def delete_image(user_id, sk, bucket, key):
 ################################################################
 ## get functions
 def queryscan_table(what, kwargs):
-    """use the users table and return the items"""
+    """Query or Scan a DynamoDB table, returning all matching items.
+    :param what:  should be users_table.scan, users_table.query, etc.
+    :param kwargs: should be the args that are used for the query or scan.
+    """
     kwargs = copy.copy(kwargs)  # it will be modified
     items = []
     while True:

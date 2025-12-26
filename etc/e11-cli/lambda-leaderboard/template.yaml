@@ -135,7 +135,6 @@ Resources:
             Method: ANY
             PayloadFormatVersion: "2.0"
 
-
   # Define the DynamoDB table used to hold the Leaderboard
   # We index on the name. Each entry is a JSON object whose structure is determiend at runtime.
   # The table is automatically created with 'sam deploy' and destroyed with 'sam delete'
@@ -143,15 +142,14 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Ref LeaderboardTableName
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: name
           AttributeType: S
       KeySchema:
         - AttributeName: name
           KeyType: HASH
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+
 
 Outputs:
   ApiId:

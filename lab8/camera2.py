@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Simson Garfinkel (Customized)
 # License: Unlicense
-# more exmaples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
+# more examples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
 """
 This program takes photos. It uses Wi-Fi and the Network Time Protocol to set the Real Time Clock,
 which is used to set the time on the images written to disk.
@@ -24,6 +24,7 @@ import adafruit_requests
 import rtc
 import socketpool
 import wifi
+import displayio
 
 # 1. SETUP WIFI AND NTP
 

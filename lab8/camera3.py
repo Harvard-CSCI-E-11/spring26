@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Simson Garfinkel (Customized)
 # License: Unlicense
-# more exmaples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
+# more examples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
 """
 camera3.py:
 
@@ -17,9 +17,7 @@ https://docs.circuitpython.org/projects/pycamera/en/stable/api.html
 
 import os
 import ssl
-import time
 import sys
-import io
 import re
 
 import adafruit_ntp
@@ -97,7 +95,7 @@ def presigned_post_to_s3(presigned_data, jpeg):
 
     def add_part(name, value):
         body.extend(b"--" + eboundary + eol)
-        body.extend(('Content-Disposition: form-data; name="%s"' % name).encode("utf-8"))
+        body.extend((f'Content-Disposition: form-data; name="{name}"').encode("utf-8"))
         body.extend(eol + eol)
         body.extend(str(value).encode("utf-8"))
         body.extend(eol)
