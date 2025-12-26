@@ -302,7 +302,18 @@ def api_grader(event, context, payload):
     email = user.email
     if email is None:
         return resp_json(HTTP_BAD_REQUEST, {"error":True, "message":email is None})
+
+    ###
+    ### Here is where the actual grading happens...
+    ###
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
+
+    if public_ip is None:
+        send_email(to_addr=email,
+                   email_subject="Instance not registered",
+                   email_body="Attempt to grade aborted, as your instance is not registered.")
+        resp_json(HTTP_OK, {"error":True,"message":"Instance not registered"})
+
     summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
     if summary['error']:
         LOGGER.error("summary=%s",summary)

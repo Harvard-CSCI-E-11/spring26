@@ -18,6 +18,7 @@ MAGIC = 'magic'
 
 @functools.lru_cache(maxsize=10)
 def get_leaderboard_log( tr  ):
+    logger.info("tr=%s tr.ctx.email=%s",tr,tr.ctx.email)
     user =  get_user_from_email(tr.ctx.email)
     kwargs:dict = {'KeyConditionExpression' : (
 	Key(A.USER_ID).eq(user.user_id) &

@@ -36,10 +36,12 @@ def get_key(pkey_pem):
     raise ValueError(f"could not determine key type from {pkey_pem}")
 
 class E11Ssh:
-    def __init__(self, hostname, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10): # pylint: disable=too-many-positional-arguments
+    # pylint: disable=too-many-positional-arguments
+    def __init__(self, hostname, username="ubuntu", port=22, key_filename=None, pkey_pem=None, timeout=10):
         """Create one SSH/SFTP session for grader mode."""
 
-        LOGGER.debug("configure hostname=%s username=%s port=%s key_filename=%s timeout=%s",hostname,username,port,key_filename,timeout)
+        LOGGER.info("configure hostname=%s username=%s port=%s key_filename=%s timeout=%s",
+                    hostname,username,port,key_filename,timeout)
         assert isinstance(hostname,str)
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

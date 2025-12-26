@@ -46,13 +46,13 @@ Globals:
         SQS_SECRET_ID: !Ref SqsSecretId
         USERS_TABLE_NAME: !Ref UsersTableName
         SESSIONS_TABLE_NAME: !Ref SessionsTable
+        LEADERBOARD_TABLE_NAME: !Ref LeaderboardTableName
         PYTHONPATH: "/var/task/home_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
         IMAGE_BUCKET_NAME: !Ref ImageBucketName
         STAGE_NAME: !FindInMap [EnvConfig, !Ref EnvironmentName, StageName]
         SQS_QUEUE_URL: !Ref HomeQueue
         SQS_QUEUE_ARN: !GetAtt HomeQueue.Arn
-
 
 Parameters:
   EnvironmentName:
@@ -93,6 +93,10 @@ Parameters:
     Type: String
     Description: UTC timestamp of when the application was deployed.
     Default: 'Not Set'
+  LeaderboardTableName:
+    Type: String
+    Default: "Leaderboard"
+    Description: DynamoDB table name for leaderboard
 
 Conditions:
   CreateAcmCert: !Equals [!Ref CertificateArn, ""]
@@ -138,34 +142,15 @@ Resources:
       Timeout: 60
       MemorySize: 256
       Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTableName
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SessionsTable
+
         - Version: '2012-10-17'
           Statement:
-            - Sid: UsersTableRW
-              Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:DeleteItem
-                - dynamodb:UpdateItem
-                - dynamodb:Query
-              Resource:
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
-                - !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}/index/*"
-
-            - Sid: SessionsTableRW
-              Effect: Allow
-              Action:
-                - dynamodb:DescribeTable
-                - dynamodb:GetItem
-                - dynamodb:PutItem
-                - dynamodb:DeleteItem
-                - dynamodb:UpdateItem
-                - dynamodb:Query
-              Resource:
-                - !GetAtt SessionsTable.Arn
-                - !Sub "${SessionsTable.Arn}/index/*"
-
             - Sid: SecretsGet
               Effect: Allow
               Action: secretsmanager:GetSecretValue
@@ -198,7 +183,6 @@ Resources:
               Resource:
                 - !Sub 'arn:aws:s3:::${ImageBucketName}'      # The Bucket itself
                 - !Sub 'arn:aws:s3:::${ImageBucketName}/*'    # The Objects inside
-
 
             - Sid: HomeQueueRW
               Effect: Allow
@@ -303,7 +287,6 @@ Resources:
         deadLetterTargetArn: !GetAtt HomeQueueDeadLetterQueue.Arn
         maxReceiveCount: 5
 
-
 # This is what the script prints
 Outputs:
   ApiId:
@@ -318,9 +301,9 @@ Outputs:
   HostedZoneId:
     Description: Route53 Hosted Zone
     Value: !Ref HostedZoneId
-  UsersTableIndexArn:
-    Description: ARN for Users Table Index
-    Value: !Sub "${SessionsTable.Arn}/index/*"
+  SessionsTableArn:
+    Description: ARN for Sessions Table
+    Value: !Sub "${SessionsTable.Arn}"
   HomeQueueUrl:
     Description: URL of the Home SQS queue
     Value: !Ref HomeQueue

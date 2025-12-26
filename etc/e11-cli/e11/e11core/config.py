@@ -19,6 +19,7 @@ class E11Config:                # pylint: disable=too-few-public-methods
 
     @classmethod
     def load(cls):
+        """If we are running locally (not via SSH), get this information from the config file."""
         cfg = cls()
         if not cfg.config_path.exists():
             return cfg

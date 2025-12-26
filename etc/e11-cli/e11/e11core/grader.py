@@ -78,6 +78,7 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
     # Create the test runner
     if ctx.grade_with_ssh:
         LOGGER.info("SSH will connect to %s (lab=%s)", ctx.public_ip, lab)
+        assert ctx.public_ip is not None
         tr = TestRunner( ctx, ssh = E11Ssh( ctx.public_ip,
                                             key_filename=ctx.key_filename,
                                             pkey_pem=ctx.pkey_pem))
@@ -177,20 +178,23 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str|None=None, key
     """Run grading by SSHing into the student's VM and executing tests via shared runner.
     Returns the summary of the test results
     """
-
-    smashed = smash_email(user_email)
-
     # Build context and mark grader mode
-    ctx = build_ctx(lab)
-    if smashed:
+
+    ctx     = build_ctx(lab)
+    if smashed := smash_email(user_email):
         ctx.smashedemail = smashed
-        # Set labdns based on smashed email for grading
         ctx.labdns = f"{smashed}-{lab}.{COURSE_DOMAIN}"
-    ctx.public_ip = public_ip
-    ctx.pkey_pem = pkey_pem
-    ctx.key_filename = key_filename
+    if user_email and (ctx.email is None):
+        ctx.email = user_email
+    ctx.public_ip      = public_ip
+    ctx.pkey_pem       = pkey_pem
+    ctx.key_filename   = key_filename
     ctx.grade_with_ssh = True
+
+    # grade the student VM
     summary = discover_and_run(ctx)
+
+    # censor the private key
     ctx.pkey_pem = "<censored>"
     return summary
 

@@ -30,7 +30,7 @@ Globals:
         LOG_LEVEL: !Ref LogLevel
         PYTHONPATH: "/var/task/leaderboard_app/e11.whl"
         DEPLOYMENT_TIMESTAMP: !Ref DeploymentTimestamp
-        LEADERBOARD_TABLE: !Ref LeaderboardTableName
+        LEADERBOARD_TABLE_NAME: !Ref LeaderboardTableName
         USERS_TABLE_NAME: !Ref UsersTableName
 
 Parameters:
