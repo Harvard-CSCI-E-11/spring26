@@ -16,10 +16,10 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-from e11.e11_common import (get_user_from_email, get_grade, add_grade, send_email)
+from e11.e11_common import (get_user_from_email, get_grade, add_user_log, add_leaderboard_log, add_grade, send_email)
 from e11.e11core import grader
 
-__version__ = '0.9.3'
+__version__ = '1.0.0'
 
 BASE_SCORE = 4.5
 SCORE_WITH_MAGIC = 5.
@@ -39,6 +39,13 @@ NO_MESSAGE = None
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 app.logger.setLevel(logging.DEBUG)
+
+def get_client_ip_address():
+    """Return the client ip_address for a Lambda function"""
+    if xff := request.headers.get('X-Forwarded-For'):
+        return xff.split(',')[0]
+    return request.remote_addr
+
 
 @app.before_request
 def _log_path():
@@ -118,9 +125,8 @@ def get_leaderboard():
     except ClientError as err:
         app.logger.error(
             "Couldn't scan for leaders: %s: %s",
-            err.response['Error']['Code'],
-            err.response['Error']['Message']
-        )
+            err.response.get('Error',{}).get('Code','n/a'),
+            err.response.get('Error',{}).get('Message','n/a') )
         raise
 
     # Convert DynamoDB responses to a bunch of dictionaries
@@ -152,8 +158,8 @@ def update_leaderboard(*,data,ip_address,user_agent):
     except ClientError as err:
         app.logger.error(
             "Couldn't put_item on leaders: %s: %s",
-            err.response['Error']['Code'],
-            err.response['Error']['Message']
+            err.response.get('Error',{}).get('Code','n/a'),
+            err.response.get('Error',{}).get('Message','n/a')
         )
         raise
 
@@ -179,8 +185,8 @@ def update_leaderboard(*,data,ip_address,user_agent):
     except ClientError as err:
         app.logger.error(
             "Couldn't delete_item on leaders: %s: %s",
-            err.response['Error']['Code'],
-            err.response['Error']['Message']
+            err.response.get('Error',{}).get('Code','n/a'),
+            err.response.get('Error',{}).get('Message','n/a')
         )
         raise
     return leaders
@@ -219,23 +225,26 @@ def root():
         icon_data = base64.b64encode(f.read()).decode('utf-8')
 
     # Get the IP address
-    if request.headers.get('X-Forwarded-For'):
-        ip_address = request.headers.get('X-Forwarded-For').split(',')[0]
-    else:
-        ip_address = request.remote_addr
+    ip_address = get_client_ip_address()
 
     return render_template('leaderboard.html',
                          ip_address=ip_address,
-                         FAVICO=icon_data)
+                         FAVICO=icon_data,
+                         __version__=__version__,
+                         DEPLOYMENT_TIMESTAMP = os.getenv("DEPLOYMENT_TIMESTAMP","n/a") )
 
 @app.route('/api/register', methods=['GET'])
 def api_get_register():
-    """Return the registration of the name and secret key. Store hashed key in database"""
+    """GET METHOD:
+    Register to the leaderboard and return the registration of the name and secret key.
+    Store hashed key in database
+"""
     return  jsonify(new_registration())
 
 @app.route('/api/register', methods=['POST'])
 def api_post_register():
-    """Check the posted email and class key. If they are correct, grade the assignment.
+    """POST METHOD:
+    Check the posted email and class key. If they are correct, grade the assignment.
     Then return the registration of the name and secret key. Store hashed key in database"""
     email = request.form.get('email','')
     course_key = request.form.get('course_key','')
@@ -246,6 +255,17 @@ def api_post_register():
     if user.course_key != course_key:
         abort(404, 'invalid course_key')
 
+    # register the user
+    registration = new_registration()
+
+    # Note that this user registered
+    name  = registration['name']
+    user_agent = str(request.user_agent)
+    add_user_log(None, user.user_id, f"registered on leaderboard with name={name} and user_agent={user_agent}")
+    add_leaderboard_log(user.user_id, get_client_ip_address(), name, user_agent)
+
+    # Right now this just sends through the grade, but the correct way to do this is to request a grade through SQS
+
     tests = [{'name':'Post to API',
               'status':'pass',
               'context':''},
@@ -253,7 +273,6 @@ def api_post_register():
               'status':None,
               'context':''}]
 
-    user_agent = str(request.user_agent)
     passes = ['Registered with email and course_key']
     if MAGIC.lower() in user_agent.lower():
         score = SCORE_WITH_MAGIC
@@ -283,7 +302,7 @@ def api_post_register():
                email_subject = subject,
                email_body=body)
 
-    return  jsonify(new_registration())
+    return  jsonify(registration)
 
 @app.route('/api/update', methods=['POST'])
 def api_update():   # pylint disable=missing-function-docstring

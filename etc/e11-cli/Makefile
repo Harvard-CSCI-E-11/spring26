@@ -21,9 +21,24 @@ lint: .venv/pyvenv.cfg
 	poetry run pylint e11/.
 	poetry run pyright e11/.
 
+lint-all:
+	make lint
+	(cd lambda-home; make lint)
+	(cd lambda-leaderboard; make lint)
+
 check: .venv/pyvenv.cfg
 	make lint
 	poetry run pytest  -q --cov=e11 --cov-report=term --cov-report=xml --junitxml=junit.xml -o junit_family=legacy tests/
+
+check-all:
+	make check
+	(cd lambda-home; make check)
+	(cd lambda-leaderboard; make check)
+
+prod-all:
+	(cd lambda-home; make prod-vbd)
+	(cd lambda-leaderboard; make prod-vbd)
+
 
 doc/e11.1:  .venv/pyvenv.cfg
 	poetry run argparse-manpage --module e11.main --function get_parser \

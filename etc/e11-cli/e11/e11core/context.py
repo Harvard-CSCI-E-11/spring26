@@ -21,10 +21,10 @@ class E11Context:  # pylint: disable=too-many-instance-attributes
     labdns: Optional[str] = None  # e.g., "smashedemail-lab3.{COURSE_DOMAIN}"
 
     # Student info
-    course_key: Optional[str] = None
-    email: Optional[str] = None
-    smashedemail: Optional[str] = None
-    public_ip: Optional[str] = None
+    course_key: Optional[str] = None   # "abcdefg"
+    email: Optional[str] = None        # "user@fas.harvard.edu"
+    smashedemail: Optional[str] = None # "userfasharvard"
+    public_ip: Optional[str] = None    # "1.2.3.4"
 
     # Grading info (set during grading)
     grade_with_ssh: bool = False

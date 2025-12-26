@@ -4,7 +4,8 @@ Taken from e11/main.py.
 """
 
 
-
+import requests
+import sys
 from pathlib import Path
 import requests
 
