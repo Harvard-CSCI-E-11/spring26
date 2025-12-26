@@ -42,7 +42,6 @@ LAB = os.getenv("LAB")
 
 DASHBOARD_ENDPOINT = "https://csci-e-11.org/api/v1"
 
-
 if not SSID or not PASSWORD:
     print("WiFi config not found in settings.toml.")
     sys.exit(0)
@@ -51,7 +50,7 @@ print(f"\n\nConnecting to {SSID}...")
 try:
     wifi.radio.connect(SSID,PASSWORD)
 except ConnectionError:
-    print(f"Cannot connect to WiFi ssid: {SSID} password: {PASSWORD}")
+    print(f"Cannot connect to WiFi ssid: {SSID}. Check password.")
     sys.exit(0)
 
 if not wifi.radio.connected:
@@ -89,41 +88,41 @@ def presigned_post_to_s3(presigned_data, jpeg):
     print("presigned_data:",presigned_data)
     print("url:",url)
     print("fields:",fields)
-    
+
     # now upload to S3 using the presigned post and a hand-drafted file POST
     boundary = '----FormBoundary'
     eboundary = boundary.encode()
     eol  = b'\r\n'
     body = bytearray()
-    
+
     def add_part(name, value):
         body.extend(b"--" + eboundary + eol)
         body.extend(('Content-Disposition: form-data; name="%s"' % name).encode("utf-8"))
         body.extend(eol + eol)
         body.extend(str(value).encode("utf-8"))
         body.extend(eol)
-  
-    
+
+
     for k, v in fields.items():
         add_part(k, v)
-    
+
     # Add the file itself
     body.extend(b'--' + eboundary + eol)
     body.extend(b'Content-Disposition: form-data; name="file"; filename="image.jpg"' + eol)
     body.extend(b'Content-type: image/jpeg' + eol*2)
     body.extend(bytes(jpeg))
     body.extend(eol)
-    
+
     # *** required closing boundary ***
     body.extend(b"--" + eboundary + b"--" + eol)
-    
-    
+
+
     # prepare the headers
     headers = {
         'Content-Type': 'multipart/form-data; boundary=' + boundary,
         'Content-Length': str(len(body))
     }
-    
+
     # build the multipart form
 
     r = requests.post(url, data=body, headers=headers, timeout=10)
@@ -131,7 +130,7 @@ def presigned_post_to_s3(presigned_data, jpeg):
     print("Status Code:", r.status_code)
     if r.status_code >= 400:
         print("Error:", r.text)
-    
+
 
 def post_to_dashboard(jpeg):
     """Send the jpeg to the CSCI E-11 dashboard"""
@@ -145,7 +144,7 @@ def post_to_dashboard(jpeg):
         return
 
     result = r.json()
-    presigned_post_to_s3(result['presigned_post'], jpeg)    
+    presigned_post_to_s3(result['presigned_post'], jpeg)
     pycam.tone(1100,0.1)
     return
 
@@ -180,7 +179,7 @@ while True:
     frame = pycam.continuous_capture()
     if isinstance(frame,Bitmap):
         pycam.blit(frame)
-        
+
     pycam.keys_debounce()
 
     # SHUTTER: Focus and then photo

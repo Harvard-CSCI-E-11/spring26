@@ -35,9 +35,9 @@ if SSID and PASSWORD:
     try:
         wifi.radio.connect(SSID,PASSWORD)
     except ConnectionError:
-        print(f"Cannot connect to WiFi ssid: {SSID} password: {PASSWORD}")
+        print(f"Cannot connect to WiFi ssid: {SSID}. Check password.")
 else:
-    print("WiFi config not found in settintgs.toml.")
+    print("WiFi config not found in settings.toml.")
 
 if wifi.radio.connected:
     print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}.")
