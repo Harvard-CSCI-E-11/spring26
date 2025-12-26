@@ -1,7 +1,7 @@
 📸 MEMENTO Camera: Student Quick Start Guide
 --------------------------------------------
 
-(This guide was created by Google's Gemini by analyzing the program camera1.py.)
+(This guide was created by Google's Gemini by analyzing the program [camera1.py]([url](https://github.com/Harvard-CSCI-E-11/spring26/blob/main/lab8/camera1.py)).)
 
 The MEMENTO has a "Contextual Menu" system. This means the **Up/Down** buttons change their behavior based on what is selected by the **Left/Right** buttons.
 
