@@ -12,7 +12,8 @@ dependencies = [
              "adafruit-ampy",
              "pylint",
              "adafruit-blinka",
-             "requests (>=2.32.5,<3.0.0)"
+             "requests (>=2.32.5,<3.0.0)",
+             "circuitpython-stubs (>=10.0.3,<11.0.0)"
 ]
 
 [tool.poetry]
