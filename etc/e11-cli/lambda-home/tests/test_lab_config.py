@@ -73,16 +73,27 @@ def test_lab_redirects_still_work():
 def test_api_grader_before_deadline(lab_key, monkeypatch, fake_aws):
     """Test that api_grader accepts requests before deadline."""
     import uuid
-    from e11.e11_common import create_new_user, A
+    import time
+    from e11.e11_common import create_new_user, A, users_table
+    from e11.e11core.utils import smash_email
 
     # Create test user with unique email
+
     test_email = f"test-{lab_key}-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test"
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
 
     # Mock the grader to avoid actual SSH calls
     mock_summary = {
@@ -135,16 +146,27 @@ def test_api_grader_before_deadline(lab_key, monkeypatch, fake_aws):
 def test_api_grader_after_deadline_rejects(lab_key, monkeypatch, fake_aws):
     """Test that api_grader rejects requests after deadline (non-SQS)."""
     import uuid
-    from e11.e11_common import create_new_user, A
+    import time
+    from e11.e11_common import create_new_user, A, users_table
+    from e11.e11core.utils import smash_email
 
     # Create test user with unique email
+
     test_email = f"test-{lab_key}-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test"
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
 
     # Set current time to after deadline
     # Deadline is in Eastern time (no timezone in string)
@@ -180,16 +202,26 @@ def test_api_grader_after_deadline_rejects(lab_key, monkeypatch, fake_aws):
 def test_api_grader_sqs_bypasses_deadline(monkeypatch, fake_aws):
     """Test that SQS requests bypass deadline checks."""
     import uuid
-    from e11.e11_common import create_new_user, A
+    import time
+    from e11.e11_common import create_new_user, A, users_table
+    from e11.e11core.utils import smash_email
 
     # Create test user with unique email
     test_email = f"test-sqs-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test"
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
 
     # Mock the grader
     mock_summary = {
@@ -253,13 +285,25 @@ def test_do_dashboard_computes_next_lab(monkeypatch, fake_aws, dynamodb_local):
     from home_app.sessions import new_session
 
     # Create test user - this puts the user record in DynamoDB Local
+    import time
+    from e11.e11core.utils import smash_email
+    from e11.e11_common import users_table, A
+
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-    create_new_user(test_email, {
+    user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test"
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
 
     # Create a session using new_session - this goes into DynamoDB Local
     event_for_session = {
@@ -318,13 +362,25 @@ def test_do_dashboard_no_next_lab_when_all_past(monkeypatch, fake_aws, dynamodb_
     from home_app.sessions import new_session
 
     # Create test user - this puts the user record in DynamoDB Local
+    import time
+    from e11.e11core.utils import smash_email
+    from e11.e11_common import users_table, A
+
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-    create_new_user(test_email, {
+    user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test"
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
 
     # Create a session using new_session - this goes into DynamoDB Local
     event_for_session = {

@@ -101,24 +101,24 @@ stage-vbd: template.yaml samconfig-stage.toml src/requirements.txt vend-e11
 .PHONY: functions
 functions:
 	@echo "Production function:"
-	aws cloudformation describe-stacks --stack-name $(STACK_PROD) --region $(AWS_REGION) --profile $(PROFILE) \
+	aws cloudformation describe-stacks --stack-name $(STACK_PROD) --region $(AWS_REGION) --profile $(AWS_PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 	@echo "Stage function:"
-	aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(AWS_REGION) --profile $(PROFILE) \
+	aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(AWS_REGION) --profile $(AWS_PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text 2>/dev/null || echo "Stack not found"
 
 # Tail logs
 .PHONY: prod-tail
 prod-tail:
-	sam logs --stack-name $(STACK_PROD) --name E11HomeFunction --tail  --region $(REGION) --profile $(PROFILE)
+	 sam logs --stack-name $(STACK_PROD) --name E11HomeFunction --tail  --region $(AWS_REGION) --profile $(AWS_PROFILE)
 
 # Tail stage logs (separate stack)
 .PHONY: stage-tail
 stage-tail:
 	@echo "Tailing stage logs..."
-	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(AWS_REGION) --profile $(PROFILE) \
+	@aws logs tail "/aws/lambda/$$(aws cloudformation describe-stacks --stack-name $(STACK_STAGE) --region $(AWS_REGION) --profile $(AWS_PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' --output text)" \
-		--since 15m --follow --region $(AWS_REGION) --profile $(PROFILE)
+		--since 15m --follow --region $(AWS_REGION) --profile $(AWS_PROFILE)
 
 # Download deployed Lambda package for inspection
 .PHONY: fetch-zip-prod
@@ -126,13 +126,13 @@ fetch-zip-prod:
 	@FUNC=$$(aws cloudformation describe-stacks \
 		--stack-name $(STACK_PROD) \
 		--region $(AWS_REGION) \
-		--profile $(PROFILE) \
+		--profile $(AWS_PROFILE) \
 		--query 'Stacks[0].Outputs[?OutputKey==`HomeFunction`].OutputValue' \
 		--output text); \
 	echo "Fetching deployment package for $$FUNC..."; \
 	URL=$$(aws lambda get-function --function-name $$FUNC \
 		--region $(AWS_REGION) \
-		--profile $(PROFILE) \
+		--profile $(AWS_PROFILE) \
 		--query 'Code.Location' --output text); \
 	/bin/rm -f lambda.zip && curl -sSL $$URL -o lambda.zip && ls -l lambda.zip && \
 	echo "Deployed package extracted to lambda-package-prod/"
@@ -149,7 +149,7 @@ info:
 	@echo "Production Stack: $(STACK_PROD)"
 	@echo "Stage Stack: $(STACK_STAGE)"
 	@echo "Region: $(AWS_REGION)"
-	@echo "Profile: $(PROFILE)"
+	@echo "Profile: $(AWS_PROFILE)"
 	@echo ""
 	@echo "Environments:"
 	@echo "  Production: https://$(ROOT_DOMAIN).org/"

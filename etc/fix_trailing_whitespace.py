@@ -112,17 +112,41 @@ def main():
         print(f"Error: {repo_root} does not appear to be a git repository", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Scanning git repository at {repo_root}")
-    tracked_files = get_git_tracked_files(repo_root)
+    # Check if files were provided on command line
+    if len(sys.argv) > 1:
+        # Use files provided on command line
+        files_to_check = []
+        for arg in sys.argv[1:]:
+            filepath = Path(arg)
+            # If relative path, make it relative to current working directory
+            if not filepath.is_absolute():
+                filepath = Path.cwd() / filepath
+            # Resolve to absolute path
+            filepath = filepath.resolve()
+            if not filepath.exists():
+                print(f"Warning: {filepath} does not exist, skipping", file=sys.stderr)
+                continue
+            if not filepath.is_file():
+                print(f"Warning: {filepath} is not a file, skipping", file=sys.stderr)
+                continue
+            files_to_check.append(filepath)
+
+        if not files_to_check:
+            print("Error: No valid files provided", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Checking {len(files_to_check)} file(s) specified on command line")
+    else:
+        # Scan all git-tracked files
+        print(f"Scanning git repository at {repo_root}")
+        tracked_files = get_git_tracked_files(repo_root)
+        files_to_check = [repo_root / filepath for filepath in tracked_files if (repo_root / filepath).exists()]
 
     files_with_issues = []
-    for filepath in tracked_files:
-        full_path = repo_root / filepath
-        if not full_path.exists():
-            continue
-        has_issue, line_num = has_trailing_whitespace(full_path)
+    for filepath in files_to_check:
+        has_issue, line_num = has_trailing_whitespace(filepath)
         if has_issue:
-            files_with_issues.append((full_path, line_num))
+            files_with_issues.append((filepath, line_num))
 
     if not files_with_issues:
         print("No trailing whitespace found. All files are clean!")

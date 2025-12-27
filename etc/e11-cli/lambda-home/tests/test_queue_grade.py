@@ -130,13 +130,25 @@ def mock_grader(monkeypatch):
 @pytest.fixture
 def test_user(fake_aws, dynamodb_local):
     """Create a test user in DynamoDB."""
+    import time
+    from e11.e11core.utils import smash_email
+    from e11.e11_common import users_table
+
     test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email, {
         "email": test_email,
         "preferred_name": "Test User",
-        "public_ip": "1.2.3.4",
-        "hostname": "test",
     })
+    # Register the instance by setting public_ip on the user record
+    users_table.update_item(
+        Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+        UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+        ExpressionAttributeValues={
+            ":ip": "1.2.3.4",
+            ":hn": smash_email(test_email),
+            ":t": int(time.time()),
+        }
+    )
     # create_new_user generates a course_key, so we need to use the one it created
     return {"email": test_email, "course_key": user["course_key"]}
 

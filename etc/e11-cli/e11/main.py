@@ -272,6 +272,7 @@ def do_register(args):
         print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
 
 
+# pylint: disable=too-many-return-statements
 def do_grade(args):
     lab = args.lab
     if args.direct:
@@ -280,17 +281,17 @@ def do_grade(args):
         public_ip = args.direct
         if not args.identity:
             print("--direct requires [-i | --identity | --pkey_pem ]",file=sys.stderr)
-            sys.exit(1)
+            return -1
         if args.identity.endswith(".pub"):
             args.identity = args.identity.replace(".pub","")
         print(f"Grading Direct: {email}@{public_ip} for {lab} with SSH key {args.identity}")
-        summary = grader.grade_student_vm(email,public_ip,lab,key_filename=args.identity)
+        summary = grader.grade_student_vm(email, public_ip, lab, key_filename=args.identity)
         if summary.get('error'):
             print("summary error:",summary)
-            sys.exit(1)
+            return -1
         (_,body) = grader.create_email(summary)
         print(body)
-        return
+        return 0
 
     cp = get_config()
     try:
@@ -298,7 +299,7 @@ def do_grade(args):
                 COURSE_KEY:cp[STUDENT][COURSE_KEY]}
     except KeyError:
         print("You must run the e11 register command before using the grade command.",file=sys.stderr)
-        sys.exit(1)
+        return -1
 
     ep = endpoint(args)
     print(f"Requesting {ep} to grade {lab} timeout {args.timeout}...")
@@ -309,15 +310,17 @@ def do_grade(args):
     result = r.json()
     if not r.ok:
         print("Error: ",r.text)
-        sys.exit(1)
+        return -1
     try:
         print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     except KeyError:
         print(f"Invalid response from server:\n{json.dumps(result,indent=4)}")
-        sys.exit(1)
+        return -1
     if args.debug:
         print(json.dumps(r.json(),indent=4))
-    sys.exit(0 if not result['summary']["fails"] else 1)
+    if result['summary']["fails"]:
+        return -1
+    return 0
 
 
 def do_status(_):
@@ -552,4 +555,4 @@ def main():
         else:
             print("ERROR: This must be run on EC2")
             sys.exit(1)
-    args.func(args)
+    return args.func(args)

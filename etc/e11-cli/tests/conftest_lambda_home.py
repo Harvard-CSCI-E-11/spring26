@@ -18,19 +18,19 @@ try:
 except ImportError:
     # If we can't import, create dummy fixtures that skip tests
     import pytest
-    
+
     @pytest.fixture
     def fake_aws():
         pytest.skip("lambda-home fixtures not available")
-    
+
     @pytest.fixture
     def dynamodb_local():
         pytest.skip("lambda-home fixtures not available")
-    
+
     @pytest.fixture
     def clean_dynamodb():
         pytest.skip("lambda-home fixtures not available")
-    
+
     @pytest.fixture
     def fake_idp_server():
         pytest.skip("lambda-home fixtures not available")
