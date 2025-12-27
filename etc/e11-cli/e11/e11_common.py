@@ -314,7 +314,7 @@ def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
                                      A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now}',
                                      'client_ip':client_ip,
                                      'name':name,
-                                     'user_agent':user_agent
+                                     'user_agent':user_agent,
                                      **extra})
     logger.debug("put_table=%s",ret)
 
