@@ -6,6 +6,7 @@ lab7 tester - just make sure they hit the leaderboard
 import functools
 
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from e11.e11_common import get_user_from_email,queryscan_table,users_table, A
 from e11.e11core.utils import get_logger
@@ -24,14 +25,20 @@ def get_leaderboard_log( tr  ):
 	Key(A.USER_ID).eq(user.user_id) &
         Key(A.SK).begins_with(A.SK_LEADERBOARD_LOG_PREFIX)
     )}
-    return queryscan_table(users_table.query, kwargs)
+    try:
+        return queryscan_table(users_table.query, kwargs)
+    except ClientError as e:
+        raise TestFail(str(e)) from e
 
 @timeout(5)
 def test_leaderboard( tr:TestRunner ):
     items = get_leaderboard_log( tr )
     if not items:
         raise TestFail("No messages on leaderboard.")
-    return f"User registered with leaderboard (count={len(items)})"
+    try:
+        return f"User registered with leaderboard (count={len(items)})"
+    except ClientError as e:
+        raise TestFail(str(e)) from e
 
 @timeout(5)
 def test_has_magic( tr:TestRunner ):
@@ -39,4 +46,7 @@ def test_has_magic( tr:TestRunner ):
     has_magic = any( ( MAGIC.lower() in item.get('user_agent','').lower() for item in items ) )
     if has_magic:
         return "user_agent string included the word 'magic'"
-    raise TestFail("No leaderboard message contained the word 'magic'")
+    try:
+        raise TestFail("No leaderboard message contained the word 'magic'")
+    except ClientError as e:
+        raise TestFail(str(e)) from e

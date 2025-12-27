@@ -44,7 +44,8 @@ IMAGE_TOO_BIG = 5_000_000
 
 logger = get_logger()
 
-
+NOT_JPEG_SOI = "not a JPEG (missing SOI 0xFFD8)"
+JPEG_NO_EXIF = "JPEG verified; no EXIF in header ({why})"
 
 ################################################################
 ## ChatGPT code for validating jpeg without using an image library
@@ -103,19 +104,18 @@ def is_jpeg_no_exif(data: bytes) -> Tuple[bool, str]:
       - data looks like a JPEG (SOI)
       - and no EXIF APP1 segment is present before SOS/EOI
     """
-    if not isinstance(data, (bytes, bytearray, memoryview)):
-        return False, "data is not bytes-like"
+    assert isinstance(data, (bytes, bytearray, memoryview))
 
     b = bytes(data)
 
     # JPEG signature: SOI 0xFFD8
     if len(b) < 2 or b[0:2] != b"\xFF\xD8":
-        return False, "not a JPEG (missing SOI 0xFFD8)"
+        return False, NOT_JPEG_SOI
 
     has_exif, why = _find_jpeg_app1_exif_segment(b)
     if has_exif:
         return False, f"JPEG has EXIF ({why})"
-    return True, f"JPEG verified; no EXIF in header ({why})"
+    return True, JPEG_NO_EXIF.format(why=why)
 
 
 # Example:
