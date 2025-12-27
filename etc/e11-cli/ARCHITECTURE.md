@@ -154,7 +154,7 @@ e11-cli/
    ```bash
    # Test CLI
    make check
-   
+
    # Test Lambda-Home
    cd lambda-home && make check
    ```
