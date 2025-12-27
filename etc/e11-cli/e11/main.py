@@ -348,8 +348,8 @@ def do_update(_):
         os.system(cmd)
 
 def do_check(args):
-    if args.lab in ('lab7','lab8'):
-        print("Sorry! Labs 7 and 8 cannot be checked because they require access to the DynamoDB databsae.")
+    if args.lab in ('lab7'):
+        print("Sorry! Lab 7 cannot be checked because it requires access to the DynamoDB database.")
         return -1
 
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
