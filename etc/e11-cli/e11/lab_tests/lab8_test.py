@@ -7,8 +7,6 @@ from typing import Tuple
 
 # This is very similar to the lab6 tester...
 
-from boto3.dynamodb.conditions import Key
-
 from e11.e11_common import get_user_from_email,s3_client, get_images, A
 from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
