@@ -1,6 +1,6 @@
 ### install in /etc/systemd/system/lab3.service ###
 [Unit]
-Description=Gunicorn instance to serve Flask application for Lab 3
+Description=Gunicorn instance to serve Flask application for lab3
 After=network.target
 
 [Service]
