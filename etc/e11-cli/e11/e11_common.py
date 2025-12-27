@@ -199,7 +199,7 @@ class User(DictLikeModel):
     """e11-users table sk='#' record"""
     user_id: str
     sk: str
-    email: str|None = None
+    email: str|None = None      # not all records have email
     course_key: str|None = None
     user_registered: int|None = None
     preferred_name: str|None = None
@@ -244,6 +244,14 @@ def create_new_user(email, claims=None):
     """Create a new user."""
     now = int(time.time())
     user_id = str(uuid.uuid4())
+    # Fail if public_ip is in claims - it should not be in claims
+    # Claims are OIDC identity fields (email, name, etc.), not instance-specific fields
+    if claims is not None and A.PUBLIC_IP in claims:
+        raise ValueError(
+            f"public_ip should not be in claims. Claims are OIDC identity fields "
+            f"(email, name, etc.), not instance-specific fields. "
+            f"Found public_ip='{claims[A.PUBLIC_IP]}' in claims for email='{email}'"
+        )
     user = {
         A.USER_ID: user_id,
         A.SK: A.SK_USER,

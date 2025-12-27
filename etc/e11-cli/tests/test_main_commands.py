@@ -26,6 +26,15 @@ from e11.support import get_config
 from e11.e11core.constants import API_ENDPOINT, API_PATH, COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11_common import create_new_user
 
+import logging
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+
+# boto3/botocore
+logging.getLogger("boto3").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
+
+
 # Import lambda handler for integration testing
 # Add lambda-home to path
 lambda_home_src = Path(__file__).parent.parent / "lambda-home" / "src"
@@ -62,9 +71,11 @@ except ImportError:
 
 
 # Helper Utilities
-def create_test_config_file_content(email: str, course_key: str, public_ip: str = "1.2.3.4",
-                                     instance_id: str = "i-1234567890abcdef0",
-                                     preferred_name: str = "Test User") -> str:
+def create_test_config_file_content(email: str,
+                                    course_key: str,
+                                    public_ip: str = "1.2.3.4",
+                                    instance_id: str = "i-1234567890abcdef0",
+                                    preferred_name: str = "Test User") -> str:
     """Create config file content"""
     return f"""[student]
 email = {email}
@@ -484,8 +495,22 @@ class TestDoGrade:
     def test_do_grade_success(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test successful grading request"""
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
-        user = create_new_user(test_email, {"email": test_email, "name": "Test User", "public_ip": "1.2.3.4"})
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
+
+        # Register the instance by setting public_ip on the user record
+        from e11.e11_common import users_table, A
+        import time
+        from e11.e11core.utils import smash_email
+        users_table.update_item(
+            Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+            UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+            ExpressionAttributeValues={
+                ":ip": "1.2.3.4",
+                ":hn": smash_email(test_email),
+                ":t": int(time.time()),
+            }
+        )
 
         config_file = tmp_path / "e11-config.ini"
         config_file.write_text(create_test_config_file_content(
@@ -540,12 +565,10 @@ class TestDoGrade:
 
             try:
                 # do_grade calls sys.exit(0) on success, so we need to catch it
-                with pytest.raises(SystemExit) as exc_info:
-                    main.do_grade(args)
-                assert exc_info.value.code == 0  # Success exit code
+                ret = main.do_grade(args)
+                assert ret == 0  # Success exit code
                 output = captured_output.getvalue()
-                # Should have some output
-                assert len(output) > 0
+                assert len(output) > 0 # Should have some output
             finally:
                 sys.stdout = old_stdout
         finally:
@@ -569,9 +592,8 @@ class TestDoGrade:
         args.stage = False
 
         # Should exit with error
-        with pytest.raises(SystemExit) as exc_info:
-            main.do_grade(args)
-        assert exc_info.value.code == 1
+        ret = main.do_grade(args)
+        assert ret !=0
 
     def test_do_grade_direct_mode(self, tmp_path, monkeypatch):
         """Test direct grading mode (mocked SSH)"""
@@ -658,9 +680,8 @@ class TestDoGrade:
         args.stage = False
 
         # Should exit with error
-        with pytest.raises(SystemExit) as exc_info:
-            main.do_grade(args)
-        assert exc_info.value.code == 1
+        ret = main.do_grade(args)
+        assert ret != 0
 
 
 

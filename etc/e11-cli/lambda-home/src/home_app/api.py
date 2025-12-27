@@ -139,6 +139,7 @@ def validate_email_and_course_key(email, course_key):
 
 def validate_payload(payload):
     # See if there is an existing user_id for this email address.
+    LOGGER.debug("validate_payload(%s)",payload)
     try:
         auth = payload["auth"]
     except KeyError as e:
@@ -269,6 +270,11 @@ def api_grader(event, context, payload):
     """
     LOGGER.info("api_grader event=%s context=%s payload=%s",event,context,payload)
     user = validate_payload(payload)
+    if user.email is None:
+        LOGGER.error("user.email is None")
+        return resp_json(HTTP_OK, {"error":True,
+                                   "message":"user.email is None",
+                                   "user":user})
 
     lab = payload["lab"]
 
@@ -298,21 +304,18 @@ def api_grader(event, context, payload):
                     "message": f"Lab {lab} deadline has passed. The deadline was {deadline_str}."
                 })
 
-    public_ip = user.public_ip
-    email = user.email
-    if email is None:
-        return resp_json(HTTP_BAD_REQUEST, {"error":True, "message":email is None})
+    if user.public_ip is None:
+        send_email(to_addr=user.email,
+                   email_subject="Instance not registered",
+                   email_body="Attempt to grade aborted, as your instance is not registered.")
+        return resp_json(HTTP_OK, {"error":True,
+                            "message":"Instance not registered",
+                            "user":user })
 
     ###
     ### Here is where the actual grading happens...
     ###
     add_user_log(None, user.user_id, f"Grading lab {lab} starts")
-
-    if public_ip is None:
-        send_email(to_addr=email,
-                   email_subject="Instance not registered",
-                   email_body="Attempt to grade aborted, as your instance is not registered.")
-        resp_json(HTTP_OK, {"error":True,"message":"Instance not registered"})
 
     summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
     if summary['error']:
@@ -321,11 +324,11 @@ def api_grader(event, context, payload):
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-    add_grade(user, lab, public_ip, summary)
+    add_grade(user, lab, user.public_ip, summary)
 
     # Send email
     (subject, body) = grader.create_email(summary)
-    send_email(to_addr=email, email_subject=subject, email_body=body)
+    send_email(to_addr=user.email, email_subject=subject, email_body=body)
     return resp_json(HTTP_OK, {"summary": summary})
 
 
@@ -410,6 +413,8 @@ def dispatch(method, action, event, context, payload):
     ################################################################
     # JSON API Actions
     #
+    LOGGER.debug("dispatch(method=%s action=%s event=%s context=%s payload=%s",
+                 method, action, event, context, payload)
     match (method, action):
         case ("POST", "ping"):
             return resp_json( HTTP_OK, {
