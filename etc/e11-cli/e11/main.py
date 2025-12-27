@@ -348,13 +348,17 @@ def do_update(_):
         os.system(cmd)
 
 def do_check(args):
+    if args.lab in ('lab7','lab8'):
+        print("Sorry! Labs 7 and 8 cannot be checked because they require access to the DynamoDB databsae.")
+        return -1
+
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     chdir_to_lab(ctx)
     summary = grader.discover_and_run(ctx)
     print_summary(summary, verbose=getattr(args, "verbose", False))
     if summary.get('error',None) or summary.get('fails',0):
-        sys.exit(1)
-    sys.exit(0)
+        return -1
+    return 0
 
 def do_report_tests(_):
     """Generate markdown report of all available tests across all labs."""
