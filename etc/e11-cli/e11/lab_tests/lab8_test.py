@@ -189,6 +189,3 @@ def test_memento_dashboard( tr:TestRunner ):
     if success == 0:
         raise TestFail("No images uploaded to dashboard")
     raise TestFail("\n".join(msgs))
-
-
-@timeout(5)
