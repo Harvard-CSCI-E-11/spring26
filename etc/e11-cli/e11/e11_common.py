@@ -191,6 +191,24 @@ def convert_dynamodb_value(value: Any) -> Any:
         return float(value)
     return value
 
+def queryscan_table(what, kwargs):
+    """Query or Scan a DynamoDB table, returning all matching items.
+    :param what:  should be users_table.scan, users_table.query, etc.
+    :param kwargs: should be the args that are used for the query or scan.
+    """
+    kwargs = copy.copy(kwargs)  # it will be modified
+    items = []
+    while True:
+        response = what(**kwargs)
+        items.extend(response.get('Items',[]))
+        lek = response.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    return items
+
+################################################################
+
 class DictLikeModel(BaseModel):
     def __getitem__(self, key: str):
         return getattr(self, key)
@@ -235,10 +253,12 @@ def convert_dynamodb_item(item: dict) -> dict:
     """Convert DynamoDB item values to proper Python types."""
     return {k: convert_dynamodb_value(v) for k, v in item.items()}
 
-
 def make_course_key():
     """Make a course key"""
     return str(uuid.uuid4())[0:COURSE_KEY_LEN]
+
+################################################################
+## user table - user management
 
 def create_new_user(email, claims=None):
     """Create a new user."""
@@ -302,21 +322,8 @@ def add_user_log(event, user_id, message, **extra):
                                      **extra})
     logger.debug("put_table=%s",ret)
 
-def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
-    """
-    :param user_id: user_id
-    :param message: Message to add to log
-    """
-    logger = get_logger()
-    now = datetime.now().isoformat()
-    logger.debug("client_ip=%s user_id=%s name=%s user_agent=%s",client_ip, user_id, name, user_agent)
-    ret = users_table.put_item(Item={A.USER_ID:user_id,
-                                     A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now}',
-                                     'client_ip':client_ip,
-                                     'name':name,
-                                     'user_agent':user_agent,
-                                     **extra})
-    logger.debug("put_table=%s",ret)
+################################################################
+## grading
 
 def add_grade(user, lab, public_ip, summary):
     # Record grades
@@ -334,6 +341,24 @@ def add_grade(user, lab, public_ip, summary):
     ret = users_table.put_item(Item=item)
     get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 
+def get_grade(user, lab):
+    """gets the highest grade for a user/lab"""
+    kwargs = {
+        'KeyConditionExpression' : (
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
+        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}'
+    }
+    items = queryscan_table(users_table.query, kwargs)
+    if items:
+        score = max( (float(item.get(A.SCORE, 0)) for item in items) )
+    else:
+        score = 0
+    return float(score)
+
+################################################################
+## image stuff
+
 def add_image(user_id, lab, bucket, key):
     now = datetime.now().isoformat()
     item = {
@@ -346,6 +371,13 @@ def add_image(user_id, lab, bucket, key):
     ret = users_table.put_item(Item=item)
     get_logger().info("add_image user_id=%s bucket=%s key=%s ret=%s", user_id, bucket, key, ret)
 
+def get_images(user_id):
+    kwargs = {'KeyConditionExpression' : (
+	Key(A.USER_ID).eq(user_id) &
+        Key(A.SK).begins_with(A.SK_IMAGE_PREFIX)
+    )}
+    return queryscan_table(users_table.query, kwargs)
+
 def delete_image(user_id, sk, bucket, key):
     get_logger().info("delete_image user=%s sk=%s bucket=%s key=%s", user_id, sk, bucket, key)
     r1 = users_table.delete_item(Key={A.USER_ID:user_id, A.SK:sk})
@@ -353,37 +385,23 @@ def delete_image(user_id, sk, bucket, key):
     get_logger().info("delete_image r1=%s r2=%s", r1, r2)
 
 ################################################################
-## get functions
-def queryscan_table(what, kwargs):
-    """Query or Scan a DynamoDB table, returning all matching items.
-    :param what:  should be users_table.scan, users_table.query, etc.
-    :param kwargs: should be the args that are used for the query or scan.
-    """
-    kwargs = copy.copy(kwargs)  # it will be modified
-    items = []
-    while True:
-        response = what(**kwargs)
-        items.extend(response.get('Items',[]))
-        lek = response.get('LastEvaluatedKey')
-        if not lek:
-            break
-        kwargs['ExclusiveStartKey'] = lek
-    return items
+## leaderboard stuff
 
-def get_grade(user, lab):
-    """gets the highest grade for a user/lab"""
-    kwargs:dict = {
-        'KeyConditionExpression' : (
-            Key(A.USER_ID).eq(user.user_id) &
-            Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
-        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}'
-    }
-    items = queryscan_table(users_table.query, kwargs)
-    if items:
-        score = max( (float(item.get(A.SCORE, 0)) for item in items) )
-    else:
-        score = 0
-    return float(score)
+def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
+    """
+    :param user_id: user_id
+    :param message: Message to add to log
+    """
+    logger = get_logger()
+    now = datetime.now().isoformat()
+    logger.debug("client_ip=%s user_id=%s name=%s user_agent=%s",client_ip, user_id, name, user_agent)
+    ret = users_table.put_item(Item={A.USER_ID:user_id,
+                                     A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now}',
+                                     'client_ip':client_ip,
+                                     'name':name,
+                                     'user_agent':user_agent,
+                                     **extra})
+    logger.debug("put_table=%s",ret)
 
 
 ################################################################

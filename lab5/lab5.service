@@ -1,6 +1,6 @@
 ### /etc/systemd/system/lab5.service ###
 [Unit]
-Description=Gunicorn instance to serve Flask application for lab 5
+Description=Gunicorn instance to serve Flask application for lab5
 After=network.target
 
 [Service]
