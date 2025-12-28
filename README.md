@@ -26,8 +26,8 @@ The student labs are identified:
 | [lab4](lab4/) | | [An API server with password hashing](https://csci-e-11.org/lab4) |  password hashing|
 | [lab5](lab5/) | | [Add images to your message board](https://csci-e-11.org/lab5) | AWS signed HTTP POSTs and URLs.|
 | [lab6](lab6/) | | [AI image analysis with AWS Rekognition](https://csci-e-11.org/lab6) | Face detection and face matching  |
-| [lab7](lab7/) | | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) |  Introduction to IoT CircuitPython.|
-| [lab8](lab8/) | | [Uploading images from the edge](https://csci-e-11.org/lab8) |  AI, Internet of Things, and Cybersecurity|
+| [lab7](lab7_memento/) <br> [lab7_linux](lab7_linux) | | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) <br> (Client code that runs on Linux) |  Introduction to IoT CircuitPython.|
+| [lab8](lab8_memento/) <br> [lab8_linux)(lab8_linux) <br> [lab8](lab8/)| | [Uploading images from the edge](https://csci-e-11.org/lab8) <br> (Client code that runs on Linux) <br> (Empty directory for lab8 server) |  AI, Internet of Things, and Cybersecurity|
 
 This table describes each lab and the services used:
 
@@ -40,13 +40,13 @@ This table describes each lab and the services used:
 |lab5 | smashedemail-lab5.csci-e-11.org | nginx      | flask              | `lab5:`        | EC2, S3|
 |lab6 | smashedemail-lab6.csci-e-11.org | nginx      | flask              | `lab6:`        | EC2, S3, Rekognition|
 |lab7 | --                              | --         | --                 | --             | DynamoDB, Lambda _(see Note1)_ |
-|lab8 | smashedemail-lab6.csci-e-11.org | nginx      | flask              | `lab6:` _(See Note2)_       | EC2, S3, Rekognition|
+|lab8 | smashedemail-lab8.csci-e-11.org | nginx      | flask              | `lab8:` _(See Note2)_       | EC2, S3, Rekognition|
 
 _Note1: on the backend, we implement lab7 with AWS DynamoDB and Lambda._
 
-_Note2: lab8 uses the unmodified lab6 server._
+_Note2: For lab8, students set up all of the files for themselves, using lab6 as the prototype. The easy way to do this is to copy the lab6 directory into lab8 and change `lab6` to `lab8` in the various files as necessary.
 
-_Note3:_ The lab4, lab5, lab6 and lab8 all build on a common application. The common files are in the [lab_common](lab_common/) directory, with symbolic links to the folks located in lab[4568] directories. You do not need to modify these files to complete the assignments. The files that are customized for each lab are present in the lab[4568] directories
+_Note3:_ The lab4, lab5, lab6 and lab8 all build on a common application. The common files are in the [lab_common](lab_common/) directory, with symbolic links to the files located in lab[456] directories. You do not need to modify these files to complete the assignments. The files that are customized for each lab are present in the lab[456] directories.
 
 The [staff/](staff/) directory is for use by the course staff. It's how we make things work! Students are welcome to look through it and ask questions of the teaching staff.
 

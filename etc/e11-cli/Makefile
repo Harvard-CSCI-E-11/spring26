@@ -18,8 +18,8 @@ PYTHON = python3.12
 	poetry install --with dev
 
 lint: .venv/pyvenv.cfg
-	poetry run pylint e11/.
-	poetry run pyright e11/.
+	poetry run pylint e11
+	poetry run pyright e11
 
 lint-all:
 	make lint

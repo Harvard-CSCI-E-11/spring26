@@ -62,13 +62,13 @@ def get_all(*, sk=None, user_id=None, projection=None):
     print(f"Scan complete. Found {len(items)} users. calls={calls}")
     return items
 
-def name(user):
+def get_name(user):
     return user.get('preferred_name',user.get('claims',{}).get('name','n/a'))
 
 def show_registered_users():
     print("================ show_registered_users ================")
     users = get_all(sk='#',projection='user_id,user_registered,email,public_ip,claims,preferred_name')
-    pusers = [ (name(user),
+    pusers = [ (get_name(user),
                 user.get('email','n/a'),
                 time.asctime(time.localtime(int(user.get('user_registered',0)))),
                 user.get('public_ip','n/a'),
@@ -91,7 +91,7 @@ def dump_users_table(args,user_id=None):
         if user_id not in printable:
             if args.dump:
                 print("")
-            printable[user_id] = user_id[0:3] + " " + name(item)
+            printable[user_id] = user_id[0:3] + " " + get_name(item)
         sk0 = item['sk'].split('#')[0]
         if sk0=='':
             print(printable[user_id],item['sk'],item.get('message','')[0:40])

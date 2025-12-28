@@ -15,6 +15,8 @@ pub1:
 pub2:
 	cp camera2.py /Volumes/CIRCUITPY/code.py
 
+pub3:
+	cp camera3.py /Volumes/CIRCUITPY/code.py
 
 
 memento-install: $(PYTHON) requirements_cp.txt
@@ -22,7 +24,9 @@ memento-install: $(PYTHON) requirements_cp.txt
 
 lint: $(PYTHON)
 	poetry run pylint *.py
-	poetry run pyright *.py
+
+# Don't have pyright working yet here.
+#poetry run pyright *.py
 
 distclean:
 	/bin/rm -rf .venv

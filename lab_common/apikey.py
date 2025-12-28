@@ -18,7 +18,7 @@ from hashlib import pbkdf2_hmac
 
 import click
 import flask
-from . import db
+from . import db                # pylint: disable=no-name-in-module
 
 # APIKEY Management Tools
 

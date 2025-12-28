@@ -3,6 +3,7 @@ lab8 tester
 """
 # pylint: disable=duplicate-code
 
+import os
 from typing import Tuple
 
 # This is very similar to the lab6 tester...

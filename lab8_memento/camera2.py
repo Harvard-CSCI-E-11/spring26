@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Simson Garfinkel (Customized)
 # License: Unlicense
-# more examples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
+# more examples can be found at
+# https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
 """
 This program takes photos. It uses Wi-Fi and the Network Time Protocol to set the Real Time Clock,
 which is used to set the time on the images written to disk.
@@ -68,13 +69,14 @@ total_bytes = 0
 
 def update_sd_stats():
     """Sets free_bytes, total_bytes global variables"""
-    global free_bytes, total_bytes
+    global free_bytes, total_bytes # pylint: disable=global-statement
     fs_stat = os.statvfs("/sd")
     free_bytes = fs_stat[0] * fs_stat[3]
     total_bytes = fs_stat[0] * fs_stat[2]
 
 # Make the pixels medium bright but turn them all off
 def clear_leds():
+    """Turns off the LEDs to off"""
     pycam.led_level = 2  # can be 0..4
     for i in range (8):
         pycam.pixels[i] = (0,0,0)
@@ -91,6 +93,7 @@ def spin_green_dot():
     pycam.pixels[7] = (0,0,0)                    # turn off last one
 
 def take_photo():
+    "Focus and take a photo"
     print("")
     before = free_bytes
     pycam.capture_jpeg()        # apparently writes it to the sd!

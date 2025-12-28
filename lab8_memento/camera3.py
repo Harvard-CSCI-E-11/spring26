@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2025 Simson Garfinkel (Customized)
 # License: Unlicense
-# more examples can be found at https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
+# more examples can be found at
+# https://github.com/adafruit/Adafruit_CircuitPython_PyCamera/blob/main/examples/
 """
 camera3.py:
 
@@ -60,8 +61,8 @@ print(f"Connected to {os.getenv('CIRCUITPY_WIFI_SSID')}.")
 print("My IP address is", wifi.radio.ipv4_address)
 pool = socketpool.SocketPool(wifi.radio)
 requests = adafruit_requests.Session(pool, ssl.create_default_context())
-r = requests.get("http://ip-api.com/json/?fields=offset")
-current_offset_seconds = r.json()['offset']
+r0 = requests.get("http://ip-api.com/json/?fields=offset")
+current_offset_seconds = r0.json()['offset']
 utc_offset = current_offset_seconds // 3600
 ntp = adafruit_ntp.NTP(pool, server="pool.ntp.org", tz_offset=utc_offset)
 print(f"NTP time: {ntp.datetime}")
@@ -80,7 +81,8 @@ pycam = adafruit_pycamera.PyCamera()
 pycam.resolution = 2  # 2 is 640x480;  12 is 2560x1920
 pycam.camera.quality = 4  # decent compression
 
-def presigned_post_to_s3(presigned_data, jpeg):
+def presigned_post_to_s3(presigned_data, jpeg_to_post):
+    """Get presigned post and send the data to S3"""
     url = presigned_data['url']
     fields = presigned_data['fields']
     print("presigned_data:",presigned_data)
@@ -108,7 +110,7 @@ def presigned_post_to_s3(presigned_data, jpeg):
     body.extend(b'--' + eboundary + eol)
     body.extend(b'Content-Disposition: form-data; name="file"; filename="image.jpg"' + eol)
     body.extend(b'Content-type: image/jpeg' + eol*2)
-    body.extend(bytes(jpeg))
+    body.extend(bytes(jpeg_to_post))
     body.extend(eol)
 
     # *** required closing boundary ***
@@ -130,7 +132,7 @@ def presigned_post_to_s3(presigned_data, jpeg):
         print("Error:", r.text)
 
 
-def post_to_dashboard(jpeg):
+def post_to_dashboard(jpeg_to_post):
     """Send the jpeg to the CSCI E-11 dashboard"""
     pycam.tone(1000,0.1)
     auth = {"email":EMAIL, "course_key":COURSE_KEY}
@@ -142,11 +144,11 @@ def post_to_dashboard(jpeg):
         return
 
     result = r.json()
-    presigned_post_to_s3(result['presigned_post'], jpeg)
+    presigned_post_to_s3(result['presigned_post'], jpeg_to_post)
     pycam.tone(1100,0.1)
     return
 
-def post_to_imageboard(jpeg):
+def post_to_imageboard(jpeg_to_post):
     """send the jpeg to the student imageboard"""
     pycam.tone(2000,0.1)
     url = f"https://{smash_email(EMAIL)}-{LAB}.csci-e-11.org/api/post-image"
@@ -162,16 +164,20 @@ def post_to_imageboard(jpeg):
         return
 
     result = r.json()
-    presigned_post_to_s3(result['presigned_post'], jpeg)
+    presigned_post_to_s3(result['presigned_post'], jpeg_to_post)
     pycam.tone(2100,0.1)
     return
 
 pycam.tone(400, 0.1)   # Play a ready tone
 pycam.tone(600, 0.05)
 
-def valid_jpeg(jpeg):
-    return (jpeg.startswith(b"\xFF\xD8")
-            and ((jpeg.endswith(b"\xFF\xD9") or jpeg.rfind(b"\xFF\xD9") > len(b) - 8)))
+def valid_jpeg(jpeg_to_check):
+    """Return true if jpeg looks valid.
+    Useful because the pycam does not always make valid jpegs.
+    """
+    return (jpeg_to_check.startswith(b"\xFF\xD8")
+            and ((jpeg_to_check.endswith(b"\xFF\xD9")
+                or jpeg_to_check.rfind(b"\xFF\xD9") > len(jpeg_to_check) - 8)))
 
 while True:
     frame = pycam.continuous_capture()
