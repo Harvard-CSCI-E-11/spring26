@@ -23,9 +23,8 @@ def get_leaderboard_log( tr  ):
     if not os.getenv("LEADERBOARD_TABLE_NAME"):
         raise TestFail("This test only runs from the course dashboard")
 
-    logger.info("tr=%s tr.ctx.email=%s",tr,tr.ctx.email)
     user =  get_user_from_email(tr.ctx.email)
-    kwargs:dict = {'KeyConditionExpression' : (
+    kwargs = {'KeyConditionExpression' : (
 	Key(A.USER_ID).eq(user.user_id) &
         Key(A.SK).begins_with(A.SK_LEADERBOARD_LOG_PREFIX)
     )}
