@@ -3,6 +3,7 @@ lab7 tester - just make sure they hit the leaderboard
 """
 # pylint: disable=duplicate-code
 
+import os
 import functools
 
 from boto3.dynamodb.conditions import Key
@@ -19,6 +20,9 @@ MAGIC = 'magic'
 
 @functools.lru_cache(maxsize=10)
 def get_leaderboard_log( tr  ):
+    if not os.getenv("LEADERBOARD_TABLE_NAME"):
+        raise TestFail("This test only runs from the course dashboard")
+
     logger.info("tr=%s tr.ctx.email=%s",tr,tr.ctx.email)
     user =  get_user_from_email(tr.ctx.email)
     kwargs:dict = {'KeyConditionExpression' : (
@@ -32,6 +36,9 @@ def get_leaderboard_log( tr  ):
 
 @timeout(5)
 def test_leaderboard( tr:TestRunner ):
+    if not os.getenv("LEADERBOARD_TABLE_NAME"):
+        raise TestFail("This test only runs from the course dashboard")
+
     items = get_leaderboard_log( tr )
     if not items:
         raise TestFail("No messages on leaderboard.")
@@ -42,6 +49,9 @@ def test_leaderboard( tr:TestRunner ):
 
 @timeout(5)
 def test_has_magic( tr:TestRunner ):
+    if not os.getenv("LEADERBOARD_TABLE_NAME"):
+        raise TestFail("This test only runs from the course dashboard")
+
     items = get_leaderboard_log( tr )
     has_magic = any( ( MAGIC.lower() in item.get('user_agent','').lower() for item in items ) )
     if has_magic:

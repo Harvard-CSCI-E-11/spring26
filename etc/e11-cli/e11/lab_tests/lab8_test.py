@@ -7,9 +7,7 @@ from typing import Tuple
 
 # This is very similar to the lab6 tester...
 
-from boto3.dynamodb.conditions import Key
-
-from e11.e11_common import get_user_from_email,queryscan_table,s3_client, users_table, A
+from e11.e11_common import get_user_from_email,s3_client, get_images, A
 from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
@@ -172,11 +170,7 @@ def test_rekognition_text( tr:TestRunner ):
 @timeout(5)
 def test_memento_dashboard( tr:TestRunner ):
     user =  get_user_from_email(tr.ctx.email)
-    kwargs:dict = {'KeyConditionExpression' : (
-	Key(A.USER_ID).eq(user.user_id) &
-        Key(A.SK).begins_with(A.SK_IMAGE_PREFIX)
-    )}
-    items = queryscan_table(users_table.query, kwargs)
+    items = get_images(user.user_id)
 
     # Now try to get the images.
     # We don't need to use presigned posts because we are running with permissions
