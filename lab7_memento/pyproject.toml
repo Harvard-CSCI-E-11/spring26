@@ -19,12 +19,13 @@ dependencies = [
 package-mode = false
 
 [tool.pylint.basic]
-good-names = ["VELOCITY_X", "VELOCITY_Y"]
+good-names = ["VELOCITY_X", "VELOCITY_Y", "speaker"]
 
 [tool.poetry.group.dev.dependencies]
 pylint = "^3.3.8"
 pyright = "^1.1.407"
 circuitpython-stubs = "^10.0.3"
+adafruit-circuitpython-pycamera = "^1.5.3"
 
 [tool.pylint.main]
 ignored-modules = [
@@ -34,9 +35,16 @@ ignored-modules = [
     "displayio",
     "microcontroller",
     "busio",
-    "wifi"
+    "wifi",
+    "vectorio",
 ]
 
+[tool.pyright]
+# Identify the environment
+venvPath = "."
+venv = ".venv"
+reportMissingModuleSource = false
+reportMissingImports = "warning"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

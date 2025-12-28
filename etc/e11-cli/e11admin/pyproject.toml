@@ -1,0 +1,100 @@
+[tool.poetry]
+name = "e11admin"
+version = "0.1.1"
+description = "CSCI E-11 admin command"
+authors = ["Simson Garfinkel <simsong@acm.org>"]
+license = "GPL"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+boto3 = ">=1.39.14,<2.0.0"
+dnspython = "^2.8.0"
+pyyaml = "^6.0.3"
+paramiko = "^4.0.0"
+requests = "^2.32.5"
+email-validator = "^2.3.0"
+crossplane = "^0.5.8"
+tabulate = "^0.9.0"
+
+[tool.poetry.group.dev.dependencies]
+boto3-stubs = {extras = ["route53","s3","sqs"], version = "^1.41.5"}
+mypy-boto3-dynamodb = "^1.40.56"
+mypy-boto3-route53 = "^1.40.57"
+mypy-boto3-secretsmanager = "^1.40.60"
+mypy-boto3-ses = "^1.40.60"
+pydantic = "^2.12.4"
+pylint = "^3.3.8"
+pyright = "^1.1.407"
+pytest = ">=8.4.1,<9.0.0"
+pytest-cov = ">=6.2.1,<7.0.0"
+types-requests = "^2.32.4.20250913"
+ruff = "*"
+types-boto3 = "^1.42.1"
+argparse-manpage = "^4.7"
+
+[build-system]
+requires = ["poetry-core>=1.0.0","argparse-manpage>=4.7.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.poetry.scripts]
+e11 = "e11.__main__:main"
+
+[tool.pylint.main]
+# Specify the Python version Pylint should assume for syntax checking.
+py-version = "3.12"
+
+[tool.pylint.messages_control]
+# Disable specific messages by their symbolic name or message ID.
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "line-too-long",
+    "unspecified-encoding",
+    "too-many-locals"
+]
+
+[tool.pylint.design]
+# Set the maximum number of arguments for a function.
+max-args = 10
+max-branches = 20
+
+# Set the maximum number of public methods in a class.
+max-public-methods = 20
+
+
+[tool.pyright]
+pythonVersion = "3.12"
+venvPath = "./"
+venv = ".venv"
+include = ["."]
+exclude = [
+  "**/build",
+  "**/.aws-sam",
+  "**/.mypy_cache",
+  "**/.pytest_cache",
+  "**/__pycache__",
+  "**/conftest.py"
+]
+typeCheckingMode = "basic"
+reportMissingTypeStubs = "warning"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+extraPaths = ["e11"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+ "e11",
+ "tests"
+ ]
+addopts = "-ra -q"
+python_files = ["test_*.py"]
+
+
+[tool.build_manpages]
+manpages = ["man/e11.1:function=get_parser:pyfile=e11/main.py:author=Simson L. Garfinkel"]

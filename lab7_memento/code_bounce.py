@@ -4,12 +4,19 @@ Draw a bouncing ball.
 
 import time
 import random
+import typing
 
 import displayio
 import vectorio
 import board
 import pwmio
 import digitalio
+
+# --- PYRIGHT FIX START ---
+if typing.TYPE_CHECKING:
+    from typing import Any
+    board: Any = board
+# --- PYRIGHT FIX END ---
 
 # --- Configuration ---
 SCREEN_WIDTH = 240
@@ -33,6 +40,7 @@ except ValueError:
     speaker = None
 
 def play_beep(freq=880, duration=0.05):
+    """beep the speaker"""
     if speaker:
         speaker.frequency = int(freq)
         speaker.duty_cycle = 32768

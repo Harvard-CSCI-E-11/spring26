@@ -21,6 +21,7 @@ package-mode = false
 djlint = "^1.36.4"
 pyright = "^1.1.407"
 circuitpython-stubs = "^10.0.3"
+adafruit-circuitpython-pycamera = "^1.5.3"
 
 [tool.pylint.main]
 ignored-modules = [

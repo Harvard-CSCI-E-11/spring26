@@ -2,7 +2,7 @@
 # Master makefile to check all of the projects in this repo.
 #
 
-ALLDIRS := $(wildcard lab*) etc/e11-cli $(wildcard etc/e11-cli/lambda-*)
+ALLDIRS := $(wildcard lab*) etc/e11-cli $(wildcard etc/e11-cli/lambda-*) etc/e11-cli/e11admin
 
 lint-all:
 	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && make lint) ; done

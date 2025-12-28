@@ -23,7 +23,7 @@ version = "8.67.0"
 description = "CircuitPython APIs for non-CircuitPython versions of Python such as CPython on Linux and MicroPython."
 optional = false
 python-versions = ">=3.7.0"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_blinka-8.67.0-py3-none-any.whl", hash = "sha256:ed14d50bee5b09a707eda4ed0f4e3788353fd7283b5d014d53bcfaeb6f600563"},
     {file = "adafruit_blinka-8.67.0.tar.gz", hash = "sha256:54bb4e5c8d77f2e2efa8ff9784b933142cf4324e3bd00adf6824043d771297f8"},
@@ -38,12 +38,62 @@ pyftdi = ">=0.40.0"
 sysv_ipc = {version = ">=1.1.0", markers = "sys_platform == \"linux\" and platform_machine != \"mips\""}
 
 [[package]]
+name = "adafruit-blinka-displayio"
+version = "2.3.1"
+description = "displayio for Blinka"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_blinka_displayio-2.3.1-py3-none-any.whl", hash = "sha256:092c4740cfb6e068fcd2b6efd439f791f39b46e1ba86a9679bb1b8b943212b9a"},
+    {file = "adafruit_blinka_displayio-2.3.1.tar.gz", hash = "sha256:cef052c81d8e60f325e62c1bf06933b76c91336d900c3411899ba32d75735da1"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = ">=7.0.0"
+adafruit-circuitpython-bitmap-font = "*"
+adafruit-circuitpython-typing = "*"
+
+[[package]]
+name = "adafruit-circuitpython-aw9523"
+version = "1.1.14"
+description = "Python library for AW9523 GPIO expander and LED driver"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_aw9523-1.1.14-py3-none-any.whl", hash = "sha256:7b4bf6603c872f7515d59199f95997759cf2a4896d80c7853319cf73046f6afd"},
+    {file = "adafruit_circuitpython_aw9523-1.1.14.tar.gz", hash = "sha256:b8911ee249b0a7bb898bb35567ac0f2e63c86b5b0d324ec88c03da1df39584ef"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-busdevice = "*"
+adafruit-circuitpython-register = "*"
+
+[[package]]
+name = "adafruit-circuitpython-bitmap-font"
+version = "2.3.2"
+description = "Loads bitmap fonts into CircuitPython displayio."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_bitmap_font-2.3.2-py3-none-any.whl", hash = "sha256:50aafa9fb363b28ffe3b865f49a6c8047c0c65e02aa883f58df0046d3339abc3"},
+    {file = "adafruit_circuitpython_bitmap_font-2.3.2.tar.gz", hash = "sha256:06dfd68355450cfae740dd655fa48e681f81bc2985549ff799fb8734d320d0f1"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-blinka-displayio = "*"
+
+[[package]]
 name = "adafruit-circuitpython-busdevice"
 version = "5.2.14"
 description = "CircuitPython bus device classes to manage bus sharing."
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_circuitpython_busdevice-5.2.14-py3-none-any.whl", hash = "sha256:e7d049a2dc6a3fc9245e154d66725efeb190a61e7d192fbc8f96f3b76fe1fc77"},
     {file = "adafruit_circuitpython_busdevice-5.2.14.tar.gz", hash = "sha256:377f4d9c6b7ac256a0c686fe3d88bb2d10873cec992ff7805c8719a474e92127"},
@@ -59,7 +109,7 @@ version = "3.1.6"
 description = "A urllib3.poolmanager/urllib3.connectionpool-like library for managing sockets and connections"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_circuitpython_connectionmanager-3.1.6-py3-none-any.whl", hash = "sha256:83c7eafa294fc6e889076d1ba8a7ff902e29d062977d3602078b1594868b7042"},
     {file = "adafruit_circuitpython_connectionmanager-3.1.6.tar.gz", hash = "sha256:daa41f7675533fbb451c0f522c894911dd003f67b26f0e7be832f2e240ba28b4"},
@@ -69,12 +119,135 @@ files = [
 Adafruit-Blinka = "*"
 
 [[package]]
+name = "adafruit-circuitpython-debouncer"
+version = "2.0.13"
+description = "CircuitPython pin or arbitrary predicate debouncer."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_debouncer-2.0.13-py3-none-any.whl", hash = "sha256:9aa63e96c0dd5387f3a7b538f007dbb52b2b0819686979435b73f320144d6fee"},
+    {file = "adafruit_circuitpython_debouncer-2.0.13.tar.gz", hash = "sha256:804804e347588e4e18ad19c129cf894590db8ac68e0226baef9094a528108059"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-ticks = "*"
+
+[[package]]
+name = "adafruit-circuitpython-display-text"
+version = "4.0.2"
+description = "Displays text using CircuitPython's displayio."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_display_text-4.0.2-py3-none-any.whl", hash = "sha256:5cc304da98d51b9bdb4c9c74c626a31a32826178d18a50f872015c5e45941ed4"},
+    {file = "adafruit_circuitpython_display_text-4.0.2.tar.gz", hash = "sha256:6db1b67bfab4bfb39cdf9a0761b1fe91acc39a23413d4ebc5ba4381ac71965bb"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+Adafruit-Blinka-displayio = ">=0.10.2"
+adafruit-circuitpython-bitmap-font = "*"
+adafruit-circuitpython-ticks = "*"
+
+[[package]]
+name = "adafruit-circuitpython-lis3dh"
+version = "5.2.7"
+description = "CircuitPython library for LIS3DH accelerometer."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_lis3dh-5.2.7-py3-none-any.whl", hash = "sha256:48cb07ca8655a1e603035638993256c7a5903e8c589ca543d508d43696d495e6"},
+    {file = "adafruit_circuitpython_lis3dh-5.2.7.tar.gz", hash = "sha256:f07c2ed45f41ec85574c7916515669261fb0d816402669f67155efac3a08ef71"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-busdevice = "*"
+
+[[package]]
+name = "adafruit-circuitpython-neopixel"
+version = "6.3.18"
+description = "CircuitPython library for NeoPixel LEDs."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_neopixel-6.3.18-py3-none-any.whl", hash = "sha256:243ad48dd4a567078caf97c54f6e775210567c125ed39e6eaa0898d79ccab4a6"},
+    {file = "adafruit_circuitpython_neopixel-6.3.18.tar.gz", hash = "sha256:0f61b15ac96fbca4743e56e2f35c6c46da4935be9445261b2902597988fc0f22"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-pixelbuf = "*"
+
+[[package]]
+name = "adafruit-circuitpython-pixelbuf"
+version = "2.0.10"
+description = "A pure Python implementation of adafruit_pixelbuf for smaller boards."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_pixelbuf-2.0.10-py3-none-any.whl", hash = "sha256:16af5527ad8cbd8fe6cfe4e99893470c8980f2d75022e4cc67fc87b7cf0b29ff"},
+    {file = "adafruit_circuitpython_pixelbuf-2.0.10.tar.gz", hash = "sha256:19b78183b5773fa4a81eb8fc1458b9feb8178884864abd7c6676db2765e26ed3"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+
+[[package]]
+name = "adafruit-circuitpython-pycamera"
+version = "1.5.3"
+description = "Library for the Adafruit PyCamera"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_pycamera-1.5.3-py3-none-any.whl", hash = "sha256:26af9610673e259810176b8eeb4ff09daa8ca6b07970d79fd83f2a5cd4836a76"},
+    {file = "adafruit_circuitpython_pycamera-1.5.3.tar.gz", hash = "sha256:467a817053090135186d2943f26ea5dd21971b52d5868cbf1aabcad4f6cf05f3"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-aw9523 = "*"
+adafruit-circuitpython-busdevice = "*"
+adafruit-circuitpython-debouncer = "*"
+adafruit-circuitpython-display-text = "*"
+adafruit-circuitpython-lis3dh = "*"
+adafruit-circuitpython-neopixel = "*"
+
+[package.extras]
+optional = ["adafruit-circuitpython-bitmapsaver", "adafruit-circuitpython-imageload"]
+
+[[package]]
+name = "adafruit-circuitpython-register"
+version = "1.11.1"
+description = "CircuitPython data descriptor classes to represent hardware registers on I2C and SPI devices."
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_register-1.11.1-py3-none-any.whl", hash = "sha256:40b792f149a28f047c46a7c280313ad8384d75439354737ab1e88f107a2251f6"},
+    {file = "adafruit_circuitpython_register-1.11.1.tar.gz", hash = "sha256:45c6b6de5e65efe584375ea1bd6964866dab0d5e5b52ede49e906abd28876989"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+adafruit-circuitpython-busdevice = "*"
+adafruit-circuitpython-typing = ">=1.3.1,<2.dev0"
+typing-extensions = ">=4.0,<5.0"
+
+[[package]]
 name = "adafruit-circuitpython-requests"
 version = "4.1.15"
 description = "A requests-like library for web interfacing"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_circuitpython_requests-4.1.15-py3-none-any.whl", hash = "sha256:62c6e44d23e8dfdc24f1f33464953019a9d88853b29fa471ac00200d4fa3e8ff"},
     {file = "adafruit_circuitpython_requests-4.1.15.tar.gz", hash = "sha256:409cb1c9304a0ce0a4b2f64d572400007849f6972f92a4b08ebfe35a532761e7"},
@@ -88,12 +261,27 @@ Adafruit-Circuitpython-ConnectionManager = "*"
 optional = ["requests"]
 
 [[package]]
+name = "adafruit-circuitpython-ticks"
+version = "1.1.5"
+description = "Work with intervals and deadlines in milliseconds"
+optional = false
+python-versions = "*"
+groups = ["dev"]
+files = [
+    {file = "adafruit_circuitpython_ticks-1.1.5-py3-none-any.whl", hash = "sha256:8c1fa227beb96aa659b20859a63c0e736022d10f7d25160d2f44f5284eb9fab4"},
+    {file = "adafruit_circuitpython_ticks-1.1.5.tar.gz", hash = "sha256:7e7524c50675cb45c8b055716551d4e914f855cff96eb248c7759d721d13867d"},
+]
+
+[package.dependencies]
+Adafruit-Blinka = "*"
+
+[[package]]
 name = "adafruit-circuitpython-typing"
 version = "1.12.3"
 description = "Types needed for type annotation that are not in `typing`"
 optional = false
 python-versions = ">=3.8"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_circuitpython_typing-1.12.3-py3-none-any.whl", hash = "sha256:f6d0a02150e1e4efb5a2c2945b88d948809fdb465875f39947108b8467c986d9"},
     {file = "adafruit_circuitpython_typing-1.12.3.tar.gz", hash = "sha256:63f196f834e47842bcd4cf8c37aaa0c61e1aeb5d07f056c875fc3016cda91a12"},
@@ -111,7 +299,7 @@ version = "3.84.1"
 description = "Platform detection for use by libraries like Adafruit-Blinka."
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "adafruit_platformdetect-3.84.1-py3-none-any.whl", hash = "sha256:53a9e34f32c48d7cd4b6a4497a0e4e07e05d5101cea055d60240ba8a3a0f06d8"},
     {file = "adafruit_platformdetect-3.84.1.tar.gz", hash = "sha256:2ed292fd292e3487db53c261e2879ae1831c607a8eb947beea20df6b5d24e42b"},
@@ -123,7 +311,7 @@ version = "1.1.11"
 description = "Pure python (i.e. no native extensions) access to Linux IO    including I2C and SPI. Drop in replacement for smbus and spidev modules."
 optional = false
 python-versions = ">=3.5.0"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "Adafruit_PureIO-1.1.11-py3-none-any.whl", hash = "sha256:281ab2099372cc0decc26326918996cbf21b8eed694ec4764d51eefa029d324e"},
     {file = "Adafruit_PureIO-1.1.11.tar.gz", hash = "sha256:c4cfbb365731942d1f1092a116f47dfdae0aef18c5b27f1072b5824ad5ea8c7c"},
@@ -159,7 +347,7 @@ version = "0.1.6"
 description = "Python Libraries for Binho Multi-Protocol USB Host Adapters"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "binho-host-adapter-0.1.6.tar.gz", hash = "sha256:1e6da7a84e208c13b5f489066f05774bff1d593d0f5bf1ca149c2b8e83eae856"},
     {file = "binho_host_adapter-0.1.6-py3-none-any.whl", hash = "sha256:f71ca176c1e2fc1a5dce128beb286da217555c6c7c805f2ed282a6f3507ec277"},
@@ -460,7 +648,7 @@ version = "0.57.1"
 description = "FTDI device driver (pure Python)"
 optional = false
 python-versions = ">=3.9"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "pyftdi-0.57.1-py3-none-any.whl", hash = "sha256:efd3f5a7d43202dc883ff261a7b1cb4dcbbe65b19628f8603a8b1183a7bc2841"},
 ]
@@ -521,7 +709,7 @@ version = "3.5"
 description = "Python Serial Port Extension"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "pyserial-3.5-py2.py3-none-any.whl", hash = "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"},
     {file = "pyserial-3.5.tar.gz", hash = "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb"},
@@ -551,7 +739,7 @@ version = "1.3.1"
 description = "Easy USB access for Python"
 optional = false
 python-versions = ">=3.9.0"
-groups = ["main"]
+groups = ["main", "dev"]
 files = [
     {file = "pyusb-1.3.1-py3-none-any.whl", hash = "sha256:bf9b754557af4717fe80c2b07cc2b923a9151f5c08d17bdb5345dac09d6a0430"},
     {file = "pyusb-1.3.1.tar.gz", hash = "sha256:3af070b607467c1c164f49d5b0caabe8ac78dbed9298d703a8dbf9df4052d17e"},
@@ -597,7 +785,7 @@ version = "1.1.0"
 description = "System V IPC primitives (semaphores, shared memory and message queues) for Python"
 optional = false
 python-versions = "*"
-groups = ["main"]
+groups = ["main", "dev"]
 markers = "sys_platform == \"linux\" and platform_machine != \"mips\""
 files = [
     {file = "sysv_ipc-1.1.0-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:ff6e3c98d8aa3e1ae5378d86869c4699c76f94318705d08085c97fb010770a31"},
@@ -684,4 +872,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "6ca20b99c823748baa5c4961d72ce39790afeaec0be01c9a99b7ec4b6b72764e"
+content-hash = "f7c44acbc847597123945d77bcc6a7a5fb2fb001e892e4f0aae5d5927e6c678e"
