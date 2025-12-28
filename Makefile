@@ -4,9 +4,6 @@
 
 ALLDIRS := $(wildcard lab*) etc/e11-cli $(wildcard etc/e11-cli/lambda-*) etc/e11-cli/e11admin
 
-lint-all-legacy:
-	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && make lint) ; done
-
 lint-all:
 	@fail=0; \
 	for dir in $(ALLDIRS); do \
@@ -28,9 +25,6 @@ lint-all:
 check-all:
 	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && make check) ; done
 
-distclean-all:
-	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && make distclean) ; done
-
 update-all:
 	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && pwd && poetry update) ; done
 
@@ -44,4 +38,7 @@ install:
 	(cd etc/e11-cli; make lint && pipx install . --force)
 
 clean-all:
-	for name in node_modules .venv __pycache ; do find . -name $$name -print0 | xargs -0 rm -rf ; done
+	for name in node_modules .venv __pycache__ .pytest_cache ; do find . -name $$name -print0 | xargs -0 rm -rf ; done
+
+distclean-all: clean-all
+.PHONY: lint-all check-all update-all sync-all lock-all install clean-all distclean-all
