@@ -127,14 +127,14 @@ def validate_image_table_row(app, conn, row):
             #   - https://docs.aws.amazon.com/rekognition/latest/dg/text-detection.html
             #   - https://docs.aws.amazon.com/rekognition/latest/dg/text-detecting-text-procedure.html          pylint: disable=line-too-long
 
-            detected_text = []
+            detected_text = ""
             app.logger.info("detected_text_json=%s",detected_text)
 
             # == STUDENTS - END LAB6 MODIFICATIONS ==
 
 
         except BotoCoreError as e:
-            detected_text = []
+            detected_text = ""
             app.logger.error("text rekognition error: %s",e)
 
         # Update the database and the row
