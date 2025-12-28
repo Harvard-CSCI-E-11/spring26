@@ -26,7 +26,8 @@ if __name__=='__main__':
     parser.add_argument('--debug',action='store_true')
     parser.add_argument('--email',default=EMAIL)
     parser.add_argument('--course_key',default=COURSE_KEY)
-    parser.add_argument('--seconds',type=int,default=10,help='how many seconds to run the leaderboard')
+    parser.add_argument('--seconds',type=int,default=10,
+                        help='how many seconds to run the leaderboard')
     parser.add_argument("--method",default='GET',help='method to use')
     parser.add_argument("--user_agent")
     parser.add_argument('endpoint',default=ENDPOINT,nargs='?')
@@ -78,7 +79,11 @@ if __name__=='__main__':
                 if leader.get('active',False) == active:
                     me  = 'me -->' if leader['name']==name else ''
                     age = now - int(leader['first_seen'])
-                    table.append([me, leader['name'], f"{age//60}:{age%60:02}", leader['ip_address'], leader['user_agent']])
+                    table.append([me,
+                                  leader['name'],
+                                  f"{age//60}:{age%60:02}",
+                                  leader['ip_address'],
+                                  leader['user_agent']])
             print(tabulate.tabulate(table))
             print("")
         time_till_timeout = (t0 + args.seconds) - time.time()

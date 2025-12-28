@@ -2,7 +2,7 @@
 # Master makefile to check all of the projects in this repo.
 #
 
-ALLDIRS := $(wildcard lab*) etc/e11-cli etc/e11-cli/lambda-home etc/e11-cli/lambda-users-db etc/e11-cli/lambda-leaderboard
+ALLDIRS := $(wildcard lab*) etc/e11-cli $(wildcard etc/e11-cli/lambda-*)
 
 lint-all:
 	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd  $$dir && make lint) ; done
@@ -24,3 +24,6 @@ lock-all:
 
 install:
 	(cd etc/e11-cli; make lint && pipx install . --force)
+
+clean-all:
+	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd $$dir && poetry env remove) ; done

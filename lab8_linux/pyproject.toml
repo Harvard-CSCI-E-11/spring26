@@ -1,7 +1,7 @@
 [project]
 name = "lab8"
 version = "1.0.0"
-description = "Lab 8 Tools for MEMENTO"
+description = "Lab 8 Linux Client to post to dashboard"
 authors = [
     {name = "Simson Garfinkel",email = "simsong@acm.org"}
 ]
@@ -10,8 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "circuitpython-stubs (>=10.0.3,<11.0.0)",
     "adafruit-circuitpython-neopixel (>=6.3.18,<7.0.0)",
-    "requests (>=2.32.5,<3.0.0)",
-    "pyright (>=1.1.407,<2.0.0)"
+    "requests (>=2.32.5,<3.0.0)"
 ]
 
 [tool.poetry]
@@ -26,24 +25,10 @@ circuitpython-stubs = "^10.0.3"
 ignored-modules = [
     "wifi",
     "socketpool",
-    "adafruit_ntp",
-    "bitmaptools",
-    "displayio",
-    "gifio",
-    "rtc",
-    "ulab.numpy",
     "adafruit_requests",
     "adafruit_pycamera"
 ]
 
-[tool.pylint.basic]
-good-names = ["photo_count", "free_bytes", "total_bytes"]
-
-[tool.pylint]
-disable = [
-    "duplicate-code",
-    "protected-access"
-]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

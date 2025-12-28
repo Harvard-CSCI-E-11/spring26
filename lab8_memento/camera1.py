@@ -97,7 +97,7 @@ while True:
         )
         pycam.blit(last_frame)
     elif pycam.mode_text == "LAPS":
-        if timelapse_remaining is None:
+        if timelapse_remaining is None or timelapse_timestamp is None:
             pycam.timelapsestatus_label.text = "STOP"
         else:
             timelapse_remaining = timelapse_timestamp - time.time()
@@ -174,7 +174,7 @@ while True:
                 pycam.camera.height,
                 displayio.Colorspace.RGB565_SWAPPED,
                 dither=True,
-            ) as g:
+            ) as g: # type: ignore
                 g.add_frame(last_frame, 1)
 
         if pycam.mode_text == "GIF":
@@ -195,8 +195,8 @@ while True:
                 pycam.camera.height,
                 displayio.Colorspace.RGB565_SWAPPED,
                 dither=True,
-            ) as g:
-                t00 = t0 = time.monotonic()
+            ) as g:             # type: ignore
+                t00 = t0 = t1 = time.monotonic()
                 while (i < 15) or not pycam.shutter_button.value:
                     i += 1
                     _gifframe = pycam.continuous_capture()
