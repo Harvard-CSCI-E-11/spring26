@@ -138,7 +138,7 @@ def test_gunicorn_running( tr:TestRunner ):
         raise TestFail("could not run ps auxww")
     count = 0
     for line in r.stdout.split("\n"):
-        if f"{lab}/.venv/bin/gunicorn" in line:
+        if (lab in line) and (".venv/bin/gunicorn") in line:
             count += 1
     if count==0:
         raise TestFail(f"Could not find {lab} gunicorn running")

@@ -106,12 +106,13 @@ def validate_image_table_row(app, conn, row):
     # Store the results in 'notes'
 
     if validated:
-        celeb = []
-        detected_text = []
+        celeb = ""
+        detected_text = ""
 
         # Update the database and the row
         celeb_json = json.dumps(celeb,default=str)
         detected_text_json = json.dumps(detected_text,default=str)
+
         c = conn.cursor()
         c.execute("UPDATE images set celeb_json=?,detected_text_json=? where image_id=?",
                   (celeb_json,detected_text_json,image_id))

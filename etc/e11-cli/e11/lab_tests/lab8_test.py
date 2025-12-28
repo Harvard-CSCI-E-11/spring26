@@ -17,8 +17,8 @@ from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
     post_image,
     test_autograder_key_present,
-    test_venv_present,
     test_nginx_config_syntax_okay,
+    test_venv_present,
     test_gunicorn_running,
     test_database_created,
     test_api_keys_exist,
@@ -29,8 +29,8 @@ from e11.lab_tests.lab_common import (
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
     test_autograder_key_present,
-    test_venv_present,
     test_nginx_config_syntax_okay,
+    test_venv_present,
     test_gunicorn_running,
     test_database_created,
     test_api_keys_exist,
@@ -169,6 +169,9 @@ def test_rekognition_text( tr:TestRunner ):
 
 @timeout(5)
 def test_memento_dashboard( tr:TestRunner ):
+    if not os.getenv("LEADERBOARD_TABLE_NAME"):
+        raise TestFail("This test only runs from the course dashboard")
+
     user =  get_user_from_email(tr.ctx.email)
     items = get_images(user.user_id)
 
