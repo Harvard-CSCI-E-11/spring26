@@ -12,6 +12,7 @@ import socket
 import json
 
 import boto3
+from botocore.exceptions import BotoCoreError
 from PIL import Image,UnidentifiedImageError
 
 from . import db
@@ -102,21 +103,46 @@ def validate_image_table_row(app, conn, row):
     # == STUDENTS - END LAB5 MODIFICATIONS ==
     #
 
-    # For Lab6, Do the AI on the image after it is validated.
-    # Store the results in 'notes'
-
     if validated:
-        celeb = ""
-        detected_text = ""
+        celeb         = "Did not call rekognition yet."
+        detected_text = "Did not call rekognition yet."
 
-        # Update the database and the row
-        celeb_json = json.dumps(celeb,default=str)
+        ##### CELEBRITY RECOGNITION WITH AMAZON REKOGNITION #####
+        try:
+            response = rekognition_client.recognize_celebrities( Image={"Bytes": image} )
+            celeb = response.get("CelebrityFaces", [])
+            app.logger.info("celeb=%s",celeb)
+        except BotoCoreError as e:
+            celeb = []
+            app.logger.error("rekognition error: %s",e)
+
+        ################################################################
+
+        ###### TEXT RECOGNITION WITH AMAZON REKOGNITION #####
+        try:
+            # STUDENTS - Get an A - text detection  goes here
+            # See:
+            #   - https://docs.aws.amazon.com/rekognition/latest/dg/text-detection.html
+            #   - https://docs.aws.amazon.com/rekognition/latest/dg/text-detecting-text-procedure.html          pylint: disable=line-too-long
+
+            detected_text = ""
+            # == STUDENTS - END LAB6 MODIFICATIONS ==
+
+        except BotoCoreError as e:
+            detected_text = []
+            app.logger.error("text rekognition error: %s",e)
+        ################################################################
+
+        # Update the database
+        celeb_json         = json.dumps(celeb,default=str)
         detected_text_json = json.dumps(detected_text,default=str)
-
         c = conn.cursor()
         c.execute("UPDATE images set celeb_json=?,detected_text_json=? where image_id=?",
                   (celeb_json,detected_text_json,image_id))
         conn.commit()
+
+        # and update what is return to the caller (row)
+
         row['celeb_json'] = celeb_json
         row['detected_text_json'] = detected_text_json
 
