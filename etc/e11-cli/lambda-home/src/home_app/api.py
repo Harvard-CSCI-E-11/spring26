@@ -139,7 +139,7 @@ def validate_email_and_course_key(email, course_key):
 
 def validate_payload(payload):
     # See if there is an existing user_id for this email address.
-    LOGGER.debug("validate_payload(%s)",payload)
+    LOGGER.info("validate_payload(%s)",payload)
     try:
         auth = payload["auth"]
     except KeyError as e:
