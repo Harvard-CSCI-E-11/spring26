@@ -44,4 +44,4 @@ install:
 	(cd etc/e11-cli; make lint && pipx install . --force)
 
 clean-all:
-	for dir in $(ALLDIRS) ; do (echo "=== $$dir ===" ; cd $$dir && poetry env remove) ; done
+	for name in node_modules .venv __pycache ; do find . -name $$name -print0 | xargs -0 rm -rf ; done
