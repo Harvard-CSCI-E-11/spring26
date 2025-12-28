@@ -4,9 +4,9 @@ Taken from e11/main.py.
 """
 
 
-import requests
 import sys
 from pathlib import Path
+
 import requests
 
 TIMEOUT = 10
@@ -20,7 +20,7 @@ if __name__=="__main__":
         print(f"{imagefile} does not exist")
         sys.exit(1)
     if not str(imagefile).endswith(".jpeg"):
-        print(f"{args.upload} does end with .jpeg")
+        print(f"{imagefile} does end with .jpeg")
         sys.exit(1)
     print(f"uploading {imagefile}...")
     auth = {"email":email,

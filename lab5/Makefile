@@ -16,6 +16,7 @@ PYTHON=.venv/bin/python3
 $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install
+	npm install
 
 #
 # Install the lab4.services file

@@ -20,6 +20,7 @@ package-mode = false
 djlint = "^1.36.4"
 pyright = "^1.1.407"
 circuitpython-stubs = "^10.0.3"
+pylint = "^4.0.4"
 
 [tool.pylint.main]
 ignored-modules = [

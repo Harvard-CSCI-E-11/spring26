@@ -17,7 +17,7 @@ PYTHON=.venv/bin/python3
 $(PYTHON):
 	poetry config virtualenvs.in-project true
 	poetry install		# includes flask in pyproject.toml
-	npm install --save-dev globals
+	npm install
 
 #
 # Install the lab4.services file

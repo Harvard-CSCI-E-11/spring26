@@ -6,5 +6,5 @@
 	poetry install --with dev
 
 lint: .venv/pyvenv.cfg
-	poetry run pylint e11/.
-	poetry run pyright e11/.
+	poetry run pylint src
+	poetry run pyright src

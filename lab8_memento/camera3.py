@@ -20,7 +20,6 @@ import os
 import ssl
 import sys
 import re
-import typing
 
 import adafruit_ntp
 import adafruit_pycamera
@@ -29,12 +28,6 @@ import rtc
 import socketpool
 import wifi
 from displayio import Bitmap
-
-# --- PYRIGHT FIX START ---
-if typing.TYPE_CHECKING:
-    from typing import Any
-    board: Any = board
-# --- PYRIGHT FIX END ---
 
 # 1. SETUP WIFI AND NTP
 

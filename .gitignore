@@ -12,3 +12,4 @@
 __pycache__
 coverage.xml
 csci-e-11-config.toml
+node_modules
