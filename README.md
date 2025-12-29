@@ -26,8 +26,8 @@ The student labs are identified:
 | [lab4](lab4/) |Mar  9 | [An API server with password hashing](https://csci-e-11.org/lab4) |  password hashing|
 | [lab5](lab5/) |Mar 30 | [Add images to your message board](https://csci-e-11.org/lab5) | AWS signed HTTP POSTs and URLs.|
 | [lab6](lab6/) |Apr 13 | [AI image analysis with AWS Rekognition](https://csci-e-11.org/lab6) | Face detection and face matching  |
-| [lab7](lab7_memento/) <br> [lab7_linux](lab7_linux) | Apr 27 | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) <br> (Client code that runs on Linux) |  Introduction to IoT CircuitPython.|
-| [lab8](lab8_memento/) <br> [lab8_linux](lab8_linux) <br> [lab8](lab8/)| May 11| [Uploading images from the edge](https://csci-e-11.org/lab8) <br> (Client code that runs on Linux) <br> (Empty directory for lab8 server) |  AI, Internet of Things, and Cybersecurity|
+| [lab7_memento](lab7_memento/) <br> [lab7_linux](lab7_linux) | Apr 27 | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) <br> (Client code that runs on Linux) |  Introduction to IoT CircuitPython.|
+| [lab8_memento](lab8_memento/) <br> [lab8_linux](lab8_linux) <br> [lab8](lab8/)| May 11| [Uploading images from the edge](https://csci-e-11.org/lab8) <br> (Client code that runs on Linux) <br> (Empty directory for lab8 server) |  AI, Internet of Things, and Cybersecurity|
 
 This table describes each lab and the services used:
 
