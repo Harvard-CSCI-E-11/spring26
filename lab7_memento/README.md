@@ -107,7 +107,7 @@ Commands:
 
 Install what you need with:
 
-``
+```
 % poetry install
 % poetry run circup install $(cat requirements_circuit.txt)
 ```
@@ -121,3 +121,5 @@ Two programs you should look at include:
 `code_bounce.py` - Draw a bouncing ball.
 
 `code_leaderboard_client.py` - The client for the leaderboard. This is what you need to complete lab7.
+
+Now go to the lab at https://csci-e-11.org/lab7
