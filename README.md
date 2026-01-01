@@ -11,7 +11,7 @@ Currently these labs require that you have a [Harvard Key](https://key.harvard.e
 To use this repo, log into your AWS instance and type these commands at the `$` prompt (you do not type the prompt below):
 ```
 $ sudo apt install git
-$ git checkout https://Harvard-CSCI-E-11/spring26.git
+$ git clone https://Harvard-CSCI-E-11/spring26.git
 $ spring26/etc/install-e11
 ```
 
