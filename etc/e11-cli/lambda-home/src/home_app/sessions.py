@@ -55,12 +55,10 @@ def new_session(event, claims) -> Session:
 
     try:
         user = get_user_from_email(email)
-        user_id = user.user_id
     except EmailNotRegistered:
         # User doesn't exist, create new user
         user = create_new_user(email, claims)
-        user_id = user[A.USER_ID]
-        add_user_log(event, user_id, f"User {claims['email']} created", claims=claims)
+        add_user_log(event, user.user_id, f"User {claims['email']} created", claims=claims)
 
     sid = str(uuid.uuid4())
     session = {
@@ -79,7 +77,7 @@ def new_session(event, claims) -> Session:
         session,
         ret,
     )
-    add_user_log(event, user_id, f"Session {sid} created")
+    add_user_log(event, user.user_id, f"Session {sid} created")
     return Session(**session)
 
 def get_session_from_sid(event, sid) -> Optional[Session]:
