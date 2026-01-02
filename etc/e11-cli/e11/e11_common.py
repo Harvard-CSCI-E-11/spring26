@@ -9,6 +9,7 @@ import time
 import uuid
 import json
 import copy
+import base64
 from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING
@@ -257,6 +258,24 @@ def make_course_key():
     """Make a course key"""
     return str(uuid.uuid4())[0:COURSE_KEY_LEN]
 
+def generate_direct_login_url(user_id: str, course_key: str) -> str:
+    """Generate direct login URL with base64-encoded token.
+
+    Args:
+        user_id: User ID from the database
+        course_key: Course key for the user
+
+    Returns:
+        Full URL for direct login: https://{domain}/login-direct?token={base64_token}
+    """
+
+    # Create token: user_id:course_key
+    token_data = f"{user_id}:{course_key}"
+    # Base64 encode (URL-safe, strip padding)
+    token = base64.urlsafe_b64encode(token_data.encode('utf-8')).decode('utf-8').rstrip('=')
+
+    return f"https://{COURSE_DOMAIN}/login-direct?token={token}"
+
 ################################################################
 ## user table - user management
 
@@ -281,7 +300,7 @@ def create_new_user(email, claims=None):
         A.CLAIMS: claims,
     }
     users_table.put_item(Item=user)  # USER CREATION POINT
-    return user
+    return User(**convert_dynamodb_item(user))
 
 def get_user_from_email(email) -> User:
     """Given an email address, get the DynamoDB user record from the users_table.
@@ -301,6 +320,19 @@ def get_user_from_email(email) -> User:
         raise EmailNotRegistered(email)
     item = resp["Items"][0]
     logger.debug("get_user_from_email - item=%s", item)
+    return User(**convert_dynamodb_item(item))
+
+def get_user_from_user_id(user_id: str) -> User:
+    """Get user record by user_id."""
+    logger = get_logger()
+    logger.debug("get_user_from_user_id: looking for user_id=%s", user_id)
+    resp = users_table.get_item(
+        Key={A.USER_ID: user_id, A.SK: A.SK_USER}
+    )
+    if "Item" not in resp:
+        raise EmailNotRegistered(f"User {user_id} not found")
+    item = resp["Item"]
+    logger.debug("get_user_from_user_id - item=%s", item)
     return User(**convert_dynamodb_item(item))
 
 def add_user_log(event, user_id, message, **extra):
