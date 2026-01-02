@@ -28,8 +28,7 @@ e11-cli/
 │   │   ├── context.py            # E11Context dataclass for passing lab context
 │   │   ├── decorators.py         # @timeout and @retry decorators
 │   │   ├── e11ssh.py             # SSH connection wrapper for remote grading
-│   │   ├── grader.py             # Test discovery and execution framework
-│   │   ├── render.py             # Grade report rendering
+│   │   ├── grader.py             # Test discovery and execution framework (includes grade report rendering)
 │   │   ├── testrunner.py         # TestRunner class (local/remote execution)
 │   │   └── utils.py              # Logging and utility functions
 │   └── lab_tests/                # Lab test definitions
@@ -296,14 +295,12 @@ Pre-deployment checks include:
 ### Known Technical Debt
 
 - `context.py` should be folded into `config.py` (noted in README)
-- `render.py` should be moved into `grader.py` (noted in README)
 - `utils.py` and `constants.py` could be merged into `common.py` (noted in README)
 - Not all uses of 'spring26' are fully parameterized (noted in constants.py)
 
 ### Future Improvements
 
 - Increase test coverage for E11 CLI
-- Add DynamoDBLocal integration for more accurate testing
 - Add SSH testing capabilities
 - More comprehensive integration tests
 - Performance testing for critical paths

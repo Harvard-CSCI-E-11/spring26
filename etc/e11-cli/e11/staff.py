@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 
 
 from .e11core.e11ssh import E11Ssh
-from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table
+from .e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -33,15 +33,22 @@ def do_check_access(args):
             print("err:\n",err)
 
 def do_register_email(args):
-    email = args.email
-    # See if the email exists
-    response = dynamodb_resource.Table('e11-users').scan(FilterExpression = Attr('email').eq(email))
-    if response.get('Items'):
-        user = response.get('Items')[0]
-        print(f"User {email} already exists.\ncourse_key={user[A.COURSE_KEY]}")
+    try:
+        user = get_user_from_email(args.email)
+        if user.course_key is None:
+            print(f"Internal Error: User {args.email} exists but has no course key? user={user}")
+            sys.exit(1)
+        login_url = generate_direct_login_url(user.user_id, user.course_key)
+        print(f"User {args.email} already exists.\ncourse_key={user.course_key}\nLogin URL: {login_url}")
         sys.exit(0)
-    user = create_new_user(email)
-    print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
+    except EmailNotRegistered:
+        pass
+    user = create_new_user(args.email)
+    if user.course_key is None:
+        print(f"User {args.email} created but course_key is None?")
+        sys.exit(1)
+    login_url = generate_direct_login_url(user.user_id, user.course_key)
+    print(f"Registered {args.email}\ncourse_key={user.course_key}\nLogin URL: {login_url}")
 
 def do_student_report(args):
     session = boto3.session.Session()

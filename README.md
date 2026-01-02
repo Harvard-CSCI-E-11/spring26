@@ -11,7 +11,7 @@ Currently these labs require that you have a [Harvard Key](https://key.harvard.e
 To use this repo, log into your AWS instance and type these commands at the `$` prompt (you do not type the prompt below):
 ```
 $ sudo apt install git
-$ git checkout https://Harvard-CSCI-E-11/spring26.git
+$ git clone https://Harvard-CSCI-E-11/spring26.git
 $ spring26/etc/install-e11
 ```
 
@@ -19,15 +19,15 @@ The student labs are identified:
 
 |Lab |Due |Description | E-11 Topics  |
 |----|----|---------|------------|
-| [lab0](lab0/) | | [Order your microcontroller for lab7 and lab 8](https://csci-e-11.org/lab0) | Preparation |
-| [lab1](lab1/) | | [Create an AWS EC2 instance and monitor for attacks](https://csci-e-11.org/lab1) |  Basic command line, SSH,  and Log analysis |
-| [lab2](lab2/) | | [A web server with password-based access control](https://csci-e-11.org/lab2) |  TLS certificates and username/password access  |
-| [lab3](lab3/) | | [A simple database-driven web app written in python](https://csci-e-11.org/lab3) |  gunicorn, flask, and SQL injection attacks|
-| [lab4](lab4/) | | [An API server with password hashing](https://csci-e-11.org/lab4) |  password hashing|
-| [lab5](lab5/) | | [Add images to your message board](https://csci-e-11.org/lab5) | AWS signed HTTP POSTs and URLs.|
-| [lab6](lab6/) | | [AI image analysis with AWS Rekognition](https://csci-e-11.org/lab6) | Face detection and face matching  |
-| [lab7](lab7_memento/) <br> [lab7_linux](lab7_linux) | | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) <br> (Client code that runs on Linux) |  Introduction to IoT CircuitPython.|
-| [lab8](lab8_memento/) <br> [lab8_linux)(lab8_linux) <br> [lab8](lab8/)| | [Uploading images from the edge](https://csci-e-11.org/lab8) <br> (Client code that runs on Linux) <br> (Empty directory for lab8 server) |  AI, Internet of Things, and Cybersecurity|
+| [lab0](lab0/) |Feb  2 | [Order your microcontroller for lab7 and lab 8](https://csci-e-11.org/lab0) | Preparation |
+| [lab1](lab1/) |Feb  9 | [Create an AWS EC2 instance and monitor for attacks](https://csci-e-11.org/lab1) |  Basic command line, SSH,  and Log analysis |
+| [lab2](lab2/) |Feb 16 | [A web server with password-based access control](https://csci-e-11.org/lab2) |  TLS certificates and username/password access  |
+| [lab3](lab3/) |Feb 23 | [A simple database-driven web app written in python](https://csci-e-11.org/lab3) |  gunicorn, flask, and SQL injection attacks|
+| [lab4](lab4/) |Mar  9 | [An API server with password hashing](https://csci-e-11.org/lab4) |  password hashing|
+| [lab5](lab5/) |Mar 30 | [Add images to your message board](https://csci-e-11.org/lab5) | AWS signed HTTP POSTs and URLs.|
+| [lab6](lab6/) |Apr 13 | [AI image analysis with AWS Rekognition](https://csci-e-11.org/lab6) | Face detection and face matching  |
+| [lab7_memento](lab7_memento/) <br> [lab7_linux](lab7_linux) | Apr 27 | [Calling APIs from a microcontroler](https://csci-e-11.org/lab7) <br> (Client code that runs on Linux) |  Introduction to IoT CircuitPython.|
+| [lab8_memento](lab8_memento/) <br> [lab8_linux](lab8_linux) <br> [lab8](lab8/)| May 11| [Uploading images from the edge](https://csci-e-11.org/lab8) <br> (Client code that runs on Linux) <br> (Empty directory for lab8 server) |  AI, Internet of Things, and Cybersecurity|
 
 This table describes each lab and the services used:
 
