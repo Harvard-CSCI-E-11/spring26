@@ -48,6 +48,8 @@ from e11.e11_common import (
     GITHUB_REPO_URL,
     LAB_CONFIG,
     LAB_TIMEZONE,
+    get_user_from_user_id,
+    add_user_log,
 )
 
 from e11.e11core.constants import (
@@ -446,6 +448,66 @@ def do_logout(event):
     )
 
 
+def do_login_direct(event):
+    """/login-direct?token=<base64(user_id:course_key)> - Direct login for users without OIDC claims"""
+    qs = event.get("queryStringParameters") or {}
+    token = qs.get("token")
+
+    if not token:
+        return resp_text(HTTP_BAD_REQUEST, "Missing token parameter")
+
+    try:
+        # Decode base64 token
+        try:
+            # Add padding if needed for base64 decoding
+            padding = len(token) % 4
+            if padding:
+                token += '=' * (4 - padding)
+            decoded = base64.urlsafe_b64decode(token).decode('utf-8')
+            user_id, course_key = decoded.split(':', 1)
+        except (ValueError, UnicodeDecodeError, binascii.Error) as e:
+            LOGGER.warning("Invalid token format: %s", e)
+            return resp_text(HTTP_BAD_REQUEST, "Invalid token format")
+
+        # Get user by user_id
+        user = get_user_from_user_id(user_id)
+
+        # Verify course_key matches
+        if user.course_key != course_key:
+            email_display = user.email or "unknown"
+            return resp_text(
+                HTTP_FORBIDDEN,
+                f"Course key mismatch for email {email_display} or email is not registered."
+            )
+
+        # If user has claims, redirect to regular login
+        if user.claims is not None:
+            return redirect("/login")
+
+        # Create minimal claims for session (for compatibility with existing code)
+        minimal_claims = {A.EMAIL: user.email}
+
+        # Create session
+        ses = new_session(event, claims=minimal_claims)
+
+        # Set cookie and redirect
+        sid_cookie = make_cookie(
+            COOKIE_NAME, ses.sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event)
+        )
+        LOGGER.info("Direct login: created session for email=%s", user.email)
+        add_user_log(event, user.user_id, f"Session {ses.sid} created (direct_login)")
+        return redirect("/dashboard", cookies=[sid_cookie])
+
+    except EmailNotRegistered:
+        return resp_text(
+            HTTP_FORBIDDEN,
+            "Course key mismatch for email unknown or email is not registered."
+        )
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        LOGGER.exception("Error in do_login_direct: %s", e)
+        return resp_text(HTTP_INTERNAL_ERROR, "Internal server error")
+
+
 def queue_grade(email: str, lab: str) -> Dict[str, Any]:
     """
     Queue a grading request for a student's lab via SQS.
@@ -595,6 +657,9 @@ def lambda_handler(event, context):
 
                 case ("GET", "/logout"):
                     return do_logout(event)
+
+                case ("GET", "/login-direct"):
+                    return do_login_direct(event)
 
                 # note that / handles all pages. Specify html template with page= option
                 case ("GET", "/"):

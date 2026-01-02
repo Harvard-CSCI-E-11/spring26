@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 
 
 from .e11core.e11ssh import E11Ssh
-from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table
+from .e11_common import dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table,generate_direct_login_url
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -38,10 +38,16 @@ def do_register_email(args):
     response = dynamodb_resource.Table('e11-users').scan(FilterExpression = Attr('email').eq(email))
     if response.get('Items'):
         user = response.get('Items')[0]
-        print(f"User {email} already exists.\ncourse_key={user[A.COURSE_KEY]}")
+        course_key = user[A.COURSE_KEY]
+        user_id = user[A.USER_ID]
+        login_url = generate_direct_login_url(user_id, course_key)
+        print(f"User {email} already exists.\ncourse_key={course_key}\nLogin URL: {login_url}")
         sys.exit(0)
     user = create_new_user(email)
-    print(f"Registered {email}\ncourse_key={user[A.COURSE_KEY]}")
+    course_key = user[A.COURSE_KEY]
+    user_id = user[A.USER_ID]
+    login_url = generate_direct_login_url(user_id, course_key)
+    print(f"Registered {email}\ncourse_key={course_key}\nLogin URL: {login_url}")
 
 def do_student_report(args):
     session = boto3.session.Session()
