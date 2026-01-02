@@ -5,7 +5,7 @@ import base64
 import pytest
 import uuid
 
-from e11.e11_common import create_new_user, A, get_user_from_user_id
+from e11.e11_common import create_new_user, A
 from e11.e11core.constants import HTTP_BAD_REQUEST, HTTP_FORBIDDEN, HTTP_FOUND, HTTP_OK
 from home_app.home import lambda_handler
 from test_utils import create_lambda_event

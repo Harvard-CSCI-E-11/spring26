@@ -448,6 +448,7 @@ def do_logout(event):
     )
 
 
+# pylint: disable=too-many-return-statements
 def do_login_direct(event):
     """/login-direct?token=<base64(user_id:course_key)> - Direct login for users without OIDC claims"""
     qs = event.get("queryStringParameters") or {}
