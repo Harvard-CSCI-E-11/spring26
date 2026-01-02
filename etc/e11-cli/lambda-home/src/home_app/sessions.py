@@ -59,8 +59,7 @@ def new_session(event, claims) -> Session:
     except EmailNotRegistered:
         # User doesn't exist, create new user
         user = create_new_user(email, claims)
-        user_id = user[A.USER_ID]
-        add_user_log(event, user_id, f"User {claims['email']} created", claims=claims)
+        add_user_log(event, user.user_id, f"User {claims['email']} created", claims=claims)
 
     sid = str(uuid.uuid4())
     session = {
