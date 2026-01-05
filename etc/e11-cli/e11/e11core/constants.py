@@ -1,4 +1,5 @@
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 VERSION = "spring26"
 COURSE_NAME = 'CSCI E-11'
@@ -9,6 +10,10 @@ COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
 LAB_MAX=7
 SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
+
+LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
+
+
 
 # Defaults
 DEFAULT_TIMEOUT_S = 5
