@@ -10,6 +10,10 @@ LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
 LAB_MAX=7
 SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
 
+LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
+
+
+
 # Defaults
 DEFAULT_TIMEOUT_S = 5
 DEFAULT_NET_TIMEOUT_S = 10

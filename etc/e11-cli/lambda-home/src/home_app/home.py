@@ -113,9 +113,7 @@ def send_email(to_addr: str, email_subject: str, email_body: str):
     LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
     return r
 
-
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
-
 
 def eastern_filter(value):
     """Format a time_t (epoch seconds) as ISO 8601 in EST5EDT."""
@@ -153,12 +151,8 @@ EMAIL_SUBJECT_DNS_RECORDS_UPDATED = "DNS records updated for {hostname}"
 DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-lab7', '-lab8']
 
 
-def resp_text(
-    status: int,
-    body: str,
-    headers: Optional[Dict[str, str]] = None,
-    cookies: Optional[list[str]] = None,
-) -> Dict[str, Any]:
+def resp_text(    status: int,    body: str, headers: Optional[Dict[str, str]] = None,
+                  cookies: Optional[list[str]] = None) -> Dict[str, Any]:
     """End HTTP event processing with text/html"""
     LOGGER.debug("resp_text(status=%s)", status)
     return {
@@ -172,12 +166,8 @@ def resp_text(
         "cookies": cookies or [],
     }
 
-
-def resp_png(
-    status: int,
-    png_bytes: bytes,
-    headers: Optional[Dict[str, str]] = None,
-    cookies: Optional[list[str]] = None ) -> Dict[str, Any]:
+def resp_png( status: int, png_bytes: bytes, headers: Optional[Dict[str, str]] = None,
+              cookies: Optional[list[str]] = None ) -> Dict[str, Any]:
     """End HTTP event processing with binary PNG"""
     LOGGER.debug("resp_png(status=%s, len=%s)", status, len(png_bytes))
     return {
@@ -193,9 +183,7 @@ def resp_png(
     }
 
 
-def redirect(
-    location: str, extra_headers: Optional[dict] = None, cookies: Optional[list] = None
-):
+def redirect( location: str, extra_headers: Optional[dict] = None, cookies: Optional[list] = None ):
     """End HTTP event processing with redirect to another website"""
     LOGGER.debug("redirect(%s,%s,%s)", location, extra_headers, cookies)
     headers = {"Location": location}
@@ -227,7 +215,6 @@ def static_file(fname):
             return resp_text(HTTP_OK, f.read(), headers=headers)
     except FileNotFoundError:
         return error_404(fname)
-
 
 def _with_request_log_level(payload: Dict[str, Any]):
     """Context manager to temporarily adjust log level from JSON (log_level or LOG_LEVEL)."""

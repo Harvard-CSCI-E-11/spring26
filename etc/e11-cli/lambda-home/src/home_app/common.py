@@ -17,14 +17,13 @@ COOKIE_SECURE = True
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN",COURSE_DOMAIN)
 COOKIE_SAMESITE = os.environ.get("COOKIE_SAMESITE", "Lax")  # Lax|Strict|None
 
-
 # fix the path. Don't know why this is necessary
 MY_DIR = dirname(__file__)
 sys.path.append(MY_DIR)
-
 NESTED = join(MY_DIR, ".aws-sam", "build", "E11HomeFunction")
 if isdir(join(NESTED, "e11")):
     sys.path.insert(0, NESTED)
+# path fixing done
 
 TEMPLATE_DIR = join(MY_DIR,"templates")
 STATIC_DIR = join(MY_DIR,"static")
