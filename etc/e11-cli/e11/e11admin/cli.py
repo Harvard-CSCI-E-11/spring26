@@ -5,10 +5,12 @@ e11admin main program
 import time
 import argparse
 import sys
+import os
 
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
 from tabulate import tabulate
+from e11.e11core.utils import smash_email
 
 dynamodb_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
@@ -63,7 +65,11 @@ def get_all(*, sk=None, user_id=None, projection=None):
     return items
 
 def get_name(user):
-    return user.get('preferred_name',user.get('claims',{}).get('name','n/a'))
+    if preferred_name := user.get('preferred_name'):
+        return preferred_name
+    if claims := user.get('claims'):
+        return claims.get('name','n/a')
+    return 'n/a'
 
 def show_registered_users():
     print("================ show_registered_users ================")
@@ -122,8 +128,16 @@ def main():
     parser.add_argument("--delete_item", help='Delete a user_id, sk',action='store_true')
     parser.add_argument("--user_id", help='Specify the user_id')
     parser.add_argument("--sk", help='Specify the sk')
+    parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
     args = parser.parse_args()
     validate_dynamodb()
+
+    if args.ssh:
+        smashed_email = smash_email(args.ssh)
+        cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
+        print(cmd)
+        sys.exit(os.system(cmd))
+
     if args.delete_item:
         delete_item(user_id=args.user_id, sk=args.sk)
     show_registered_users()

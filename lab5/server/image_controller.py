@@ -160,7 +160,7 @@ def init_app(app):
         except ClientError as e:
             error_code = int(e.response["Error"]["Code"])
             if error_code == 404:
-                error_message = "S3 bucket does not exist"
+                error_message = f"S3 bucket '{S3_BUCKET}' does not exist. Did you create it?"
             else:
                 # Log the detailed error server-side, return generic error to user.
                 app.logger.error("S3 error occurred: %s", e, exc_info=True)

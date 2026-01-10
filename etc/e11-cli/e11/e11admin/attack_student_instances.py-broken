@@ -4,9 +4,10 @@ This program reads the contents of the S3 bucket and attempts to log into each s
 import os
 import sys
 import asyncio
+import datetime
+
 import asyncssh
 import boto3
-import datetime
 
 S3_BUCKET = 'cscie-11'
 S3_PREFIX = 'students/'
@@ -18,7 +19,7 @@ try:
     HIDDEN = os.environ["HIDDEN"]
 except KeyError:
     print("Define environment variable HIDDEN prior to running this script",file=sys.stderr)
-    exit(1)
+    sys.exit(1)
 
 class S3ObjectIterator:
     """Creates an iterator that returns the (s3url, content) of all s3 objects under a prefix"""
@@ -64,7 +65,7 @@ async def connect_and_run(host, username, password, command):
             result = await conn.run(command, check=True)
             out = result.stdout.strip()
             return f"{host}: {out}"
-    except Exception as e:
+    except Exception as e:      # pylint: disable=broad-exception-caught
         return f"{host}: Failed with error: {e}"
 
 async def run_on_all_machines(hosts):
@@ -78,26 +79,29 @@ async def run_on_all_machines(hosts):
     return results
 
 
-if __name__ == "__main__":
+def main():
+    # This is the way we discovered accounts in 2025. Update this for 2026.
     hosts = set()
     for urn, content in S3ObjectIterator(S3_BUCKET, S3_PREFIX, profile_name=PROFILE):
         print(f"URN: {urn}")
         print(f"Content: {content}")
         try:
-            (account_id, ipaddr, email, name) = content.strip().split(',')
+            (_account_id, ipaddr, _email, _name) = content.strip().split(',')
             hosts.add(ipaddr.strip())
         except ValueError:
             with open(LOG,"a") as f:
                 print("value error: ",content)
                 print("value error: ",content,file=f)
-            pass
     results = asyncio.run(run_on_all_machines(list(hosts)))
     for r in results:
         print(r)
-    with open(LOG,"a") as f:
+    with open(LOG,"a") as _f:
         print("Total denied:",len( [e for e in results if "denied" in e]))
-        print("Total denied:",len( [e for e in results if "denied" in e]),file=f)
+        print("Total denied:",len( [e for e in results if "denied" in e]),file=_f)
     print("successfully attacked:")
     ipaddrs = [a[0:a.find(":")] for a in results if "denied" in a]
     for r in sorted(ipaddrs,key=lambda a:[int(i) for i in a.split(".")]):
         print(r)
+
+if __name__ == "__main__":
+    main()

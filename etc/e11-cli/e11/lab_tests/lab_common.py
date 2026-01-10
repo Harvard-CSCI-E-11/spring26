@@ -72,7 +72,7 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     # Did we get a presigned post?
     obj = r1.json()
     if "error" in obj and obj["error"]:
-        raise RuntimeError(f"api/post-image returned error: {obj['error']}")
+        raise TestFail(f"api/post-image returned error: {obj['error']}")
 
     presigned_post = obj["presigned_post"]
     s3_url = presigned_post["url"]
@@ -93,7 +93,11 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
 
     return r2
 
+################################################################
+### TESTS FOLLOW ###############################################
+################################################################
 
+### BASIC TESTS
 
 @timeout(5)
 def test_autograder_key_present( tr:TestRunner ):
@@ -108,6 +112,7 @@ def test_autograder_key_present( tr:TestRunner ):
     # Require the exact key line (comment is part of it)
     assert_contains(txt, AUTO_GRADER_KEY_LINE)
 
+### VIRTUAL ENVIRONMENT
 
 @timeout(5)
 def test_venv_present( tr:TestRunner):
@@ -122,6 +127,23 @@ def test_venv_present( tr:TestRunner):
         raise TestFail(f"'cd {labdir}; poetry run python' does not work {labdir}")
 
     return f"virtual environment configured in {labdir} and 'poetry run python' command works."
+
+### SERVICE FILES
+@timeout(5)
+def test_service_file_installed( tr:TestRunner):
+    fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
+    r = tr.run_command(f"test -x {fn}")
+    if r.exit_code != 0:
+        raise TestFail(f"{fn} does not exist. Did you install the {tr.ctx.lab}.service file?")
+    return f"{fn} exists."
+
+@timeout(5)
+def test_service_not_enabled( tr:TestRunner):
+    fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
+    r = tr.run_command(f"test -x {fn}")
+    if r.exit_code == 0:
+        raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
+    return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
 
 @timeout(5)
 def test_nginx_config_syntax_okay( tr:TestRunner):
