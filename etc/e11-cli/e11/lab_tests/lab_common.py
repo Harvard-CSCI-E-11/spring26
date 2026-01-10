@@ -133,7 +133,7 @@ def test_venv_present( tr:TestRunner):
 def test_service_file_installed( tr:TestRunner):
     fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
     r = tr.run_command(f"test -x {fn}")
-    if r.exit_code != 0:
+    if r.exit_code == 0:
         raise TestFail(f"{fn} does not exist. Did you install the {tr.ctx.lab}.service file?")
     return f"{fn} exists."
 
@@ -141,7 +141,7 @@ def test_service_file_installed( tr:TestRunner):
 def test_service_not_enabled( tr:TestRunner):
     fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
     r = tr.run_command(f"test -x {fn}")
-    if r.exit_code == 0:
+    if r.exit_code != 0:
         raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
     return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
 
