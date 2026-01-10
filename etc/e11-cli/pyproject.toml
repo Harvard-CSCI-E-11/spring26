@@ -47,6 +47,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 e11 = "e11.__main__:main"
+e11admin = "e11.e11admin.cli:main"
 
 [tool.pylint.main]
 # Specify the Python version Pylint should assume for syntax checking.
