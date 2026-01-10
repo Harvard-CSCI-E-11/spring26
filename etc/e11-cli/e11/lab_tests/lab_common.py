@@ -72,7 +72,7 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     # Did we get a presigned post?
     obj = r1.json()
     if "error" in obj and obj["error"]:
-        raise RuntimeError(f"api/post-image returned error: {obj['error']}")
+        raise TestFail(f"api/post-image returned error: {obj['error']}")
 
     presigned_post = obj["presigned_post"]
     s3_url = presigned_post["url"]
