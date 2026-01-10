@@ -135,7 +135,7 @@ def test_service_file_installed( tr:TestRunner):
     r = tr.run_command(f"test -x {fn}")
     if r.exit_code != 0:
         raise TestFail(f"{fn} does not exist. Did you install the {tr.ctx.lab}.service file?")
-    raise f"{fn} exists."
+    return f"{fn} exists."
 
 @timeout(5)
 def test_service_not_enabled( tr:TestRunner):
@@ -143,7 +143,7 @@ def test_service_not_enabled( tr:TestRunner):
     r = tr.run_command(f"test -x {fn}")
     if r.exit_code == 0:
         raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
-    raise f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted.")
+    return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
 
 @timeout(5)
 def test_nginx_config_syntax_okay( tr:TestRunner):

@@ -10,7 +10,7 @@ import os
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
 from tabulate import tabulate
-from e11core.utils import smash_email
+from e11.e11core.utils import smash_email
 
 dynamodb_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
