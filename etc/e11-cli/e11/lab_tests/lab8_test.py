@@ -175,19 +175,22 @@ def test_memento_dashboard( tr:TestRunner ):
 
     user =  get_user_from_email(tr.ctx.email)
     items = get_images(user.user_id)
+    logger.info("test_memento_dashboard: user=%s items=%s",user, items)
+
+    if len(items)==0:
+        raise TestFail("No images uploaded to dashboard")
 
     # Now try to get the images.
     # We don't need to use presigned posts because we are running with permissions
-    success = 0
+    ok_images = 0
     msgs = []
     for item in items:
         data = s3_client.get_object(Bucket=item[A.BUCKET], Key=item[A.KEY])['Body'].read()
         ok, msg = is_jpeg_no_exif(data)
+        logger.info("ok=%s msg=%s",ok,msg)
         msgs.append(msg)
         if ok:
-            success += 1
-    if success>0:
-        return "\n".join(msgs)
-    if success == 0:
-        raise TestFail("No images uploaded to dashboard")
-    raise TestFail("\n".join(msgs))
+            ok_images += 1
+    if ok_images==0:
+        raise TestFail(f"Total images uploaded to dashboard: {len(items)}\nError conditions:\n" + "\n".join(msgs))
+    return "\n".join(msgs)
