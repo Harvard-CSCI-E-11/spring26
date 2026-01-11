@@ -3,13 +3,20 @@ Programmer Notes:
 
 Packaging Lessons
 -----------------
+* **IMPORTANT**: Always explicitly define packages in `pyproject.toml` using `packages = [{ include = "e11" }]`.
+  Without this, Poetry will auto-discover packages and may try to include unwanted directories like `.venv`
+  subdirectories (which can contain symlinks to Python executables outside the project root, causing build failures).
+  See: https://python-poetry.org/docs/pyproject/#packages
+
 * aws sam wants you to have your application be a full-blown packaged python application. Follow this layout:
 
 ```
 e11-cli/                        # Contains pyproject.toml
-├── pyproject.toml              # Defines the e11 package
+├── pyproject.toml              # Defines the e11 package (must explicitly list packages!)
 ├── e11/                        # The actual package source
 │   ├── __init__.py
+│   ├── e11admin/               # Admin CLI (now part of e11 package, not separate)
+│   │   └── cli.py              # Entry point for 'e11admin' command
 │   └── (other modules)
 └── lambda-home/
     ├── pyproject.toml          # pyproject.toml for the lambda-home app
