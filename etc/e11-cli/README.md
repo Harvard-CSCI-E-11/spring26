@@ -58,12 +58,18 @@ The command implements these subcommands:
 ## The `e11 lab8` subcommand
 * `e11 lab8 --upload [file]` - Upload a file for lab8
 
-## Staff Commands (requires `E11_STAFF` environment variable)
+## Staff Commands
+
+### Staff Commands in `e11` (requires `E11_STAFF` environment variable)
 When the `E11_STAFF` environment variable is set, additional staff-only commands are available:
 * `e11 check-access [host]` - Check to see if we can access a host
 * `e11 register-email [email]` - Register an email address directly with DynamoDB
 * `e11 student-report [--dump]` - Generate a report directly from DynamoDB
 * `e11 grades [email|lab]` - Show grades for a student or a lab
+
+### The `e11admin` Command
+The `e11admin` command is a separate CLI tool for faculty to run on their desktop computers.
+It is installed alongside the `e11` command when you install the e11 package. See `e11/e11admin/README.md` for details.
 
 # How it works
 This program can be found on [GitHub in the spring26 repo](https://github.com/Harvard-CSCI-E-11/spring26/tree/main/etc/e11). The repo is checked out by the student and then installed in `$HOME/.local/bin` using `pipx` by the [install-e11](https://github.com/Harvard-CSCI-E-11/spring26/blob/main/etc/install-e11) installation script.
