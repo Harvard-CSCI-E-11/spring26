@@ -10,6 +10,8 @@ from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
 from e11.lab_tests.lab_common import (
+    test_service_file_installed,
+    test_service_not_enabled,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
@@ -18,6 +20,8 @@ from e11.lab_tests.lab_common import (
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
+    test_service_file_installed,
+    test_service_not_enabled,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
