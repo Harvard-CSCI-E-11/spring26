@@ -16,6 +16,8 @@ e11-cli/
 │   ├── doctor.py                 # System diagnostic tool
 │   ├── staff.py                  # Staff-only commands
 │   ├── e11_common.py             # Shared DynamoDB and AWS utilities
+│   ├── e11admin/                 # Admin CLI tool (staff-only commands)
+│   │   └── cli.py                # Entry point for 'e11admin' command
 │   ├── e11core/                  # Core grader framework
 │   │   ├── assertions.py         # Test assertion helpers
 │   │   ├── config.py             # E11Config class for configuration
@@ -82,6 +84,11 @@ e11-cli/
 - **do_config**: Reads/writes `/home/ubuntu/e11-config.ini` file
 - **do_check**: Runs local lab tests
 - **do_access**: Manages SSH access for course staff
+
+#### E11 Admin CLI (`e11/e11admin/cli.py`)
+- **e11admin**: Staff-only administrative commands for managing course infrastructure
+- Installed as a separate CLI command via Poetry script entry point: `e11admin = "e11.e11admin.cli:main"`
+- Runs on faculty desktop computers, not on student VMs
 
 #### Lambda-Home (`lambda-home/src/home_app/`)
 - **lambda_handler**: Main entry point, routes HTTP requests
