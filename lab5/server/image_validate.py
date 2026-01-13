@@ -24,7 +24,6 @@ MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024
 JPEG_MIME_TYPE = "image/jpeg"
 
 s3_client   = boto3.client("s3")
-rekognition_client = boto3.client("rekognition", region_name=s3_client.meta.region_name)
 
 def safe_get_object(bucket, s3key):
     """Get an object's bytes for S3 or return None"""
@@ -103,12 +102,13 @@ def validate_image_table_row(app, conn, row):
     # == STUDENTS - END LAB5 MODIFICATIONS ==
     #
 
-    if validated:
+    if validated and db.get_lab_name() != 'lab5':
         celeb         = "Did not call rekognition yet."
         detected_text = "Did not call rekognition yet."
 
         ##### CELEBRITY RECOGNITION WITH AMAZON REKOGNITION #####
         try:
+            rekognition_client = boto3.client("rekognition", region_name=s3_client.meta.region_name)
             response = rekognition_client.recognize_celebrities( Image={"Bytes": image} )
             celeb = response.get("CelebrityFaces", [])
             app.logger.info("celeb=%s",celeb)
