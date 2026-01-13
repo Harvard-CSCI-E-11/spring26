@@ -146,6 +146,20 @@ def test_service_not_enabled( tr:TestRunner):
     return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
 
 @timeout(5)
+def test_previous_lab_service_stopped_and_not_enabled( tr:TestRunner):
+    prevlab = f"lab{tr.ctx.labnum-1}"
+    cmd = "sudo systemctl status {prevlab}.service"
+    r = tr.run_command(cmd)
+    if r.exit_code != 0:
+        raise TestFail("'{cmd}' failed")
+    if "Active: active" in r.stdout:
+        raise TestFail(f"WARNING: {prevlab}.service is still running. Stop it so that you do not run out of memory")
+    if "disabled;" not in r.stdout:
+        raise TestFail(f"WARNING: {prevlab}.service is enabled. Disable it so that it does not automatically start if your instance is reboot")
+    return f"{prevlab} is stopped and disabled."
+
+
+@timeout(5)
 def test_nginx_config_syntax_okay( tr:TestRunner):
     r = tr.run_command("sudo nginx -t")
     if r.exit_code != 0:

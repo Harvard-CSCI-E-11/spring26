@@ -62,6 +62,7 @@ def validate_image_data_length(app, image_data_length):
     # return image_data_length <= MAX_IMAGE_SIZE_BYTES
     return True
 
+# pylint: disable=too-many-locals
 def validate_image_table_row(app, conn, row):
     """Given a row of images from the database query above,
     delete rows that do not have valid images."""

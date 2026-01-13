@@ -13,6 +13,8 @@ from e11.e11core.assertions import TestFail
 
 from .lab_common import (
     get_database_tables,
+    test_service_file_installed,
+    test_service_not_enabled,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
@@ -26,6 +28,8 @@ from .lab_common import (
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
     test_autograder_key_present,
+    test_service_file_installed,
+    test_service_not_enabled,
     test_venv_present,
     test_nginx_config_syntax_okay,
     test_gunicorn_running,

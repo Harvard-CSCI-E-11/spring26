@@ -11,6 +11,8 @@ from e11.lab_tests.nicols import nicols_jpeg
 from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
     post_image,
+    test_service_file_installed,
+    test_service_not_enabled,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
@@ -23,6 +25,8 @@ from e11.lab_tests.lab_common import (
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
+    test_service_file_installed,
+    test_service_not_enabled,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
