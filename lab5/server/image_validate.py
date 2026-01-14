@@ -107,19 +107,18 @@ def validate_image_table_row(app, conn, row):
         celeb         = "Did not call rekognition yet."
         detected_text = "Did not call rekognition yet."
 
-        ##### CELEBRITY RECOGNITION WITH AMAZON REKOGNITION #####
+        ##### LAB6 - CELEBRITY RECOGNITION WITH AMAZON REKOGNITION #####
         try:
-            rekognition_client = boto3.client("rekognition", region_name=s3_client.meta.region_name)
-            response = rekognition_client.recognize_celebrities( Image={"Bytes": image} )
-            celeb = response.get("CelebrityFaces", [])
-            app.logger.info("celeb=%s",celeb)
+            # pylint: disable=unused-variable
+            rekognition_client = boto3.client("rekognition",
+                                              region_name=s3_client.meta.region_name)
+            # INSERT LAB6 CODE HERE
         except BotoCoreError as e:
             celeb = []
             app.logger.error("rekognition error: %s",e)
 
         ################################################################
-
-        ###### TEXT RECOGNITION WITH AMAZON REKOGNITION #####
+        ###### LAB6 - TEXT RECOGNITION WITH AMAZON REKOGNITION #####
         try:
             # STUDENTS - Get an A - text detection  goes here
             # See:
