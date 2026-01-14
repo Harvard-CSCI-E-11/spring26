@@ -61,6 +61,10 @@ distclean:
 	make clean
 	/bin/rm -rf .venv
 
+install:
+	pipx install --force --python "$(command -v python3.13)" .
+
+
 ################################################################
 # DynamoDBLocal
 # Installations are used by the CI pipeline and by local developers

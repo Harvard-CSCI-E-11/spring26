@@ -139,7 +139,8 @@ def test_service_file_installed( tr:TestRunner):
 
 @timeout(5)
 def test_service_not_enabled( tr:TestRunner):
-    fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
+
+    fn = f"/etc/systemd/system/multi-user.target.wants/{tr.ctx.lab}.service"
     r = tr.run_command(f"test -x {fn}")
     if r.exit_code != 0:
         raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
