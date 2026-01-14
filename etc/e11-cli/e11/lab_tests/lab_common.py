@@ -145,22 +145,12 @@ def test_service_active( tr:TestRunner):
     return f"{tr.ctx.lab} is active"
 
 @timeout(5)
-def test_service_not_enabled( tr:TestRunner):
-    r = tr.run_command(f"sudo systemctl is-enabled {tr.ctx.lab}.service")
-    if r.stdout.strip()!='disabled':
-        raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
-    return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
-
-@timeout(5)
-def test_previous_lab_service_stopped_and_not_enabled( tr:TestRunner):
+def test_previous_lab_service_stopped( tr:TestRunner):
     prevlab = f"lab{tr.ctx.labnum-1}"
     r = tr.run_command(f"sudo systemctl is-active {prevlab}.service")
     if r.stdout.strip()=='active':
         raise TestFail(f"WARNING: {prevlab}.service is still active. Stop it so that you do not run out of memory")
-    r = tr.run_command(f"sudo systemctl is-enabled {prevlab}.service")
-    if r.stdout.strip()=='enabled':
-        raise TestFail(f"WARNING: {prevlab}.service is enabled. Disable it so that you do not run out of memory")
-    return f"{prevlab} is inactive and disabled."
+    return f"{prevlab} is not active."
 
 
 @timeout(5)

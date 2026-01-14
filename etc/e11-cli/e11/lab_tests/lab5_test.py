@@ -14,8 +14,8 @@ from e11.e11core.assertions import TestFail
 from e11.lab_tests.lincoln import lincoln_jpeg
 from e11.lab_tests.lab_common import (
     test_service_file_installed,
-    test_service_not_enabled,
-    test_previous_lab_service_stopped_and_not_enabled,
+    test_service_active,
+    test_previous_lab_service_stopped,
     do_presigned_post,
     post_image,
     test_autograder_key_present,
@@ -31,8 +31,8 @@ from e11.lab_tests.lab_common import (
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
     test_service_file_installed,
-    test_service_not_enabled,
-    test_previous_lab_service_stopped_and_not_enabled,
+    test_service_active,
+    test_previous_lab_service_stopped,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,

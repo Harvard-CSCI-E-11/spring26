@@ -13,9 +13,9 @@ from e11.e11core.assertions import TestFail
 
 from .lab_common import (
     get_database_tables,
-    test_previous_lab_service_stopped_and_not_enabled,
     test_service_file_installed,
-    test_service_not_enabled,
+    test_service_active,
+    test_previous_lab_service_stopped,
     test_autograder_key_present,
     test_venv_present,
     test_nginx_config_syntax_okay,
@@ -30,8 +30,8 @@ from .lab_common import (
 imported_tests = [
     test_autograder_key_present,
     test_service_file_installed,
-    test_service_not_enabled,
-    test_previous_lab_service_stopped_and_not_enabled,
+    test_service_active,
+    test_previous_lab_service_stopped,
     test_venv_present,
     test_nginx_config_syntax_okay,
     test_gunicorn_running,
