@@ -109,6 +109,7 @@ def validate_image_table_row(app, conn, row):
 
         ##### LAB6 - CELEBRITY RECOGNITION WITH AMAZON REKOGNITION #####
         try:
+            # pylint: disable=unused-variable
             rekognition_client = boto3.client("rekognition",
                                               region_name=s3_client.meta.region_name)
             # INSERT LAB6 CODE HERE
