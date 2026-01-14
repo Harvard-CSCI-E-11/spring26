@@ -138,26 +138,29 @@ def test_service_file_installed( tr:TestRunner):
     return f"{fn} exists."
 
 @timeout(5)
-def test_service_not_enabled( tr:TestRunner):
+def test_service_active( tr:TestRunner):
+    r = tr.run_command(f"sudo systemctl is-active {tr.ctx.lab}.service")
+    if r.stdout.strip()!='active':
+        raise TestFail(f"{tr.ctx.lab} is not active. Be sure to start it.")
+    return f"{tr.ctx.lab} is active"
 
-    fn = f"/etc/systemd/system/multi-user.target.wants/{tr.ctx.lab}.service"
-    r = tr.run_command(f"test -r {fn}")
-    if r.exit_code == 0:
-        raise TestFail(f"WARNING: {fn} exists; {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
-    return f"{fn} does not exist; {tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
+@timeout(5)
+def test_service_not_enabled( tr:TestRunner):
+    r = tr.run_command(f"sudo systemctl is-enabled {tr.ctx.lab}.service")
+    if r.stdout.strip()!='disabled':
+        raise TestFail(f"WARNING: {tr.ctx.lab}.service is enabled! Please disable it so that the service does not automatically start if your instance is rebooted.")
+    return f"{tr.ctx.lab}.service is not enabled, so it will not start automatically if your instance is rebooted."
 
 @timeout(5)
 def test_previous_lab_service_stopped_and_not_enabled( tr:TestRunner):
     prevlab = f"lab{tr.ctx.labnum-1}"
-    cmd = f"sudo systemctl status {prevlab}.service"
-    r = tr.run_command(cmd)
-    if r.exit_code != 0:
-        raise TestFail(f"'{cmd}' failed")
-    if "Active: active" in r.stdout:
-        raise TestFail(f"WARNING: {prevlab}.service is still running. Stop it so that you do not run out of memory")
-    if "disabled;" not in r.stdout:
-        raise TestFail(f"WARNING: {prevlab}.service is enabled. Disable it so that it does not automatically start if your instance is reboot")
-    return f"{prevlab} is stopped and disabled."
+    r = tr.run_command(f"sudo systemctl is-active {prevlab}.service")
+    if r.stdout.strip()=='active':
+        raise TestFail(f"WARNING: {prevlab}.service is still active. Stop it so that you do not run out of memory")
+    r = tr.run_command(f"sudo systemctl is-enabled {prevlab}.service")
+    if r.stdout.strip()=='enabled':
+        raise TestFail(f"WARNING: {prevlab}.service is enabled. Disable it so that you do not run out of memory")
+    return f"{prevlab} is inactive and disabled."
 
 
 @timeout(5)

@@ -12,5 +12,6 @@ ExecStart=/home/ubuntu/spring26/lab4/.venv/bin/gunicorn -w 2 -b 127.0.0.1:8004 -
 Restart=always
 RestartSec=1
 
-[Install]
-WantedBy=multi-user.target
+# Commented out so that the service is not enabled by default
+# [Install]
+# WantedBy=multi-user.target
