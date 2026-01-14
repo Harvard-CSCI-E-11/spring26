@@ -149,10 +149,10 @@ def test_service_not_enabled( tr:TestRunner):
 @timeout(5)
 def test_previous_lab_service_stopped_and_not_enabled( tr:TestRunner):
     prevlab = f"lab{tr.ctx.labnum-1}"
-    cmd = "sudo systemctl status {prevlab}.service"
+    cmd = f"sudo systemctl status {prevlab}.service"
     r = tr.run_command(cmd)
     if r.exit_code != 0:
-        raise TestFail("'{cmd}' failed")
+        raise TestFail(f"'{cmd}' failed")
     if "Active: active" in r.stdout:
         raise TestFail(f"WARNING: {prevlab}.service is still running. Stop it so that you do not run out of memory")
     if "disabled;" not in r.stdout:
