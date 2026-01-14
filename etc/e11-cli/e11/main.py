@@ -35,7 +35,7 @@ from .doctor import run_doctor
 # because of our argument processing, args is typically given and frequently not used.
 # pylint: disable=unused-argument, disable=invalid-name
 
-__version__ = '0.2.2'
+__version__ = '0.9.0'
 
 logger = get_logger()
 
