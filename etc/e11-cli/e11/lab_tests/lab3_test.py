@@ -20,10 +20,10 @@ from e11.lab_tests.lab_common import (
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
+    test_venv_present,
     test_service_file_installed,
     test_service_active,
     test_autograder_key_present,
-    test_venv_present,
     test_nginx_config_syntax_okay,
     test_gunicorn_running,
 ]

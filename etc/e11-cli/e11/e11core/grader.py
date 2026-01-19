@@ -106,8 +106,13 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
             passes.append(name)
         except TestFail as e:
             duration = monotonic() - t0
-            results.append({"name": name, "status": "fail", "message": str(e), "context": e.context, "duration": duration})
+            results.append({"name": name, "status": "fail", "message": str(e),
+                            "context": e.context, "duration": duration})
             fails.append(name)
+            if e.terminate:
+                results.append({"name": "terminate", "status": "fail", "message": "tests cannot continue",
+                                "context": e.context, "duration":0})
+                break
         except TimeoutError as e:
             duration = monotonic() - t0
             results.append({"name": name, "status": "fail", "message": f"Timeout: {e}", "duration": duration})
