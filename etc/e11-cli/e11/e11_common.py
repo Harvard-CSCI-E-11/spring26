@@ -220,7 +220,7 @@ class User(DictLikeModel):
     sk: str
     email: str|None = None      # not all records have email
     course_key: str|None = None
-    user_registered: int|None = None
+    user_registered: int|None = None # time_t of when user is registered
     preferred_name: str|None = None
     claims: dict[str, Any] | None = None
     public_ip: str|None = None

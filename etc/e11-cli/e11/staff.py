@@ -33,6 +33,7 @@ def do_check_access(args):
             print("err:\n",err)
 
 def do_register_email(args):
+    print("Lab instructions are at https://github.com/Harvard-CSCI-E-11/spring26")
     try:
         user = get_user_from_email(args.email)
         if user.course_key is None:
