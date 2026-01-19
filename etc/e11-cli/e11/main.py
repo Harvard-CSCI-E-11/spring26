@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+import subprocess
 from pathlib import Path
 
 import dns
@@ -24,7 +25,7 @@ from . import staff
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,DEFAULT_TIMEOUT,get_config
 
 from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX, COURSE_ROOT
-from .e11core.context import build_ctx, chdir_to_lab
+from .e11core.context import LabError,build_ctx, chdir_to_lab
 from .e11core.grader import collect_tests_in_definition_order,print_summary
 from .e11core.utils import get_logger,smash_email
 from .e11core import grader
@@ -348,10 +349,11 @@ def do_update(_):
         os.system(cmd)
 
 def do_check(args):
-    if args.lab in ('lab7'):
-        print("Sorry! Lab 7 cannot be checked because it requires access to the DynamoDB database.")
-        return -1
-
+    """e11 check [lab]"""
+    do_check_syntax(args)       # always run the syntax check first
+    if args.lab in ('lab7','lab8'):
+        print("The rest of lab7 and lab8 cannot be checked because they run on the MEMENTO.")
+        return 0
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     chdir_to_lab(ctx)
     summary = grader.discover_and_run(ctx)
@@ -359,6 +361,42 @@ def do_check(args):
     if summary.get('error',None) or summary.get('fails',0):
         return -1
     return 0
+
+def do_check_syntax(args):
+    """e11 check-syntax [lab]"""
+    ctx = build_ctx(args.lab)          # args.lab like 'lab3'
+    print("Checking",args.lab,"in",ctx.labdir)
+    os.chdir(ctx.labdir)
+    files_checked = 0
+    errors = 0
+    merror = False
+    for (root,dirs,files) in os.walk("."):
+        if ".venv" in root:
+            continue
+        for fn in files:
+            if not fn.endswith(".py"):
+                continue
+            files_checked += 1
+            path = os.path.join(root,fn)[2:] # remove ./
+            print("Checking",path)
+            cmd = f"poetry run python -m py_compile {path}"
+            if subprocess.call(cmd,shell=True)!=0:
+                print(f"{path}: Python syntax error")
+                errors += 1
+                continue
+            module_name = path.replace("/",".").replace(".py","")
+            cmd = f"poetry run python -c 'import {module_name}'"
+            p = subprocess.run(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, encoding='utf-8')
+            if p.returncode!=0:
+                print(f"{path}: error:\n",p.stdout)
+                if 'ModuleNotFoundError' in p.stdout:
+                    merror = True
+                errors += 1
+                continue
+    print("Total files checked:",files_checked)
+    print("Errors:",errors)
+    if merror:
+        print("Did you remember to run 'poetry install' ???")
 
 def do_report_tests(_):
     """Generate markdown report of all available tests across all labs."""
@@ -531,6 +569,12 @@ def get_parser():
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
 
+    # e11 check-syntax [lab]
+    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance)')
+    check_syntax_parser.add_argument(dest='lab', help='Lab to check')
+    check_syntax_parser.set_defaults(func=do_check_syntax)
+
+
     # e11 lab8
     lab8_parser = subparsers.add_parser('lab8', help='Lab8 commands')
     lab8_parser.add_argument("--upload", help="File to upload", type=Path)
@@ -547,6 +591,7 @@ def get_parser():
 def main():
     parser = get_parser()
     args = parser.parse_args()
+
     if not on_ec2():
         if args.command=='grade' and args.direct:
             pass
@@ -559,4 +604,9 @@ def main():
         else:
             print("ERROR: This must be run on EC2")
             sys.exit(1)
-    return args.func(args)
+    try:
+        return args.func(args)
+    except LabError as e:
+        print(e,file=sys.stderr)
+        print("Invalid lab: ",getattr(args,'lab',''),file=sys.stderr)
+        sys.exit(1)

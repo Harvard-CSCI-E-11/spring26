@@ -9,6 +9,10 @@ from . import constants
 from .config import E11Config
 
 
+class LabError(ValueError):
+    pass
+
+
 @dataclass
 class E11Context:  # pylint: disable=too-many-instance-attributes
     """Typed context object passed to graders and test runners."""
@@ -63,7 +67,7 @@ class E11Context:  # pylint: disable=too-many-instance-attributes
 def build_ctx(lab: str) -> E11Context:
     """Creates a ctx that works equally well when run locally (e11 check lab) or from the grader."""
     if not lab.startswith("lab"):
-        raise ValueError("lab must be like 'lab3'")
+        raise LabError("lab must be like 'lab3'")
     labnum = int(lab[3:])
     labdir = Path(constants.COURSE_ROOT) / constants.LAB_DIR_PATTERN.format(n=labnum)
     cfg = E11Config.load()
