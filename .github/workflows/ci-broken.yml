@@ -1,0 +1,35 @@
+# Many of the labs contain broken code. Sometimes the code gets fixed and committed to the git repo.
+# This checks to make sure that the broken labs remain broken.
+# Clever students will look here to see what needs to be fixed.
+
+name: Check broken
+
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+
+# Cancel in-progress runs when a new run is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: etc/e11-cli
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for breakage
+        run: |
+          grep '{student_id}' lab3/*.py
