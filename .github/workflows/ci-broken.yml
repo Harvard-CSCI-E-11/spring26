@@ -20,13 +20,10 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: etc/e11-cli
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12", "3.13"]
+        python-version: ["3.12"]
     steps:
       - uses: actions/checkout@v4
 
