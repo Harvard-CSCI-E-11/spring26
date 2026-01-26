@@ -1,0 +1,2 @@
+paths-ignore:
+  - 'lab3/student_server.py'
