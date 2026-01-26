@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -5,14 +6,16 @@ VERSION = "spring26"
 COURSE_NAME = 'CSCI E-11'
 COURSE_DOMAIN = 'csci-e-11.org'
 COURSE_KEY_LEN = 6
-CONFIG_FILENAME = "e11-config.ini"
-COURSE_ROOT = Path("/home/ubuntu/spring26")
 LAB_DIR_PATTERN = "lab{n}"         # n is 1..7
-LAB_MAX=7
+LAB_MAX=8
 SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
-
 LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
+CONFIG_FILENAME = "e11-config.ini"
 
+COURSE_ROOT = Path.home() / VERSION
+
+if not COURSE_ROOT.exists() and "COURSE_ROOT" in os.environ:
+    COURSE_ROOT = Path(os.environ["COURSE_ROOT"])
 
 
 # Defaults

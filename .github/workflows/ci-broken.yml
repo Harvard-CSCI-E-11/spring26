@@ -19,6 +19,9 @@ concurrency:
 
 jobs:
   test:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

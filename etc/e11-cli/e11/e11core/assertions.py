@@ -8,6 +8,7 @@ class TestFail(Exception):
     __test__ = False            # tell pytest not to treat this as a test case
     context: Optional[str] = None
     line: Optional[int] = None
+    terminate: bool = False     # if True, do no other tests
 
     def __str__(self):
         return self.message
