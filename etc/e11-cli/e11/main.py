@@ -370,7 +370,7 @@ def do_check_syntax(args):
     files_checked = 0
     errors = 0
     merror = False
-    for (root,dirs,files) in os.walk("."):
+    for (root,_,files) in os.walk("."):
         if ".venv" in root:
             continue
         for fn in files:
@@ -386,7 +386,7 @@ def do_check_syntax(args):
                 continue
             module_name = path.replace("/",".").replace(".py","")
             cmd = f"poetry run python -c 'import {module_name}'"
-            p = subprocess.run(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, encoding='utf-8')
+            p = subprocess.run(cmd,shell=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT, encoding='utf-8',check=False)
             if p.returncode!=0:
                 print(f"{path}: error:\n",p.stdout)
                 if 'ModuleNotFoundError' in p.stdout:
