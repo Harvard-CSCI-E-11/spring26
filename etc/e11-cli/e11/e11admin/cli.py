@@ -73,18 +73,21 @@ def get_name(user):
         return claims.get('name','n/a')
     return 'n/a'
 
-def show_registered_users():
-    print("================ show_registered_users ================")
+def show_registered_users(claims):
     users = get_all(sk='#',projection='user_id,user_registered,email,public_ip,claims,preferred_name')
     pusers = [ (get_name(user),
                 user.get('email','n/a'),
+                'Y' if user.get('claims') else '',
                 time.asctime(time.localtime(int(user.get('user_registered',0)))),
                 user.get('public_ip','n/a'),
                 user.get('user_id')
                 )
               for user in users]
+    if claims:
+        pusers = [user for user in pusers if user[2]]
     pusers.sort()
-    print(tabulate(pusers,headers=['preferred_name','email','registered','public_ip','user_id']))
+    print(f"\n\nUsers: {len(pusers)}")
+    print(tabulate(pusers,headers=['preferred_name','email','Harvard','registered','public_ip','user_id']))
     print("")
 
 def dump_users_table(args,user_id=None):
@@ -150,6 +153,7 @@ def main():
     parser.add_argument("--user_id", help='Specify the user_id')
     parser.add_argument("--sk", help='Specify the sk')
     parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
+    parser.add_argument("--claims", help="Only show users with claims", action='store_true')
     args = parser.parse_args()
     validate_dynamodb()
 
@@ -165,7 +169,7 @@ def main():
         new_course_key(args.newkey)
         return 0
 
-    show_registered_users()
+    show_registered_users(claims=args.claims)
     if args.dump:
         dump_users_table(args)
     if args.delete_userid:
