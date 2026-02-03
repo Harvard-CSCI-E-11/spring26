@@ -46,7 +46,7 @@ start_dynamodb_local() {
     echo "Starting DynamoDB Local..."
     java -Djava.library.path="$MYDIR/DynamoDBLocal_lib" -jar "$MYDIR/DynamoDBLocal.jar" \
          $FLAGS > "$LOGDIR/dynamodb_local.stdout" 2> "$LOGDIR/dynamodb_local.stderr" &
-    echo $! > $PIDFILE
+    echo $! > "$PIDFILE"
 
     wait_dynamodb_local
     echo "DynamoDB Local started in the background (PID: $!)."
@@ -55,7 +55,7 @@ start_dynamodb_local() {
 
 # Function to stop DynamoDB Local
 stop_dynamodb_local() {
-    if [ -f $PIDFILE ]; then
+    if [ -f "$PIDFILE" ]; then
         PID=$(cat $PIDFILE)
         if ps -p $PID > /dev/null; then
             echo "Stopping DynamoDB Local (PID: $PID)..."
@@ -66,11 +66,11 @@ stop_dynamodb_local() {
                 echo "DynamoDB Local (PID: $PID) did not shut down gracefully. Forcing kill."
                 kill -9 $PID # Force kill if it's still running
             fi
-            rm -f $PIDFILE
+            rm -f "$PIDFILE"
             echo "DynamoDB Local stopped."
         else
             echo "PID file exists but DynamoDB Local (PID: $PID) is not running. Removing stale PID file."
-            rm -f $PIDFILE
+            rm -f "$PIDFILE"
         fi
     else
         echo "No $PIDFILE file found. Checking for running process with pgrep."
