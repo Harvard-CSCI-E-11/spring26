@@ -1,4 +1,8 @@
-Organization:
+# Lambda-Home
+
+Lambda-Home is the AWS Lambda function that powers the CSCI E-11 student dashboard at `https://csci-e-11.org/`. It handles student registration, processes grading requests, and provides the web interface where students can view their grades and course status. The function authenticates users via Harvard Key (OIDC) and stores all data in DynamoDB.
+
+## Organization
 ```
 your-project/                    # Parent directory with your e11 package
 ├── pyproject.toml              # Defines how to install the e11 package
