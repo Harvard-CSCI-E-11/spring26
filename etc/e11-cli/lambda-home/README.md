@@ -40,7 +40,7 @@ poetry run pip freeze | grep -v "^-e " | grep -v "^e11==" > src/requirements.txt
 # 4. Build SAM application
 sam build --use-container
 
-# 5. Start DynamoDB Local (new terminal)
+# 5. Start DynamoDB Local (in a new terminal)
 cd /path/to/e11-spring26-dev/etc/e11-cli
 make start_local_dynamodb
 
