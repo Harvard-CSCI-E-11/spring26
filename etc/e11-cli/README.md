@@ -88,6 +88,9 @@ Available staff commands:
 * `e11 student-report --dump` - Dump all user information
 * `e11 grades <email>` - Show all grades for a specific student
 * `e11 grades <lab>` - Show all grades for a specific lab (e.g., `e11 grades lab1`)
+  - Shows all submission attempts followed by highest grades (sorted by email)
+  - Add `--highest-grade` flag to show only highest grades sorted by preferred_name in CSV format
+  - Example: `e11 grades lab1 --highest-grade`
 
 ### The `e11admin` Command
 The `e11admin` command is a separate CLI tool for faculty to run on their desktop computers.

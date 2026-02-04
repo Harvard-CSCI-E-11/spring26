@@ -117,9 +117,44 @@ def get_class_list():
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
     return queryscan_table(users_table.scan, kwargs)
 
-def do_student_grades_lab(lab):
-    """Grades for a lab. Requires a scan."""
+def do_student_grades_lab(lab, highest_grade=False):
+    """
+    Display grade information for all students who submitted a specific lab.
+
+    Args:
+        lab (str): Lab identifier (e.g., 'lab1', 'lab2', 'lab3', etc.)
+        highest_grade (bool): Output mode selector
+            - False (default): Show all submission attempts followed by highest grades
+            - True: Show only highest grades (activated by --highest-grade flag)
+
+    Output Format:
+        CSV format with header: email,name,score,timestamp
+        Names are quoted to handle spaces and special characters safely
+
+    Sorting:
+        - When highest_grade=False: Sorted by email address (alphabetically)
+        - When highest_grade=True: Sorted by preferred_name (case-insensitive)
+          with 'N/A' and 'None' values sorted to the end
+
+    Data Source:
+        - Queries DynamoDB e11-users table for grade records matching grade#labN#timestamp pattern
+        - Retrieves student information (email, preferred_name) via get_class_list()
+        - For students with multiple submissions, tracks and displays the highest score
+
+    Returns:
+        None. Prints results directly to stdout.
+
+    Example Output (highest_grade=True):
+        Grades for lab: lab1
+        email,name,score,timestamp
+        dmalfoy@hogwarts.edu,"Draco Malfoy",4.17,grade#lab1#2026-01-30T16:45:18.345678
+        hpotter@hogwarts.edu,"Harry Potter",5.0,grade#lab1#2026-01-29T14:30:22.123456
+        hgranger@hogwarts.edu,"Hermione Granger",5.0,grade#lab1#2026-01-28T09:15:33.789012
+    """
+    # Build user_id to user info mapping (email, preferred_name)
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
+
+    # Query DynamoDB for all grade records matching this lab (e.g., grade#lab1#timestamp)
     kwargs:dict = {
         'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
         'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
@@ -127,18 +162,36 @@ def do_student_grades_lab(lab):
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
 
-    #
-    # Get the highest grade for each student
+    # Process all submissions and track highest grade per student
+    # grades dict structure: {email: (preferred_name, score, timestamp)}
     grades = {}
     for item in items:
+        # Extract student information for this grade record
         email = userid_to_user[item['user_id']]['email']
+        preferred_name = userid_to_user[item['user_id']].get('preferred_name', 'N/A')
         score = Decimal(item[A.SCORE])
-        row = [email, item[A.SCORE], item[A.SK]]
-        print(row)
-        if (email not in grades) or (grades[email][0] < score):
-            grades[email] = (score, item[A.SK])
-    for (k,v) in sorted(grades.items()):
-        print(k,v)
+        row = [preferred_name, email, item[A.SCORE], item[A.SK]]
+
+        # Print all attempts unless --highest-grade flag is set
+        if not highest_grade:
+            print(row)
+
+        # Update highest grade if this is first submission or higher score
+        if (email not in grades) or (grades[email][1] < score):
+            grades[email] = (preferred_name, score, item[A.SK])
+
+    # Sort by preferred_name (case-insensitive) if --highest-grade, otherwise by email
+    if highest_grade:
+        sorted_grades = sorted(grades.items(), key=lambda x: (x[1][0] in ['N/A', 'None'], x[1][0].upper()))
+    else:
+        sorted_grades = sorted(grades.items())
+
+    # Print header and highest grade for each student
+    print("email,name,score,timestamp")
+    for (k,v) in sorted_grades:
+
+        # Protect CSV file from  commas in names
+        print(f'{k},"{v[0]}",{v[1]},{v[2]}')
 
 def do_student_grades_email(email):
     print("Grades for: ",email)
@@ -159,7 +212,7 @@ def do_student_grades_email(email):
 def do_student_grades(args):
     whowhat = args.whowhat
     if whowhat.startswith("lab"):
-        do_student_grades_lab(whowhat)
+        do_student_grades_lab(whowhat, highest_grade=args.highest_grade)
     else:
         do_student_grades_email(whowhat)
 
@@ -179,6 +232,8 @@ def add_staff_parsers(parser,subparsers):
 
     ca = subparsers.add_parser('grades', help='E11_STAFF: Show grades or a student or a lab')
     ca.add_argument(dest='whowhat', help='Email address or a lab')
+    ca.add_argument('--highest-grade', action='store_true',
+                    help='Show only highest grades, sorted by name')
     ca.set_defaults(func=do_student_grades)
 
     parser.add_argument("--keyfile",help="SSH private key file")
