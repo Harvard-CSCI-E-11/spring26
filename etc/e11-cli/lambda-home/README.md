@@ -52,3 +52,18 @@ make start_local_dynamodb
 cd /path/to/e11-spring26-dev/etc/e11-cli/lambda-home
 sam local start-api --profile e11-staff
 ```
+
+## Testing
+
+See [tests/README.md](tests/README.md) for comprehensive test documentation.
+
+Quick start:
+```bash
+# Start DynamoDB Local (from etc/e11-cli directory)
+make start_local_dynamodb
+
+# Run tests (from lambda-home directory)
+poetry run pytest tests/ -v
+```
+
+The test suite includes 91 tests covering OIDC authentication, registration API, dashboard routing, grading queue, and utility functions.
