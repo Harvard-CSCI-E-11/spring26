@@ -4,7 +4,6 @@ Draw a bouncing ball.
 
 import time
 import random
-import typing
 
 import displayio
 import vectorio
@@ -12,11 +11,13 @@ import board
 import pwmio
 import digitalio
 
-# --- PYRIGHT FIX START ---
-if typing.TYPE_CHECKING:
-    from typing import Any
-    board: Any = board
-# --- PYRIGHT FIX END ---
+try:
+    import typing
+    if typing.TYPE_CHECKING:
+        from typing import Any
+        board: Any = board
+except ImportError:
+    pass
 
 # --- Configuration ---
 SCREEN_WIDTH = 240
