@@ -21,7 +21,6 @@ import requests
 
 from email_validator import validate_email, EmailNotValidError
 
-from . import staff
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,DEFAULT_TIMEOUT,get_config
 
 from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX, COURSE_ROOT
@@ -574,16 +573,11 @@ def get_parser():
     check_syntax_parser.add_argument(dest='lab', help='Lab to check')
     check_syntax_parser.set_defaults(func=do_check_syntax)
 
-
     # e11 lab8
     lab8_parser = subparsers.add_parser('lab8', help='Lab8 commands')
     lab8_parser.add_argument("--upload", help="File to upload", type=Path)
     lab8_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     lab8_parser.set_defaults(func=do_lab8)
-
-    # e11 staff commands
-    if staff.enabled():
-        staff.add_staff_parsers(parser,subparsers)
 
     return parser
 
@@ -597,8 +591,6 @@ def main():
             pass
         elif args.command=='report':
             pass  # report commands don't need EC2
-        elif staff.enabled():
-            pass
         elif args.force:
             print("WARNING: This should be run on EC2")
         else:

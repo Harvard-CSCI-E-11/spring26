@@ -14,6 +14,8 @@ from tabulate import tabulate
 from e11.e11core.utils import smash_email
 from e11.e11_common import A,make_course_key,get_user_from_email
 
+from . import staff
+
 dynamodb_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
 users_table = dynamodb.Table('e11-users')
@@ -40,7 +42,6 @@ def get_all(*, sk=None, user_id=None, projection=None):
     Currently this requires a scan. We need to modify the schema to allow us to do this efficiently with a query.
     """
     # Use a FilterExpression to find items where 'sk' equals 'USER'
-
     # Start the scan
 
     kwargs = {}
@@ -73,18 +74,21 @@ def get_name(user):
         return claims.get('name','n/a')
     return 'n/a'
 
-def show_registered_users():
-    print("================ show_registered_users ================")
+def show_registered_users(claims):
     users = get_all(sk='#',projection='user_id,user_registered,email,public_ip,claims,preferred_name')
     pusers = [ (get_name(user),
                 user.get('email','n/a'),
+                'Y' if user.get('claims') else '',
                 time.asctime(time.localtime(int(user.get('user_registered',0)))),
                 user.get('public_ip','n/a'),
                 user.get('user_id')
                 )
               for user in users]
+    if claims:
+        pusers = [user for user in pusers if user[2]]
     pusers.sort()
-    print(tabulate(pusers,headers=['preferred_name','email','registered','public_ip','user_id']))
+    print(f"\n\nUsers: {len(pusers)}")
+    print(tabulate(pusers,headers=['preferred_name','email','Harvard','registered','public_ip','user_id']))
     print("")
 
 def dump_users_table(args,user_id=None):
@@ -140,19 +144,8 @@ def new_course_key(user_id):
     print("new user:",json.dumps(dict(user),indent=4,default=str))
 
 
-def main():
-    parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--dump", help='Dump all ', action='store_true')
-    parser.add_argument("--delete_userid", help='Delete a user')
-    parser.add_argument("--delete_item", help='Delete a user_id, sk',action='store_true')
-    parser.add_argument("--newkey", help="Create a new course key for the user specified by email address")
-    parser.add_argument("--user_id", help='Specify the user_id')
-    parser.add_argument("--sk", help='Specify the sk')
-    parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
-    args = parser.parse_args()
+def do_class(args):
     validate_dynamodb()
-
     if args.ssh:
         smashed_email = smash_email(args.ssh)
         cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
@@ -161,13 +154,15 @@ def main():
 
     if args.delete_item:
         delete_item(user_id=args.user_id, sk=args.sk)
+
     if args.newkey:
         new_course_key(args.newkey)
-        return 0
+        return
 
-    show_registered_users()
+    show_registered_users(claims=args.claims)
     if args.dump:
         dump_users_table(args)
+
     if args.delete_userid:
         items = dump_users_table(args,user_id=args.delete_userid)
         if not items:
@@ -176,6 +171,43 @@ def main():
         response = input("really delete user? [n/YES]")
         if response=='YES':
             delete_items(items)
+
+def main():
+    parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    subparsers = parser.add_subparsers(dest='command', required=True)
+    # e11 class
+    class_parser = subparsers.add_parser('class', help='Commands for E11 class')
+    class_parser.set_defaults(func=do_class)
+    class_parser.add_argument("--dump", help='Dump all ', action='store_true')
+    class_parser.add_argument("--delete_userid", help='Delete a user')
+    class_parser.add_argument("--delete_item", help='Delete a user_id, sk',action='store_true')
+    class_parser.add_argument("--newkey", help="Create a new course key for the user specified by email address")
+    class_parser.add_argument("--user_id", help='Specify the user_id')
+    class_parser.add_argument("--sk", help='Specify the sk')
+    class_parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
+    class_parser.add_argument("--claims", help="Only show users with claims", action='store_true')
+
+    ca = subparsers.add_parser('check-access', help='Check to see if we can access a host')
+    ca.add_argument(dest='host', help='Host to check')
+    ca.add_argument("--keyfile",help="SSH private key file")
+    ca.set_defaults(func=staff.do_check_access)
+
+    ca = subparsers.add_parser('register-email', help='Register an email address directly with DynamoDB')
+    ca.add_argument(dest='email', help='Email address to register')
+    ca.set_defaults(func=staff.do_register_email)
+
+    ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
+    ca.set_defaults(func=staff.do_student_report)
+    ca.add_argument("--dump",help="Dump all information", action='store_true')
+
+    ca = subparsers.add_parser('grades', help='Show grades or a student or a lab')
+    ca.add_argument(dest='whowhat', help='Email address or a lab')
+    ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
+    ca.set_defaults(func=staff.do_student_grades)
+
+    args = parser.parse_args()
+    args.func(args)
     return 0
 
 if __name__=="__main__":

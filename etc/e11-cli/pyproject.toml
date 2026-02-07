@@ -41,6 +41,10 @@ types-requests = "^2.32.4.20250913"
 ruff = "*"
 types-boto3 = "^1.42.1"
 argparse-manpage = "^4.7"
+mypy-boto3-cloudformation = "^1.42.3"
+mypy-boto3-ec2 = "^1.42.38"
+mypy-boto3-lambda = "^1.42.37"
+mypy-boto3-rds = "^1.42.28"
 
 [build-system]
 requires = ["poetry-core>=1.0.0","argparse-manpage>=4.7.0"]
