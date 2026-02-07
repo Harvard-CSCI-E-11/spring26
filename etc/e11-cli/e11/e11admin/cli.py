@@ -157,7 +157,7 @@ def do_class(args):
 
     if args.newkey:
         new_course_key(args.newkey)
-        return 0
+        return
 
     show_registered_users(claims=args.claims)
     if args.dump:
@@ -205,7 +205,6 @@ def main():
     ca.add_argument(dest='whowhat', help='Email address or a lab')
     ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
     ca.set_defaults(func=staff.do_student_grades)
-
 
     args = parser.parse_args()
     args.func(args)
