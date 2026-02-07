@@ -128,17 +128,18 @@ def do_student_grades_lab(args):
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
 
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2]) for r in items if r[A.SK].count('#')==2]
-    all_grades.sort()
-    if args.all:
-        print(tabulate(all_grades))
-        return
+    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2])
+                  for r in items if r[A.SK].count('#')==2]
+    if not args.all:
+        # Remove all but the highest grades
+        highest_grade = {}
+        for row in all_grades:
+            (email,grade,sk) = row
+            if (email not in highest_grade) or (grade>highest_grade[email][1]):
+                highest_grade[email] = row
+        all_grades = list(highest_grade.values())
 
-    # Need to remove the grades that are not the highest. Do one pass to find the higest grade by processing the list in reverse
-    highest_grade = {}
-    for r in reversed(all_grades):
-        if r[0] not in highest_grade:
-            highest_grade[r[0]] = r
+    all_grades.sort()
     # Now print
     print(tabulate(sorted(highest_grade.values())))
 
