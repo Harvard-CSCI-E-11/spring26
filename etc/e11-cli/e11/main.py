@@ -591,8 +591,6 @@ def main():
             pass
         elif args.command=='report':
             pass  # report commands don't need EC2
-        elif staff.enabled():
-            pass
         elif args.force:
             print("WARNING: This should be run on EC2")
         else:
