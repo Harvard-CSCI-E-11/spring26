@@ -128,7 +128,7 @@ def do_student_grades_lab(args):
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
 
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],r[A.SK].split('#')[2],str(r[A.SCORE])) for r in items if r[A.SK].count('#')==2]
+    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],r[A.SCORE],r[A.SK].split('#')[2]) for r in items if r[A.SK].count('#')==2]
     all_grades.sort()
     if args.all:
         print(tabulate(all_grades))
