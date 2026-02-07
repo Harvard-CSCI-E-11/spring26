@@ -15,8 +15,8 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 
-from .e11core.e11ssh import E11Ssh
-from .e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
+from e11.e11core.e11ssh import E11Ssh
+from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -117,8 +117,9 @@ def get_class_list():
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
     return queryscan_table(users_table.scan, kwargs)
 
-def do_student_grades_lab(lab):
+def do_student_grades_lab(args):
     """Grades for a lab. Requires a scan."""
+    lab = args.whowhat
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
     kwargs:dict = {
         'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
@@ -127,20 +128,22 @@ def do_student_grades_lab(lab):
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
 
-    #
-    # Get the highest grade for each student
-    grades = {}
-    for item in items:
-        email = userid_to_user[item['user_id']]['email']
-        score = Decimal(item[A.SCORE])
-        row = [email, item[A.SCORE], item[A.SK]]
-        print(row)
-        if (email not in grades) or (grades[email][0] < score):
-            grades[email] = (score, item[A.SK])
-    for (k,v) in sorted(grades.items()):
-        print(k,v)
+    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],r[A.SK].split('#')[2],str(r[A.SCORE])) for r in items if r[A.SK].count('#')==2]
+    all_grades.sort()
+    if args.all:
+        print(tabulate(all_grades))
+        return
 
-def do_student_grades_email(email):
+    # Need to remove the grades that are not the highest. Do one pass to find the higest grade by processing the list in reverse
+    highest_grade = {}
+    for r in reversed(all_grades):
+        if r[0] not in highest_grade:
+            highest_grade[r[0]] = r
+    # Now print
+    print(tabulate(sorted(highest_grade.values())))
+
+def do_student_grades_email(args):
+    email = args.whowhat
     print("Grades for: ",email)
     user = get_user_from_email(email)
     for (k,v) in sorted(dict(user).items()):
@@ -157,28 +160,7 @@ def do_student_grades_email(email):
 
 
 def do_student_grades(args):
-    whowhat = args.whowhat
-    if whowhat.startswith("lab"):
-        do_student_grades_lab(whowhat)
+    if args.whowhat.startswith("lab"):
+        do_student_grades_lab(args)
     else:
-        do_student_grades_email(whowhat)
-
-
-def add_staff_parsers(parser,subparsers):
-    ca = subparsers.add_parser('check-access', help='E11_STAFF: Check to see if we can access a host')
-    ca.add_argument(dest='host', help='Host to check')
-    ca.set_defaults(func=do_check_access)
-
-    ca = subparsers.add_parser('register-email', help='E11_STAFF: Register an email address directly with DynamoDB')
-    ca.add_argument(dest='email', help='Email address to register')
-    ca.set_defaults(func=do_register_email)
-
-    ca = subparsers.add_parser('student-report', help='E11_STAFF: Generate a report directly from DynamoDB')
-    ca.set_defaults(func=do_student_report)
-    ca.add_argument("--dump",help="Dump all information", action='store_true')
-
-    ca = subparsers.add_parser('grades', help='E11_STAFF: Show grades or a student or a lab')
-    ca.add_argument(dest='whowhat', help='Email address or a lab')
-    ca.set_defaults(func=do_student_grades)
-
-    parser.add_argument("--keyfile",help="SSH private key file")
+        do_student_grades_email(args)
