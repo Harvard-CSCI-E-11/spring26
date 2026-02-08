@@ -75,7 +75,7 @@ jobs:
         if: matrix.python-version == '3.13'
         uses: codecov/codecov-action@v5
         with:
-          files: coverage.xml,lambda-home/coverage.xml,lambda-leaderboard/coverage.xml
+          files: etc/e11-cli/coverage.xml,etc/e11-cli/lambda-home/coverage.xml,etc/e11-cli/lambda-leaderboard/coverage.xml
           flags: unittests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -85,5 +85,6 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           report_type: test_results
-          files: junit1.xml,lambda-home/junit1.xml
+          files: etc/e11-cli/junit.xml,etc/e11-cli/lambda-home/junit.xml
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
