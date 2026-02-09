@@ -119,7 +119,7 @@ def get_class_list():
     return queryscan_table(users_table.scan, kwargs)
 
 def print_grades(items, args):
-
+    userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
     all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2])
                   for r in items if r[A.SK].count('#')==2]
     if not args.all:
@@ -138,7 +138,6 @@ def print_grades(items, args):
 def do_student_grades_lab(args):
     """Grades for a lab. Requires a scan."""
     lab = args.whowhat
-    userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
     kwargs:dict = {
         'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
         'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
@@ -189,6 +188,6 @@ def force_grades(args):
     home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
     if home_path not in sys.path:
         sys.path.append(home_path)
-    from home_app import home
+    from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
 
     home.queue_grade(args.email,args.lab) # is it this simple?
