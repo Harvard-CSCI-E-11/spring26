@@ -206,6 +206,11 @@ def main():
     ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
     ca.set_defaults(func=staff.do_student_grades)
 
+    ca = subparsers.add_parser('force-grade', help='Force the grading of a student or lab')
+    ca.add_argument(dest='email', help='email to grade (use "all" for all)')
+    ca.add_argument(dest='lab', help='lab to grade')
+    ca.set_defaults(func=staff.force_grades)
+
     args = parser.parse_args()
     args.func(args)
     return 0

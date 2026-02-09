@@ -70,7 +70,7 @@ def fake_idp_server():
 # IMPORTANT: We use DynamoDB Local for testing, NOT monkeypatching for DynamoDB.
 # Tests should create actual records in DynamoDB Local using functions like create_new_user()
 # and new_session(), and query the real tables. Do NOT mock users_table.query or sessions_table.query.
-DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8010/')
+DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8000/')
 
 def pytest_configure(config):
     """Configure pytest to use local DynamoDB"""

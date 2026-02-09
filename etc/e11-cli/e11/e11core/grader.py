@@ -48,40 +48,53 @@ def collect_tests_in_definition_order(mod):
             tests.extend(_iter_test_functions_in_class(obj))
     return tests
 
+def sanitize_ctx(ctx):
+    """Convert ctx to dict for JSON serialization"""
+    return {
+        "version": ctx.version,
+        "lab": ctx.lab,
+        "labnum": ctx.labnum,
+        "course_root": ctx.course_root,
+        "labdir": ctx.labdir,
+        "labdns": ctx.labdns,
+        "course_key": ctx.course_key,
+        "email": ctx.email,
+        "smashedemail": ctx.smashedemail,
+        "public_ip": ctx.public_ip,
+        "grade_with_ssh": ctx.grade_with_ssh,
+        "pkey_pem": "<censored>" if ctx.pkey_pem else None,
+        "key_filename": ctx.key_filename,
+    }
+
 def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
     """Returns the summary of the lab results"""
     lab = ctx.lab  # 'lab3'
     try:
         mod = _import_tests_module(lab)
     except ModuleNotFoundError as e:
-        # Create the error dict
-        ctx_dict = {
-            "version": ctx.version,
-            "lab": ctx.lab,
-            "labnum": ctx.labnum,
-            "course_root": ctx.course_root,
-            "labdir": ctx.labdir,
-            "labdns": ctx.labdns,
-            "course_key": ctx.course_key,
-            "email": ctx.email,
-            "smashedemail": ctx.smashedemail,
-            "public_ip": ctx.public_ip,
-            "grade_with_ssh": ctx.grade_with_ssh,
-            "pkey_pem": "<censored>" if ctx.pkey_pem else None,
-            "key_filename": ctx.key_filename,
-        }
         return {"score": 0.0,
                 "tests": [],
                 "error": f"Test module not found: e11.lab_tests.{lab}_test. {e} Please contact course admin.",
-                "ctx": ctx_dict}
+                "ctx": sanitize_ctx(ctx)}
 
     # Create the test runner
     if ctx.grade_with_ssh:
         LOGGER.info("SSH will connect to %s (lab=%s)", ctx.public_ip, lab)
         assert ctx.public_ip is not None
-        tr = TestRunner( ctx, ssh = E11Ssh( ctx.public_ip,
-                                            key_filename=ctx.key_filename,
-                                            pkey_pem=ctx.pkey_pem))
+        try:
+            tr = TestRunner( ctx, ssh = E11Ssh( ctx.public_ip,
+                                                key_filename=ctx.key_filename,
+                                                pkey_pem=ctx.pkey_pem))
+        except TimeoutError:
+            return {"lab": lab,
+                    "passes": 0,
+                    "fails": 0,
+                    "tests": [{"name":"tests", "status":"fail", "message":"cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?", "duration":0}],
+                    "score": 0,
+                    "message" : "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?",
+                    "ctx" : sanitize_ctx(ctx),
+                    "error": False}
+
     else:
         LOGGER.info("Tests will run locally")
         tr = TestRunner( ctx )
@@ -141,22 +154,6 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
             fails.append(name)
 
     score = POINTS_PER_LAB * (len(passes) / len(tests)) if tests else 0.0
-    # Convert ctx to dict for JSON serialization
-    ctx_dict = {
-        "version": ctx.version,
-        "lab": ctx.lab,
-        "labnum": ctx.labnum,
-        "course_root": ctx.course_root,
-        "labdir": ctx.labdir,
-        "labdns": ctx.labdns,
-        "course_key": ctx.course_key,
-        "email": ctx.email,
-        "smashedemail": ctx.smashedemail,
-        "public_ip": ctx.public_ip,
-        "grade_with_ssh": ctx.grade_with_ssh,
-        "pkey_pem": "<censored>" if ctx.pkey_pem else None,
-        "key_filename": ctx.key_filename,
-    }
     # If the student get a perfect, get the success message
     message = ""
     if len(passes) == len(tests):
@@ -175,7 +172,7 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
             "tests": results,
             "score": round(score, 2),
             "message" : message,
-            "ctx": ctx_dict,
+            "ctx": sanitize_ctx(ctx),
             "error": False}
 
 

@@ -16,7 +16,8 @@ from botocore.exceptions import ClientError
 
 
 from e11.e11core.e11ssh import E11Ssh
-from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
+from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,
+                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -117,6 +118,23 @@ def get_class_list():
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
     return queryscan_table(users_table.scan, kwargs)
 
+def print_grades(items, args):
+
+    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2])
+                  for r in items if r[A.SK].count('#')==2]
+    if not args.all:
+        # Remove all but the highest grades
+        highest_grade = {}
+        for row in all_grades:
+            (email,grade,_sk) = row
+            if (email not in highest_grade) or (grade>highest_grade[email][1]):
+                highest_grade[email] = row
+        all_grades = list(highest_grade.values())
+
+    all_grades.sort()
+    # Now print
+    print(tabulate(sorted(highest_grade.values())))
+
 def do_student_grades_lab(args):
     """Grades for a lab. Requires a scan."""
     lab = args.whowhat
@@ -127,21 +145,7 @@ def do_student_grades_lab(args):
     }
     items = queryscan_table(users_table.scan, kwargs)
     print("Grades for lab:",lab)
-
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2])
-                  for r in items if r[A.SK].count('#')==2]
-    if not args.all:
-        # Remove all but the highest grades
-        highest_grade = {}
-        for row in all_grades:
-            (email,grade,sk) = row
-            if (email not in highest_grade) or (grade>highest_grade[email][1]):
-                highest_grade[email] = row
-        all_grades = list(highest_grade.values())
-
-    all_grades.sort()
-    # Now print
-    print(tabulate(sorted(highest_grade.values())))
+    print_grades(items, args)
 
 def do_student_grades_email(args):
     email = args.whowhat
@@ -155,13 +159,33 @@ def do_student_grades_email(args):
         Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
     )}
     items = queryscan_table(users_table.query, kwargs)
-    print("*** note - only print the highest grade")
-    for item in items:
-        print(item)
-
+    print("Grades for user:",email)
+    print_grades(items, args)
 
 def do_student_grades(args):
     if args.whowhat.startswith("lab"):
         do_student_grades_lab(args)
     else:
         do_student_grades_email(args)
+
+
+def find_queue():
+    # Find the grade queue
+    sqs = boto3.client('sqs')
+    r = sqs.list_queues()
+    for q in r['QueueUrls']:
+        if 'prod-home-queue' in q:
+            return q
+    raise RuntimeError("prod-home-queue SQS queue not found")
+
+def force_grades(args):
+    queue_name = find_queue()
+    print("sending message to",queue_name)
+    os.environ['SQS_QUEUE_URL'] = queue_name
+
+    base_dir = os.path.dirname(__file__)
+    home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
+    if home_path not in sys.path:
+        sys.path.append(home_path)
+    from home_app import home
+    home.queue_grade(args.email,args.lab) # is it this simple?

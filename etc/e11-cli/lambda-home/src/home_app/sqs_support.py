@@ -46,8 +46,8 @@ def _get_sqs_auth_secret() -> Optional[str]:
     Results are cached to avoid repeated Secrets Manager calls.
     """
     if not SQS_AUTH_SECRET_ID:
+        LOGGER.error("SQS_AUTH_SECRET_ID not provided")
         return None
-
     try:
         secret_response = secretsmanager_client.get_secret_value(SecretId=SQS_AUTH_SECRET_ID)
         secret_string = secret_response.get("SecretString", "")
@@ -63,7 +63,6 @@ def _get_sqs_auth_secret() -> Optional[str]:
         if not secret:
             LOGGER.warning("SQS auth secret found but empty in Secrets Manager")
             return None
-
         return secret
     except (ClientError, json.JSONDecodeError, KeyError) as e:
         LOGGER.error("Failed to get SQS auth secret from Secrets Manager: %s", e)
@@ -110,6 +109,7 @@ def sign_sqs_message(action: str, method: str, payload: Optional[Dict[str, Any]]
         LOGGER.debug("SQS message signed for action=%s method=%s", action, method)
     else:
         LOGGER.debug("SQS message not signed (authentication disabled) for action=%s method=%s", action, method)
+        raise RuntimeError("Could not get sqs_auth_secret")
 
     return json.dumps(message_body)
 

@@ -4,7 +4,7 @@
 
 * **Fake IdP**: Flask app serves discovery, /authorize (redirect back with code/state), /token (validates PKCE, signs an RS256 ID token), and /keys (JWKS).
 
-* **DynamoDB Local**: Tests use DynamoDB Local (running on localhost:8010) via the `dynamodb_local` fixture. **We do NOT monkeypatch DynamoDB operations** - we use real DynamoDB Local tables with proper GSI indexes.
+* **DynamoDB Local**: Tests use DynamoDB Local (running on localhost:8000) via the `dynamodb_local` fixture. **We do NOT monkeypatch DynamoDB operations** - we use real DynamoDB Local tables with proper GSI indexes.
 
 * **Mocked AWS Services**: The `fake_aws` fixture patches AWS service clients (Route53, SES, S3) but uses REAL DynamoDB Local tables for `users_table` and `sessions_table`.
 
