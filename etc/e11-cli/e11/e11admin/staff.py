@@ -182,10 +182,13 @@ def force_grades(args):
     queue_name = find_queue()
     print("sending message to",queue_name)
     os.environ['SQS_QUEUE_URL'] = queue_name
+    if 'SQS_SECRET_ID' not in os.environ:
+        raise RuntimeError("Set environment variable SQS_SECRET_ID")
 
     base_dir = os.path.dirname(__file__)
     home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
     if home_path not in sys.path:
         sys.path.append(home_path)
     from home_app import home
+
     home.queue_grade(args.email,args.lab) # is it this simple?
