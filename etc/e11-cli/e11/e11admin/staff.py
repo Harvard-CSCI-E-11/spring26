@@ -165,6 +165,7 @@ def do_student_grades(args):
     items = get_items(args.whowhat)
     print_grades(items, args)
 
+# pylint:  disable=too-many-branches,disable=too-many-statements
 def canvas_grades(args):
     """Get all of the grades and merge them with an exported grade sheet. This requires name matching
 
@@ -249,7 +250,7 @@ Required columns and order
             class_list[item[A.USER_ID]][A.SCORE] = item[A.SCORE]
         except KeyError:
             print("cannot match grades:",item)
-            pass
+
 
     def exact_match(name):
         (last,first) = name.lower().split(", ")
