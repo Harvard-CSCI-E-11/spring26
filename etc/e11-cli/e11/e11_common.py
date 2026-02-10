@@ -18,6 +18,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 from boto3.dynamodb.conditions import Key
+import botocore
 
 from e11.e11core.constants import COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11core.utils import get_logger
@@ -197,10 +198,16 @@ def queryscan_table(what, kwargs):
     :param what:  should be users_table.scan, users_table.query, etc.
     :param kwargs: should be the args that are used for the query or scan.
     """
+    logger = get_logger()
     kwargs = copy.copy(kwargs)  # it will be modified
     items = []
     while True:
-        response = what(**kwargs)
+        try:
+            response = what(**kwargs)
+        except botocore.exceptions.ClientError:
+            logger.error("AWS_PROFILE=%s AWS_REGION=%s",os.getenv('AWS_PROFILE'),AWS_REGION)
+            logger.exception("Cannot %s",what)
+            raise
         items.extend(response.get('Items',[]))
         lek = response.get('LastEvaluatedKey')
         if not lek:
