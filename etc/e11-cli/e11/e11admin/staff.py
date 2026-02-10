@@ -280,9 +280,14 @@ Required columns and order
         print(row)
     print("Total grades:",len(output_names_and_grades)-1,"\n")
     print("unmatched grades:")
+    unmatched = []
     for item in class_list:
         if A.SCORE in item:
             print(item)
+            unmatched.append(item)
+    if unmatched > 0:
+        print("Unmatched.  Will not continued")
+        sys.exit(1)
 
     print("Generating output")
     with args.outfile.open("w") as f:
