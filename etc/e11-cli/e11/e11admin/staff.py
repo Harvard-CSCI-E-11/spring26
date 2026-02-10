@@ -6,6 +6,7 @@ e11 staff commands.
 import sys
 import os
 import time
+import csv
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -52,6 +53,8 @@ def do_register_email(args):
     login_url = generate_direct_login_url(user.user_id, user.course_key)
     print(f"Registered {args.email}\ncourse_key={user.course_key}\nLogin URL: {login_url}")
 
+################################################################
+###
 def do_student_report(args):
     session = boto3.session.Session()
     current_profile = session.profile_name
@@ -115,8 +118,11 @@ def do_student_report(args):
 def get_class_list():
     """Get the entire class list. Requires a scan."""
     kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
-                   'ProjectionExpression': f'{A.USER_ID}, email, preferred_name' }
+                   'ProjectionExpression': f'{A.USER_ID}, email, preferred_name, claims' }
     return queryscan_table(users_table.scan, kwargs)
+
+################################################################
+## Print and upload student grades
 
 def print_grades(items, args):
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
@@ -135,21 +141,15 @@ def print_grades(items, args):
     # Now print
     print(tabulate(sorted(highest_grade.values())))
 
-def do_student_grades_lab(args):
-    """Grades for a lab. Requires a scan."""
-    lab = args.whowhat
-    kwargs:dict = {
-        'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#') ),
-        'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
-    }
-    items = queryscan_table(users_table.scan, kwargs)
-    print("Grades for lab:",lab)
-    print_grades(items, args)
-
-def do_student_grades_email(args):
-    email = args.whowhat
-    print("Grades for: ",email)
-    user = get_user_from_email(email)
+def get_items(whowhat):
+    """Return either the grades for a lab or a person"""
+    if whowhat.startswith("lab"):
+        kwargs:dict = {
+            'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{whowhat}#') ),
+            'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
+        }
+        return queryscan_table(users_table.scan, kwargs)
+    user = get_user_from_email(whowhat)
     for (k,v) in sorted(dict(user).items()):
         print(f"{k}:{v}")
 
@@ -157,16 +157,141 @@ def do_student_grades_email(args):
         Key(A.USER_ID).eq(user.user_id) &
         Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
     )}
-    items = queryscan_table(users_table.query, kwargs)
-    print("Grades for user:",email)
-    print_grades(items, args)
+    return queryscan_table(users_table.query, kwargs)
 
 def do_student_grades(args):
-    if args.whowhat.startswith("lab"):
-        do_student_grades_lab(args)
-    else:
-        do_student_grades_email(args)
+    items = get_items(args.whowhat)
+    print_grades(items, args)
 
+def canvas_grades(args):
+    """Get all of the grades and merge them with an exported grade sheet. This requires name matching
+
+Required columns and order
+
+0: Student Name
+1: Student ID
+2: SIS User ID (only required if you use SIS)
+3: SIS Login ID (only required if you use SIS)
+4: Section
+5: Assignment (this can be for an existing assignment or a new assignment; retain IDs for existing assignments)
+"""
+
+    if not args.lab.startswith("lab"):
+        print(f"'{args.lab}' is not in the correct format for a lab (e.g. lab1, lab2, lab3...)")
+        sys.exit(1)
+
+    if not args.template.exists():
+        print(f"{args.template} does not exist.")
+        sys.exit(1)
+
+    template_names = []
+    output_headers = []
+    with open(args.template, 'r') as f:
+        reader = csv.reader(f)
+        headers = next(reader)
+        points_possible = next(reader)
+        assert points_possible[0].strip().startswith("Points Possible") # bogus line
+        output_headers.extend(headers[0:5])
+
+        # Find the assignment column
+        labcol = None
+        for (col,text) in enumerate(headers):
+            if args.lab in text.lower().replace(' ','').replace('#',''):
+                print(f"Found {args.lab} in column {col}: '{text}'")
+                labcol = col
+                output_headers.append(text)
+                break
+        if labcol is None:
+            print(f"Could not find {args.lab} in columns:")
+            for (col,text) in enumerate(headers):
+                print(f"{col}: {text}")
+            sys.exit(1)
+
+        # Now get all of the names
+        for name in reader:
+            if name[0]=='Student, Test':
+                continue
+            template_names.append(name)
+        print(f"Read {len(template_names)} names from template")
+
+    if args.outfile.exists():
+        print(f"{args.outfile} exists. Delete it first")
+        sys.exit(1)
+
+    output_names_and_grades = [output_headers]
+
+    # Find all of the exact matches.
+    # First verify that nobody has the same name
+    seen_names = set()
+    dups = 0
+    for name in template_names:
+        cname = name[0].lower()
+        if cname in seen_names:
+            print("Duplicate student name:",cname)
+            dups += 1
+        seen_names.add(cname)
+    if dups>0:
+        print("Cannot continue. Two students with the same name.")
+        sys.exit(1)
+
+    # Get the class list as a set by userid
+    class_list = {item[A.USER_ID]:item for item in get_class_list() if item.get('claims')}
+    if len(class_list)==0:
+        print("no grades found")
+
+    grades = {item[A.USER_ID]:item for item in get_items(args.lab)}
+    print(grades)
+
+    def exact_match(name):
+        (last,first) = name.lower().split(", ")
+        lower_name = first + " " + last
+        for item in class_list.values():
+            claims_name = item['claims']['name'].lower()
+            print(lower_name,"=",claims_name)
+            if lower_name == claims_name:
+                return item
+        return None
+
+    # Create the exact matches
+    unmatched_names = []
+    for name in template_names:
+        em = exact_match(name[0])
+        if em:
+            user_id = em[A.USER_ID]
+            if user_id not in grades:
+                print("No grade for",name)
+            else:
+                grade = str(grades[user_id][A.SCORE])
+                output_names_and_grades.append( name[0:5] + [grade])
+                del grades[user_id]
+            del class_list[user_id]
+        else:
+            unmatched_names.append(name)
+
+
+    # debug
+    print("matched:")
+    for row in output_names_and_grades:
+        print(row)
+    print("unmatched class list:")
+    for row in unmatched_names:
+        print(row)
+    print("unmatched grades:")
+    for g in grades:
+        print(g)
+
+
+
+
+
+
+
+
+
+
+
+################################################################
+## Force grading of a specific student
 
 def find_queue():
     # Find the grade queue

@@ -7,6 +7,7 @@ import argparse
 import sys
 import os
 import json
+from pathlib import Path
 
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
@@ -210,6 +211,12 @@ def main():
     ca.add_argument(dest='email', help='email to grade (use "all" for all)')
     ca.add_argument(dest='lab', help='lab to grade')
     ca.set_defaults(func=staff.force_grades)
+
+    ca = subparsers.add_parser('canvas-grades', help='Create grade sheet for upload to Canvas')
+    ca.add_argument(dest='lab', help='lab to grade')
+    ca.add_argument("--template", help="Canvas exported grade sheet", type=Path, required=True)
+    ca.add_argument("--outfile", help="Output file to create", type=Path, required=True)
+    ca.set_defaults(func=staff.canvas_grades)
 
     args = parser.parse_args()
     args.func(args)
