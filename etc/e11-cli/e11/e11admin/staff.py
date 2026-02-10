@@ -98,6 +98,7 @@ def do_student_report(args):
 
     pitems = []
     for item in items:
+        print(item)
         try:
             raw = item.get('user_registered',0)
             if isinstance(raw, (str,int,Decimal)):
@@ -108,7 +109,8 @@ def do_student_report(args):
             user_registered = 0
         pitems.append({"Registered":time.asctime(time.localtime(user_registered)),
                        "Email":item.get('email',""),
-                       "Name":item.get('preferred_name',""),
+                       "Preferred Name":item.get('preferred_name',""),
+                       "Claims Name":item.get('claims',{}).get('name'),
                        'HarvardKey':("YES" if item.get('claims') else "NO")})
 
     def sortkey(a):
@@ -196,7 +198,7 @@ Required columns and order
         # Find the assignment column
         labcol = None
         for (col,text) in enumerate(headers):
-            if args.lab in text.lower().replace(' ','').replace('#',''):
+            if args.lab in text.lower().replace(' ','').replace('#','') and "quiz" not in text.lower():
                 print(f"Found {args.lab} in column {col}: '{text}'")
                 labcol = col
                 output_headers.append(text)
@@ -218,7 +220,8 @@ Required columns and order
         print(f"{args.outfile} exists. Delete it first")
         sys.exit(1)
 
-    output_names_and_grades = [output_headers]
+    output_names_and_grades = []
+    output_names_and_grades.append(output_headers)
 
     # Find all of the exact matches.
     # First verify that nobody has the same name
@@ -238,16 +241,21 @@ Required columns and order
     class_list = {item[A.USER_ID]:item for item in get_class_list() if item.get('claims')}
     if len(class_list)==0:
         print("no grades found")
+        sys.exit(1)
 
-    grades = {item[A.USER_ID]:item for item in get_items(args.lab)}
-    print(grades)
+    # Get the grades as a set by userid and add each grade to the user_id in the class list
+    for item in get_items(args.lab):
+        try:
+            class_list[item[A.USER_ID]][A.SCORE] = item[A.SCORE]
+        except KeyError:
+            print("cannot match grades:",item)
+            pass
 
     def exact_match(name):
         (last,first) = name.lower().split(", ")
         lower_name = first + " " + last
         for item in class_list.values():
             claims_name = item['claims']['name'].lower()
-            print(lower_name,"=",claims_name)
             if lower_name == claims_name:
                 return item
         return None
@@ -257,28 +265,30 @@ Required columns and order
     for name in template_names:
         em = exact_match(name[0])
         if em:
-            user_id = em[A.USER_ID]
-            if user_id not in grades:
-                print("No grade for",name)
-            else:
-                grade = str(grades[user_id][A.SCORE])
+            try:
+                grade = em[A.SCORE]
                 output_names_and_grades.append( name[0:5] + [grade])
-                del grades[user_id]
-            del class_list[user_id]
+            except KeyError:
+                print("No grade for",name)
+            del class_list[em[A.USER_ID]]
         else:
             unmatched_names.append(name)
-
 
     # debug
     print("matched:")
     for row in output_names_and_grades:
         print(row)
-    print("unmatched class list:")
-    for row in unmatched_names:
-        print(row)
+    print("Total grades:",len(output_names_and_grades)-1,"\n")
     print("unmatched grades:")
-    for g in grades:
-        print(g)
+    for item in class_list:
+        if A.SCORE in item:
+            print(item)
+
+    print("Generating output")
+    with args.outfile.open("w") as f:
+        writer = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        for row in output_names_and_grades:
+            writer.writerow(row)
 
 
 
