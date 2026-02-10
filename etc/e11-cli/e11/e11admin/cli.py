@@ -200,11 +200,13 @@ def main():
 
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
     ca.set_defaults(func=staff.do_student_report)
+    ca.add_argument('--email', help='Just this email')
     ca.add_argument("--dump",help="Dump all information", action='store_true')
 
     ca = subparsers.add_parser('grades', help='Show grades or a student or a lab')
     ca.add_argument(dest='whowhat', help='Email address or a lab')
     ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
+    ca.add_argument("--claims",help="only students that have claims", action="store_true")
     ca.set_defaults(func=staff.do_student_grades)
 
     ca = subparsers.add_parser('force-grade', help='Force the grading of a student or lab')

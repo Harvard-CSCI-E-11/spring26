@@ -61,6 +61,11 @@ def do_student_report(args):
     print(f"Current AWS Profile: {current_profile}\n")
 
     response = dynamodb_client.list_tables()
+    if args.email:
+        user_id = get_user_from_email(args.email)['user_id']
+    else:
+        user_id = None
+
     print("DynamoDB Tables:")
     for table_name in response['TableNames']:
         table_description = dynamodb_client.describe_table(TableName=table_name)
@@ -73,6 +78,9 @@ def do_student_report(args):
             while True:
                 response = dynamodb_resource.Table( table_name ).scan(**kwargs)
                 for item in response.get('Items'):
+                    if user_id is not None:
+                        if item.get('user_id','n/a') != user_id:
+                            continue
                     print(item)
                 lek = response.get('LastEvaluatedKey')
                 if not lek:
@@ -96,6 +104,9 @@ def do_student_report(args):
         response = table.scan( **kwargs)
         items.extend(response['Items'])
 
+    if args.email:
+        items = [item for item in items if item['email']==args.email]
+
     pitems = []
     for item in items:
         print(item)
@@ -107,10 +118,16 @@ def do_student_report(args):
                 user_registered = 0
         except TypeError:
             user_registered = 0
+
+        try:
+            claims_name = item['claims']['name']
+        except (TypeError,KeyError):
+            claims_name = 'n/a'
+
         pitems.append({"Registered":time.asctime(time.localtime(user_registered)),
                        "Email":item.get('email',""),
                        "Preferred Name":item.get('preferred_name',""),
-                       "Claims Name":item.get('claims',{}).get('name'),
+                       "Claims Name":claims_name,
                        'HarvardKey':("YES" if item.get('claims') else "NO")})
 
     def sortkey(a):
@@ -128,20 +145,28 @@ def get_class_list():
 
 def print_grades(items, args):
     userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],Decimal(r[A.SCORE]),r[A.SK].split('#')[2])
+    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],
+                   Decimal(r[A.SCORE]),
+                   r[A.SK].split('#')[2],
+                   r[A.USER_ID])
                   for r in items if r[A.SK].count('#')==2]
     if not args.all:
         # Remove all but the highest grades
         highest_grade = {}
         for row in all_grades:
-            (email,grade,_sk) = row
+            (email,grade,_sk,user_id) = row
             if (email not in highest_grade) or (grade>highest_grade[email][1]):
                 highest_grade[email] = row
         all_grades = list(highest_grade.values())
 
+    if args.claims:
+        # remove grades for which there are no claims
+        all_grades = [row for row in all_grades if userid_to_user[row[3]]['claims']]
+
     all_grades.sort()
     # Now print
-    print(tabulate(sorted(highest_grade.values())))
+    print(tabulate(all_grades))
+    print("Total:",len(all_grades))
 
 def get_items(whowhat):
     """Return either the grades for a lab or a person"""
@@ -295,14 +320,6 @@ Required columns and order
         writer = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for row in output_names_and_grades:
             writer.writerow(row)
-
-
-
-
-
-
-
-
 
 
 
