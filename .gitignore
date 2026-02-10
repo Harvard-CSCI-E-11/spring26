@@ -18,3 +18,5 @@ node_modules
 .claude/
 .claude_cache/
 CLAUDE.md
+*.csv
+*.json
