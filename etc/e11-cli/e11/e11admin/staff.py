@@ -8,7 +8,6 @@ import os
 import time
 import csv
 import subprocess
-import tempfile
 from pathlib import Path
 from decimal import Decimal
 
@@ -364,7 +363,14 @@ def ssh_access(args):
     hostname = f"{smashed_email}.csci-e-11.org"
     
     # Start ssh-agent and get its environment variables
-    result = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
+    try:
+        result = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error: Failed to start ssh-agent: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("Error: ssh-agent not found. Please ensure OpenSSH is installed.")
+        sys.exit(1)
     
     # Parse the ssh-agent output to get SSH_AUTH_SOCK and SSH_AGENT_PID
     agent_env = {}
@@ -376,7 +382,7 @@ def ssh_access(args):
                 agent_env[parts[0]] = parts[1]
     
     if 'SSH_AUTH_SOCK' not in agent_env or 'SSH_AGENT_PID' not in agent_env:
-        print("Error: Failed to start ssh-agent")
+        print("Error: Failed to parse ssh-agent environment variables")
         sys.exit(1)
     
     try:
@@ -397,7 +403,7 @@ def ssh_access(args):
         
         print(f"Connecting to ubuntu@{hostname}")
         
-        # Run ssh with the agent environment
+        # Run ssh with the agent environment (allows interactive terminal use)
         ssh_proc = subprocess.run(
             ['ssh', f'ubuntu@{hostname}'],
             env={**os.environ, **agent_env}
