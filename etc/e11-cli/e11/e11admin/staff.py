@@ -9,7 +9,6 @@ import time
 import csv
 import subprocess
 import signal
-from pathlib import Path
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -58,84 +57,93 @@ def do_register_email(args):
 
 ################################################################
 ###
+def _dump_table_items(table_name, user_id):
+    """Helper function to dump table items with optional user filtering."""
+    kwargs = {}
+    while True:
+        response = dynamodb_resource.Table(table_name).scan(**kwargs)
+        for item in response.get('Items'):
+            if user_id is None or item.get('user_id', 'n/a') == user_id:
+                print(item)
+        lek = response.get('LastEvaluatedKey')
+        if not lek:
+            break
+        kwargs['ExclusiveStartKey'] = lek
+    print("-------------------------")
+
+def _get_user_registered_time(item):
+    """Extract and normalize user registered timestamp."""
+    try:
+        raw = item.get('user_registered', 0)
+        if isinstance(raw, (str, int, Decimal)):
+            return int(raw)
+        return 0
+    except TypeError:
+        return 0
+
+def _format_user_item(item):
+    """Format a user item for display."""
+    user_registered = _get_user_registered_time(item)
+    try:
+        claims_name = item['claims']['name']
+    except (TypeError, KeyError):
+        claims_name = 'n/a'
+    
+    return {
+        "Registered": time.asctime(time.localtime(user_registered)),
+        "Email": item.get('email', ""),
+        "Preferred Name": item.get('preferred_name', ""),
+        "Claims Name": claims_name,
+        'HarvardKey': ("YES" if item.get('claims') else "NO")
+    }
+
 def do_student_report(args):
     session = boto3.session.Session()
     current_profile = session.profile_name
     print(f"Current AWS Profile: {current_profile}\n")
 
     response = dynamodb_client.list_tables()
-    if args.email:
-        user_id = get_user_from_email(args.email)['user_id']
-    else:
-        user_id = None
+    user_id = get_user_from_email(args.email)['user_id'] if args.email else None
 
     print("DynamoDB Tables:")
     for table_name in response['TableNames']:
         table_description = dynamodb_client.describe_table(TableName=table_name)
-        item_count = table_description['Table'].get('ItemCount',0)
+        item_count = table_description['Table'].get('ItemCount', 0)
         print(f"Table: {table_name}, Approximate Item Count: {item_count}")
 
-        # dump the whole table?
         if args.dump:
-            kwargs = {}
-            while True:
-                response = dynamodb_resource.Table( table_name ).scan(**kwargs)
-                for item in response.get('Items'):
-                    if user_id is not None:
-                        if item.get('user_id','n/a') != user_id:
-                            continue
-                    print(item)
-                lek = response.get('LastEvaluatedKey')
-                if not lek:
-                    break
-                kwargs['ExclusiveStartKey'] = lek
-            print("-------------------------")
+            _dump_table_items(table_name, user_id)
 
     print("Users:")
     table = dynamodb_resource.Table('e11-users')
-    kwargs = { 'FilterExpression':Attr(A.SK).eq(A.SK_USER),
-               'ProjectionExpression': 'user_registered, email, preferred_name, claims'}
+    kwargs = {
+        'FilterExpression': Attr(A.SK).eq(A.SK_USER),
+        'ProjectionExpression': 'user_registered, email, preferred_name, claims'
+    }
 
     try:
-        response = table.scan( **kwargs )
+        response = table.scan(**kwargs)
     except ClientError:
-        print("No access: ",table)
+        print("No access: ", table)
         sys.exit(1)
+    
     items = response['Items']
     while 'LastEvaluatedKey' in response:
         kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
-        response = table.scan( **kwargs)
+        response = table.scan(**kwargs)
         items.extend(response['Items'])
 
     if args.email:
-        items = [item for item in items if item['email']==args.email]
+        items = [item for item in items if item['email'] == args.email]
 
     pitems = []
     for item in items:
         print(item)
-        try:
-            raw = item.get('user_registered',0)
-            if isinstance(raw, (str,int,Decimal)):
-                user_registered = int(raw)
-            else:
-                user_registered = 0
-        except TypeError:
-            user_registered = 0
-
-        try:
-            claims_name = item['claims']['name']
-        except (TypeError,KeyError):
-            claims_name = 'n/a'
-
-        pitems.append({"Registered":time.asctime(time.localtime(user_registered)),
-                       "Email":item.get('email',""),
-                       "Preferred Name":item.get('preferred_name',""),
-                       "Claims Name":claims_name,
-                       'HarvardKey':("YES" if item.get('claims') else "NO")})
+        pitems.append(_format_user_item(item))
 
     def sortkey(a):
-        return a.get('Name','') + "~" + a.get('Email','')
-    print(tabulate( sorted(pitems,key=sortkey), headers='keys'))
+        return a.get('Name', '') + "~" + a.get('Email', '')
+    print(tabulate(sorted(pitems, key=sortkey), headers='keys'))
 
 def get_class_list():
     """Get the entire class list. Requires a scan."""
@@ -157,7 +165,7 @@ def print_grades(items, args):
         # Remove all but the highest grades
         highest_grade = {}
         for row in all_grades:
-            (email,grade,_sk,user_id) = row
+            (email, grade, _sk, _user_id) = row
             if (email not in highest_grade) or (grade>highest_grade[email][1]):
                 highest_grade[email] = row
         all_grades = list(highest_grade.values())
@@ -389,26 +397,27 @@ def ssh_access(args):
     
     try:
         # Add the private key to the agent via stdin (never touches disk)
-        ssh_add_proc = subprocess.Popen(
+        with subprocess.Popen(
             ['ssh-add', '-'],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env={**os.environ, **agent_env},
             text=True
-        )
-        _, stderr = ssh_add_proc.communicate(input=pem_key)
-        
-        if ssh_add_proc.returncode != 0:
-            print(f"Error adding key to ssh-agent: {stderr}")
-            sys.exit(1)
+        ) as ssh_add_proc:
+            _, stderr = ssh_add_proc.communicate(input=pem_key)
+            
+            if ssh_add_proc.returncode != 0:
+                print(f"Error adding key to ssh-agent: {stderr}")
+                sys.exit(1)
         
         print(f"Connecting to ubuntu@{hostname}")
         
         # Run ssh with the agent environment (allows interactive terminal use)
         ssh_proc = subprocess.run(
             ['ssh', f'ubuntu@{hostname}'],
-            env={**os.environ, **agent_env}
+            env={**os.environ, **agent_env},
+            check=False
         )
         
         sys.exit(ssh_proc.returncode)
