@@ -7,6 +7,8 @@ import sys
 import os
 import time
 import csv
+import subprocess
+import tempfile
 from pathlib import Path
 from decimal import Decimal
 
@@ -358,13 +360,56 @@ def ssh_access(args):
     from home_app import api # pylint: disable=import-error, disable=import-outside-toplevel
     pem_key = api.get_pkey_pem("cscie-bot")
 
-    key_path = Path.home() / ".ssh/cscie-bot"
-    with key_path.open("w") as f:
-        f.write(pem_key)
-        f.write("\n")
-    os.chmod(key_path, 0o600)
-
     smashed_email = smash_email(args.email)
-    cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
-    print(cmd)
-    sys.exit(os.system(cmd))
+    hostname = f"{smashed_email}.csci-e-11.org"
+    
+    # Start ssh-agent and get its environment variables
+    result = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
+    
+    # Parse the ssh-agent output to get SSH_AUTH_SOCK and SSH_AGENT_PID
+    agent_env = {}
+    for line in result.stdout.split('\n'):
+        if '=' in line and line.startswith('SSH_'):
+            # Parse lines like: SSH_AUTH_SOCK=/tmp/ssh-XXX/agent.123; export SSH_AUTH_SOCK;
+            parts = line.split(';')[0].split('=', 1)
+            if len(parts) == 2:
+                agent_env[parts[0]] = parts[1]
+    
+    if 'SSH_AUTH_SOCK' not in agent_env or 'SSH_AGENT_PID' not in agent_env:
+        print("Error: Failed to start ssh-agent")
+        sys.exit(1)
+    
+    try:
+        # Add the private key to the agent via stdin (never touches disk)
+        ssh_add_proc = subprocess.Popen(
+            ['ssh-add', '-'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env={**os.environ, **agent_env},
+            text=True
+        )
+        stdout, stderr = ssh_add_proc.communicate(input=pem_key)
+        
+        if ssh_add_proc.returncode != 0:
+            print(f"Error adding key to ssh-agent: {stderr}")
+            sys.exit(1)
+        
+        print(f"Connecting to ubuntu@{hostname}")
+        
+        # Run ssh with the agent environment
+        ssh_proc = subprocess.run(
+            ['ssh', f'ubuntu@{hostname}'],
+            env={**os.environ, **agent_env}
+        )
+        
+        sys.exit(ssh_proc.returncode)
+        
+    finally:
+        # Clean up: kill the ssh-agent
+        if 'SSH_AGENT_PID' in agent_env:
+            try:
+                subprocess.run(['kill', agent_env['SSH_AGENT_PID']], 
+                             stderr=subprocess.DEVNULL, check=False)
+            except Exception:
+                pass  # Best effort cleanup
