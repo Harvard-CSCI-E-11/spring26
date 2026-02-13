@@ -8,6 +8,7 @@ import os
 import time
 import csv
 import subprocess
+import signal
 from pathlib import Path
 from decimal import Decimal
 
@@ -375,6 +376,7 @@ def ssh_access(args):
     # Parse the ssh-agent output to get SSH_AUTH_SOCK and SSH_AGENT_PID
     agent_env = {}
     for line in result.stdout.split('\n'):
+        line = line.strip()
         if '=' in line and line.startswith('SSH_'):
             # Parse lines like: SSH_AUTH_SOCK=/tmp/ssh-XXX/agent.123; export SSH_AUTH_SOCK;
             parts = line.split(';')[0].split('=', 1)
@@ -395,7 +397,7 @@ def ssh_access(args):
             env={**os.environ, **agent_env},
             text=True
         )
-        stdout, stderr = ssh_add_proc.communicate(input=pem_key)
+        _, stderr = ssh_add_proc.communicate(input=pem_key)
         
         if ssh_add_proc.returncode != 0:
             print(f"Error adding key to ssh-agent: {stderr}")
@@ -415,7 +417,6 @@ def ssh_access(args):
         # Clean up: kill the ssh-agent
         if 'SSH_AGENT_PID' in agent_env:
             try:
-                subprocess.run(['kill', agent_env['SSH_AGENT_PID']], 
-                             stderr=subprocess.DEVNULL, check=False)
-            except Exception:
+                os.kill(int(agent_env['SSH_AGENT_PID']), signal.SIGTERM)
+            except (ValueError, ProcessLookupError, OSError):
                 pass  # Best effort cleanup
