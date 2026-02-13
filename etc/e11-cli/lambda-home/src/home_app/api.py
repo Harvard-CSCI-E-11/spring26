@@ -82,8 +82,9 @@ def get_pkey_pem(key_name):
         raise RuntimeError("SSH_SECRET_ID not defined") from e
     try:
         secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
-    except ClientError:
-        LOGGER.exception("SecureId=%s",ssh_secret_id)
+    except ClientError as e:
+        LOGGER.exception("SecureId=%s", ssh_secret_id)
+        raise RuntimeError("Unable to retrieve SSH secret from Secrets Manager") from e
     json_key = secret.get("SecretString")
     keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
     try:

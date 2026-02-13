@@ -17,6 +17,7 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from e11.e11core.e11ssh import E11Ssh
+from e11.e11core.utils import smash_email
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,
                             get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
@@ -161,7 +162,7 @@ def print_grades(items, args):
 
     if args.claims:
         # remove grades for which there are no claims
-        all_grades = [row for row in all_grades if userid_to_user[row[3]]['claims']]
+        all_grades = [row for row in all_grades if userid_to_user.get(row[3], {}).get('claims')]
 
     all_grades.sort()
     # Now print
@@ -357,11 +358,13 @@ def ssh_access(args):
     from home_app import api # pylint: disable=import-error, disable=import-outside-toplevel
     pem_key = api.get_pkey_pem("cscie-bot")
 
-    print(pem_key)
-    with (Path.home() / ".ssh/cscie-bot").open("w") as f:
+    key_path = Path.home() / ".ssh/cscie-bot"
+    with key_path.open("w") as f:
         f.write(pem_key)
         f.write("\n")
+    os.chmod(key_path, 0o600)
 
-    cmd = f"ssh -i $HOME ubuntu@{args.email}.csci-e-11.org"
+    smashed_email = smash_email(args.email)
+    cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
     print(cmd)
     sys.exit(os.system(cmd))
