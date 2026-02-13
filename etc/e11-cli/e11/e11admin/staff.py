@@ -7,6 +7,7 @@ import sys
 import os
 import time
 import csv
+from pathlib import Path
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -14,7 +15,6 @@ import boto3
 from boto3.dynamodb.conditions import Attr
 from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
-
 
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,
@@ -335,17 +335,33 @@ def find_queue():
             return q
     raise RuntimeError("prod-home-queue SQS queue not found")
 
+def update_path():
+    base_dir = os.path.dirname(__file__)
+    home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
+    if home_path not in sys.path:
+        sys.path.append(home_path)
+
 def force_grades(args):
+    update_path()
     queue_name = find_queue()
     print("sending message to",queue_name)
     os.environ['SQS_QUEUE_URL'] = queue_name
     if 'SQS_SECRET_ID' not in os.environ:
         raise RuntimeError("Set environment variable SQS_SECRET_ID")
 
-    base_dir = os.path.dirname(__file__)
-    home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
-    if home_path not in sys.path:
-        sys.path.append(home_path)
     from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
-
     home.queue_grade(args.email,args.lab) # is it this simple?
+
+def ssh_access(args):
+    update_path()
+    from home_app import api # pylint: disable=import-error, disable=import-outside-toplevel
+    pem_key = api.get_pkey_pem("cscie-bot")
+
+    print(pem_key)
+    with (Path.home() / ".ssh/cscie-bot").open("w") as f:
+        f.write(pem_key)
+        f.write("\n")
+
+    cmd = f"ssh -i $HOME ubuntu@{args.email}.csci-e-11.org"
+    print(cmd)
+    sys.exit(os.system(cmd))

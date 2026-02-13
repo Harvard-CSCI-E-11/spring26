@@ -147,11 +147,6 @@ def new_course_key(user_id):
 
 def do_class(args):
     validate_dynamodb()
-    if args.ssh:
-        smashed_email = smash_email(args.ssh)
-        cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
-        print(cmd)
-        sys.exit(os.system(cmd))
 
     if args.delete_item:
         delete_item(user_id=args.user_id, sk=args.sk)
@@ -186,7 +181,6 @@ def main():
     class_parser.add_argument("--newkey", help="Create a new course key for the user specified by email address")
     class_parser.add_argument("--user_id", help='Specify the user_id')
     class_parser.add_argument("--sk", help='Specify the sk')
-    class_parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
     class_parser.add_argument("--claims", help="Only show users with claims", action='store_true')
 
     ca = subparsers.add_parser('check-access', help='Check to see if we can access a host')
@@ -219,6 +213,10 @@ def main():
     ca.add_argument("--template", help="Canvas exported grade sheet", type=Path, required=True)
     ca.add_argument("--outfile", help="Output file to create", type=Path, required=True)
     ca.set_defaults(func=staff.canvas_grades)
+
+    ca = subparsers.add_parser('ssh', help="access a student's VM via SSH (specify email address)")
+    ca.add_argument(dest='email', help='email address')
+    ca.set_defaults(func=staff.ssh_access)
 
     args = parser.parse_args()
     args.func(args)

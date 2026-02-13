@@ -15,6 +15,7 @@ import ipaddress
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from botocore.exceptions import ClientError
 import paramiko.ssh_exception
 from mypy_boto3_route53.type_defs import ChangeTypeDef, ChangeBatchTypeDef
 
@@ -75,14 +76,20 @@ MAX_IMAGE_SIZE_BYTES = 10_000_000
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
-    ssh_secret_id = os.environ.get("SSH_SECRET_ID", "please define SSH_SECRET_ID")
-    secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
+    try:
+        ssh_secret_id = os.environ["SSH_SECRET_ID"]
+    except KeyError as e:
+        raise RuntimeError("SSH_SECRET_ID not defined") from e
+    try:
+        secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
+    except ClientError:
+        LOGGER.exception("SecureId=%s",ssh_secret_id)
     json_key = secret.get("SecretString")
     keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
     try:
         return keys[key_name]
     except KeyError:
-        LOGGER.error("keys  %s not found", key_name)
+        LOGGER.exception("keys  %s not found. Available keys: %s", key_name, list(keys.keys()))
         raise
 
 def make_presigned_post(bucket, key, email):
