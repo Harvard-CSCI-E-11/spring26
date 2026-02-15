@@ -320,6 +320,9 @@ def do_grade(args):
         print(json.dumps(r.json(),indent=4))
     if result['summary']["fails"]:
         return -1
+
+    print("\nPlease remember that grades on the CSCI E-11 dashboard")
+    print("are not synchronized to Canvas until the assignment is due.")
     return 0
 
 

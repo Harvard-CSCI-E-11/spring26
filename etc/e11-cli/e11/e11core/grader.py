@@ -18,7 +18,7 @@ from .assertions import TestFail
 from .testrunner import TestRunner
 from .utils import get_logger, smash_email, get_error_location, read_s3
 from .e11ssh import E11Ssh
-from .constants import COURSE_DOMAIN,POINTS_PER_LAB,SUCCESS_KEY_TEMPLATE
+from .constants import COURSE_DOMAIN, POINTS_PER_LAB, SUCCESS_KEY_TEMPLATE
 
 from .context import build_ctx, E11Context
 
@@ -180,17 +180,16 @@ def grade_student_vm(user_email, public_ip, lab:str, pkey_pem:str|None=None, key
     """Run grading by SSHing into the student's VM and executing tests via shared runner.
     Returns the summary of the test results
     """
-    # Build context and mark grader mode
-
-    ctx     = build_ctx(lab)
+    # Build context for remote instance (uses INSTANCE_COURSE_ROOT /home/ubuntu/spring26)
+    ctx = build_ctx(lab, for_instance=True)
     if smashed := smash_email(user_email):
         ctx.smashedemail = smashed
         ctx.labdns = f"{smashed}-{lab}.{COURSE_DOMAIN}"
     if user_email and (ctx.email is None):
         ctx.email = user_email
-    ctx.public_ip      = public_ip
-    ctx.pkey_pem       = pkey_pem
-    ctx.key_filename   = key_filename
+    ctx.public_ip = public_ip
+    ctx.pkey_pem = pkey_pem
+    ctx.key_filename = key_filename
     ctx.grade_with_ssh = True
 
     # grade the student VM

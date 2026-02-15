@@ -64,12 +64,18 @@ class E11Context:  # pylint: disable=too-many-instance-attributes
         return self._extra.get(key, default)
 
 
-def build_ctx(lab: str) -> E11Context:
-    """Creates a ctx that works equally well when run locally (e11 check lab) or from the grader."""
+def build_ctx(lab: str, for_instance: bool = False) -> E11Context:
+    """Creates a ctx for local use (e11 check) or remote grading (Lambda SSH to student VM).
+
+    When for_instance=True, uses INSTANCE_COURSE_ROOT (/home/ubuntu/spring26) for paths
+    that will be used on the remote student VM. When False, uses COURSE_ROOT (Path.home())
+    for local execution on Mac or student VM.
+    """
     if not lab.startswith("lab"):
         raise LabError("lab must be like 'lab3'")
     labnum = int(lab[3:])
-    labdir = Path(constants.COURSE_ROOT) / constants.LAB_DIR_PATTERN.format(n=labnum)
+    root = constants.INSTANCE_COURSE_ROOT if for_instance else constants.COURSE_ROOT
+    labdir = Path(root) / constants.LAB_DIR_PATTERN.format(n=labnum)
     cfg = E11Config.load()
     labdns = None
     if cfg.smashedemail:
@@ -79,7 +85,7 @@ def build_ctx(lab: str) -> E11Context:
         version=constants.VERSION,
         lab=lab,
         labnum=labnum,
-        course_root=str(constants.COURSE_ROOT),
+        course_root=str(root),
         labdir=str(labdir),
         labdns=labdns,
         course_key=cfg.course_key,
