@@ -67,6 +67,7 @@ disable = [
     "missing-function-docstring",
     "line-too-long",
     "unspecified-encoding",
+    "trailing-whitespace",
     "too-many-locals"
 ]
 
