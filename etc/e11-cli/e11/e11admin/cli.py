@@ -5,14 +5,12 @@ e11admin main program
 import time
 import argparse
 import sys
-import os
 import json
 from pathlib import Path
 
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
 from tabulate import tabulate
-from e11.e11core.utils import smash_email
 from e11.e11_common import A,make_course_key,get_user_from_email
 
 from . import staff
