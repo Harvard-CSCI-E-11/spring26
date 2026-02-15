@@ -21,3 +21,5 @@ CLAUDE.md
 *.csv
 *.json
 .env
+.env
+.envrc
