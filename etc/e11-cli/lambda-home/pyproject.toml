@@ -71,7 +71,8 @@ disable = [
     "missing-function-docstring",
     "line-too-long",
     "unspecified-encoding",
-    "too-few-public-methods"
+    "too-few-public-methods",
+    "trailing-whitespace"       # damn AIs
 
 ]
 
