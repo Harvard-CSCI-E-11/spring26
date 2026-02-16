@@ -12,6 +12,7 @@ SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
 LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
 CONFIG_FILENAME = "e11-config.ini"
 
+INSTANCE_COURSE_ROOT = Path("/home/ubuntu") / VERSION
 COURSE_ROOT = Path.home() / VERSION
 
 if not COURSE_ROOT.exists() and "COURSE_ROOT" in os.environ:

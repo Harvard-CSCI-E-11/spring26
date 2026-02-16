@@ -94,7 +94,9 @@ prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11 lint
 stage-vbd: template.yaml samconfig-stage.toml src/requirements.txt vend-e11
 	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template.yaml
-	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml
+	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" \
+		--parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" \
+		--no-confirm-changeset -t .aws-sam/build/template.yaml
 	curl --silent  https://stage.$(ROOT_DOMAIN)/ | head -3
 
 # Show function names

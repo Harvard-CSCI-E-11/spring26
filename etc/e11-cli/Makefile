@@ -3,7 +3,7 @@
 # The e11 module runs on both the student machine (python3.12) and on the Lambda (python3.13)
 
 # DynamoDB local stuff (see end)
-DYNAMODB_LOCAL_ENDPOINT=http://localhost:8010/
+DYNAMODB_LOCAL_ENDPOINT=http://localhost:8000/
 E11_VARS := AWS_ENDPOINT_URL_DYNAMODB=$(DYNAMODB_LOCAL_ENDPOINT)
 REQ      := bin/DynamoDBLocal.jar
 

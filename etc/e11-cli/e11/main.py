@@ -298,6 +298,7 @@ def do_grade(args):
         auth = {STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL],
                 COURSE_KEY:cp[STUDENT][COURSE_KEY]}
     except KeyError:
+        logger.info("not registered?")
         print("You must run the e11 register command before using the grade command.",file=sys.stderr)
         return -1
 
@@ -309,17 +310,26 @@ def do_grade(args):
         timeout = args.timeout )
     result = r.json()
     if not r.ok:
-        print("Error: ",r.text)
+        obj = r.json()
+        print("Error:",obj['message'])
+        if 'deadline' in obj:
+            print("Deadline was:",obj['deadline'])
+            return -2       # deadline has passed
         return -1
     try:
         print_summary(result['summary'], verbose=getattr(args, "verbose", False))
     except KeyError:
         print(f"Invalid response from server:\n{json.dumps(result,indent=4)}")
+        logger.exception("Invalid response from server: %s",result)
         return -1
     if args.debug:
         print(json.dumps(r.json(),indent=4))
     if result['summary']["fails"]:
+        logger.error("result=%s",result)
         return -1
+
+    print("\nPlease remember that grades on the CSCI E-11 dashboard")
+    print("are not synchronized to Canvas until the assignment is due.")
     return 0
 
 

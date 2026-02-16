@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 # pylint: disable=missing-function-docstring
 
 # Configure boto3 to use local DynamoDB endpoint
-DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8010/')
+DYNAMODB_LOCAL_ENDPOINT = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8000/')
 
 def pytest_configure(config):
     """Configure pytest to use local DynamoDB"""

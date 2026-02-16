@@ -5,14 +5,12 @@ e11admin main program
 import time
 import argparse
 import sys
-import os
 import json
 from pathlib import Path
 
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
 from tabulate import tabulate
-from e11.e11core.utils import smash_email
 from e11.e11_common import A,make_course_key,get_user_from_email
 
 from . import staff
@@ -147,11 +145,6 @@ def new_course_key(user_id):
 
 def do_class(args):
     validate_dynamodb()
-    if args.ssh:
-        smashed_email = smash_email(args.ssh)
-        cmd = f"ssh -i $HOME/.ssh/cscie-bot ubuntu@{smashed_email}.csci-e-11.org"
-        print(cmd)
-        sys.exit(os.system(cmd))
 
     if args.delete_item:
         delete_item(user_id=args.user_id, sk=args.sk)
@@ -186,7 +179,6 @@ def main():
     class_parser.add_argument("--newkey", help="Create a new course key for the user specified by email address")
     class_parser.add_argument("--user_id", help='Specify the user_id')
     class_parser.add_argument("--sk", help='Specify the sk')
-    class_parser.add_argument("--ssh", help="access a student's VM via SSH (specify email address)")
     class_parser.add_argument("--claims", help="Only show users with claims", action='store_true')
 
     ca = subparsers.add_parser('check-access', help='Check to see if we can access a host')
@@ -200,11 +192,13 @@ def main():
 
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
     ca.set_defaults(func=staff.do_student_report)
+    ca.add_argument('--email', help='Just this email')
     ca.add_argument("--dump",help="Dump all information", action='store_true')
 
     ca = subparsers.add_parser('grades', help='Show grades or a student or a lab')
     ca.add_argument(dest='whowhat', help='Email address or a lab')
     ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
+    ca.add_argument("--claims",help="only students that have claims", action="store_true")
     ca.set_defaults(func=staff.do_student_grades)
 
     ca = subparsers.add_parser('force-grade', help='Force the grading of a student or lab')
@@ -217,6 +211,29 @@ def main():
     ca.add_argument("--template", help="Canvas exported grade sheet", type=Path, required=True)
     ca.add_argument("--outfile", help="Output file to create", type=Path, required=True)
     ca.set_defaults(func=staff.canvas_grades)
+
+    ca = subparsers.add_parser('ssh', help="access a student's VM via SSH (specify email address)")
+    ca.add_argument(dest='email', help='email address')
+    ca.set_defaults(func=staff.ssh_access)
+
+    def do_help(_args):
+        print("""e11admin - Quick reference
+
+List information about a student by email:
+  e11admin student-report --email <email>
+  e11admin grades <email>
+
+Force a grade for a specific lab:
+  e11admin force-grade <email> <lab>
+  Example: SQS_SECRET_ID=<secret-arn> AWS_PROFILE=fas AWS_REGION=us-east-1 \\
+    e11admin force-grade student@example.com lab1
+
+Access a student's VM via SSH:
+  e11admin ssh <email>
+
+Run 'e11admin --help' for full option list.""")
+    ca = subparsers.add_parser('help', help='Show quick reference for common tasks')
+    ca.set_defaults(func=do_help)
 
     args = parser.parse_args()
     args.func(args)

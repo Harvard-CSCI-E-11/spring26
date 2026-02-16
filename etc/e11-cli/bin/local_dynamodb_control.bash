@@ -7,7 +7,7 @@ set -e
 MYDIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 LOGDIR="$(dirname $MYDIR)/logs"
 DBDIR="$(dirname $MYDIR)/var"
-FLAGS="-sharedDb -dbPath $DBDIR -port 8010"
+FLAGS="-sharedDb -dbPath $DBDIR -port 8000"
 PIDFILE="$DBDIR/dynamodb_local.pid"
 
 command -v java > /dev/null || { echo "Java not found in PATH. Aborting."; exit 1; }
@@ -15,9 +15,9 @@ command -v java > /dev/null || { echo "Java not found in PATH. Aborting."; exit 
 mkdir -p "$LOGDIR" "$DBDIR"
 
 wait_dynamodb_local() {
-    # Wait for port 8010 to be accepting connections
+    # Wait for port 8000 to be accepting connections
     for i in {1..30}; do
-        if curl -s http://localhost:8010/ > /dev/null; then
+        if curl -s http://localhost:8000/ > /dev/null; then
             echo "DynamoDB Local is ready."
             break
         fi
@@ -50,7 +50,7 @@ start_dynamodb_local() {
 
     wait_dynamodb_local
     echo "DynamoDB Local started in the background (PID: $!)."
-    echo "DynamoDB Local endpoint: http://localhost:8010"
+    echo "DynamoDB Local endpoint: http://localhost:8000"
 }
 
 # Function to stop DynamoDB Local
