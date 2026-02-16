@@ -216,6 +216,25 @@ def main():
     ca.add_argument(dest='email', help='email address')
     ca.set_defaults(func=staff.ssh_access)
 
+    def do_help(_args):
+        print("""e11admin - Quick reference
+
+List information about a student by email:
+  e11admin student-report --email <email>
+  e11admin grades <email>
+
+Force a grade for a specific lab:
+  e11admin force-grade <email> <lab>
+  Example: SQS_SECRET_ID=<secret-arn> AWS_PROFILE=fas AWS_REGION=us-east-1 \\
+    e11admin force-grade student@example.com lab1
+
+Access a student's VM via SSH:
+  e11admin ssh <email>
+
+Run 'e11admin --help' for full option list.""")
+    ca = subparsers.add_parser('help', help='Show quick reference for common tasks')
+    ca.set_defaults(func=do_help)
+
     args = parser.parse_args()
     args.func(args)
     return 0

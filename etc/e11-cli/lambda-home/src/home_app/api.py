@@ -309,7 +309,8 @@ def api_grader(event, context, payload):
                              lab, deadline, now)
                 return resp_json(HTTP_FORBIDDEN, {
                     "error": True,
-                    "message": f"Lab {lab} deadline has passed. The deadline was {deadline_str}."
+                    "message": f"Lab {lab} deadline has passed. The deadline was {deadline_str}.",
+                    "deadline": deadline_str
                 })
 
     if user.public_ip is None:

@@ -8,3 +8,5 @@ debug
 bin/*.jar
 bin/*_lib
 bin/*.zip
+var/
+logs/
