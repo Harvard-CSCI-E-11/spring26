@@ -223,6 +223,7 @@ def main():
     ca.add_argument(dest='email', help='email to grade (use "all" for all)')
     ca.add_argument(dest='lab', help='lab to grade')
     ca.add_argument(dest='who', help='Who manually forced the grade')
+    ca.add_argument("--stage", action="store_true", help="use stage.csci-e-11.org")
     ca.set_defaults(func=staff.force_grades)
 
     ca = subparsers.add_parser('canvas-grades', help='Create grade sheet for upload to Canvas')

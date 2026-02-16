@@ -337,11 +337,14 @@ Required columns and order
 ################################################################
 ## Force grading of a specific student
 
-def find_queue(substr):
+def find_queue(substr, stage=False):
     # Find the grade queue
     sqs = boto3.client('sqs')
     r = sqs.list_queues()
     for q in r['QueueUrls']:
+        print("queue:",q)
+        if stage and "stage" not in q:
+            continue
         if substr in q:
             return q
     raise RuntimeError(f"SQS queue with substring {substr} not found")
@@ -351,8 +354,10 @@ def find_secret(substr):
     secrets_manager = boto3.client('secretsmanager')
     r = secrets_manager.list_secrets()
     for s in r['SecretList']:
-        if substr in s['Name']:
-            return s['Name']
+        name = s['Name']
+        print("secret:",name)
+        if substr in name:
+            return name
     raise RuntimeError(f"Secret with substring {substr} not found")
 
 def update_path():
@@ -363,7 +368,7 @@ def update_path():
 
 def force_grades(args):
     update_path()
-    queue_name  = find_queue('prod-home-queue')
+    queue_name  = find_queue('home-queue', stage=args.stage)
     secret_name = find_secret("sqs-auth-secret")
     print("sending message to",queue_name)
     print("using secret",secret_name)
@@ -371,7 +376,7 @@ def force_grades(args):
     os.environ['SQS_SECRET_ID'] = secret_name
 
     from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
-    home.queue_grade(args.email,args.lab, "Grading was manually queued by {args.who}")
+    home.queue_grade(args.email,args.lab, f"Grading was manually queued by {args.who}")
 
 def ssh_access(args):
     update_path()
