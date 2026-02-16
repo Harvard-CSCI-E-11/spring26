@@ -88,7 +88,7 @@ def _format_user_item(item):
         claims_name = item['claims']['name']
     except (TypeError, KeyError):
         claims_name = 'n/a'
-    
+
     return {
         "Registered": time.asctime(time.localtime(user_registered)),
         "Email": item.get('email', ""),
@@ -126,7 +126,7 @@ def do_student_report(args):
     except ClientError:
         print("No access: ", table)
         sys.exit(1)
-    
+
     items = response['Items']
     while 'LastEvaluatedKey' in response:
         kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
@@ -337,14 +337,23 @@ Required columns and order
 ################################################################
 ## Force grading of a specific student
 
-def find_queue():
+def find_queue(substr):
     # Find the grade queue
     sqs = boto3.client('sqs')
     r = sqs.list_queues()
     for q in r['QueueUrls']:
-        if 'prod-home-queue' in q:
+        if substr in q:
             return q
-    raise RuntimeError("prod-home-queue SQS queue not found")
+    raise RuntimeError(f"SQS queue with substring {substr} not found")
+
+def find_secret(substr):
+    # Find the grade queue
+    secrets_manager = boto3.client('secretsmanager')
+    r = secrets_manager.list_secrets()
+    for s in r['SecretList']:
+        if substr in s['Name']:
+            return s['Name']
+    raise RuntimeError(f"Secret with substring {substr} not found")
 
 def update_path():
     base_dir = os.path.dirname(__file__)
@@ -354,14 +363,15 @@ def update_path():
 
 def force_grades(args):
     update_path()
-    queue_name = find_queue()
+    queue_name  = find_queue('prod-home-queue')
+    secret_name = find_secret("sqs-auth-secret")
     print("sending message to",queue_name)
+    print("using secret",secret_name)
     os.environ['SQS_QUEUE_URL'] = queue_name
-    if 'SQS_SECRET_ID' not in os.environ:
-        raise RuntimeError("Set environment variable SQS_SECRET_ID")
+    os.environ['SQS_SECRET_ID'] = secret_name
 
     from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
-    home.queue_grade(args.email,args.lab) # is it this simple?
+    home.queue_grade(args.email,args.lab, "Grading was manually queued by {args.who}")
 
 def ssh_access(args):
     update_path()
@@ -370,7 +380,7 @@ def ssh_access(args):
 
     smashed_email = smash_email(args.email)
     hostname = f"{smashed_email}.csci-e-11.org"
-    
+
     # Start ssh-agent and get its environment variables
     try:
         result = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
@@ -380,7 +390,7 @@ def ssh_access(args):
     except FileNotFoundError:
         print("Error: ssh-agent not found. Please ensure OpenSSH is installed.")
         sys.exit(1)
-    
+
     # Parse the ssh-agent output to get SSH_AUTH_SOCK and SSH_AGENT_PID
     agent_env = {}
     for line in result.stdout.split('\n'):
@@ -390,11 +400,11 @@ def ssh_access(args):
             parts = line.split(';')[0].split('=', 1)
             if len(parts) == 2:
                 agent_env[parts[0]] = parts[1]
-    
+
     if 'SSH_AUTH_SOCK' not in agent_env or 'SSH_AGENT_PID' not in agent_env:
         print("Error: Failed to parse ssh-agent environment variables")
         sys.exit(1)
-    
+
     try:
         # Add the private key to the agent via stdin (never touches disk)
         with subprocess.Popen(
@@ -406,22 +416,22 @@ def ssh_access(args):
             text=True
         ) as ssh_add_proc:
             _, stderr = ssh_add_proc.communicate(input=pem_key)
-            
+
             if ssh_add_proc.returncode != 0:
                 print(f"Error adding key to ssh-agent: {stderr}")
                 sys.exit(1)
-        
+
         print(f"Connecting to ubuntu@{hostname}")
-        
+
         # Run ssh with the agent environment (allows interactive terminal use)
         ssh_proc = subprocess.run(
             ['ssh', f'ubuntu@{hostname}'],
             env={**os.environ, **agent_env},
             check=False
         )
-        
+
         sys.exit(ssh_proc.returncode)
-        
+
     finally:
         # Clean up: kill the ssh-agent
         if 'SSH_AGENT_PID' in agent_env:

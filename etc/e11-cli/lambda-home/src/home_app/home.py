@@ -496,13 +496,14 @@ def do_login_direct(event):
         return resp_text(HTTP_INTERNAL_ERROR, "Internal server error")
 
 
-def queue_grade(email: str, lab: str) -> Dict[str, Any]:
+def queue_grade(email: str, lab: str, note: None) -> Dict[str, Any]:
     """
     Queue a grading request for a student's lab via SQS.
 
     Args:
         email: Student email address
         lab: Lab name (e.g., 'lab0', 'lab1')
+        note: Optional note that is displayed to student
 
     Returns:
         SQS send_message response (includes MessageId)
@@ -520,6 +521,7 @@ def queue_grade(email: str, lab: str) -> Dict[str, Any]:
             A.COURSE_KEY: user.course_key,
         },
         "lab": lab,
+        "note": note
     }
 
     # Send the signed message to SQS

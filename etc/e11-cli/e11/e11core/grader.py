@@ -236,14 +236,20 @@ def print_summary(summary, verbose=False):
 
 
 
-def create_email(summary):
+def create_email(summary, note=None):
     """Create email message for user. See also print_summary above"""
 
     if summary.get("error",None):
         return ("Error",f"Error: {summary['error']}")
 
     subject = f"[E11] {summary['lab']} score {summary['score']}/{POINTS_PER_LAB}"
-    body_lines = [subject, "", "Passes:"]
+    body_lines = []
+    if note is not None:
+        body_lines += [note]
+        body_lines += [""]
+    body_lines += [subject]
+    body_lines += [""]
+    body_lines += ["Passes:"]
     body_lines += [f"  ✔ {p}" for p in summary["passes"]]
     if summary["fails"]:
         body_lines += ["", "Failures:"]

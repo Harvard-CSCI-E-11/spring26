@@ -19,6 +19,22 @@ dynamodb_client = boto3.client('dynamodb')
 dynamodb = boto3.resource('dynamodb')
 users_table = dynamodb.Table('e11-users')
 
+HELP_TEXT = """e11admin - Quick reference
+
+List information about a student by email:
+  e11admin student-report --email <email>
+  e11admin grades <email>
+
+Force a grade for a specific lab:
+  e11admin force-grade <email> <lab>
+  Example: SQS_SECRET_ID=<secret-arn> AWS_PROFILE=fas AWS_REGION=us-east-1 \\
+    e11admin force-grade student@example.com lab1
+
+Access a student's VM via SSH:
+  e11admin ssh <email>
+
+Run 'e11admin --help' for full option list."""
+
 def validate_dynamodb():
     missing = 0
     correct = 0
@@ -166,11 +182,13 @@ def do_class(args):
         if response=='YES':
             delete_items(items)
 
+def do_help(_args):
+    print(HELP_TEXT)
+
 def main():
     parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     subparsers = parser.add_subparsers(dest='command', required=True)
-    # e11 class
     class_parser = subparsers.add_parser('class', help='Commands for E11 class')
     class_parser.set_defaults(func=do_class)
     class_parser.add_argument("--dump", help='Dump all ', action='store_true')
@@ -204,6 +222,7 @@ def main():
     ca = subparsers.add_parser('force-grade', help='Force the grading of a student or lab')
     ca.add_argument(dest='email', help='email to grade (use "all" for all)')
     ca.add_argument(dest='lab', help='lab to grade')
+    ca.add_argument(dest='who', help='Who manually forced the grade')
     ca.set_defaults(func=staff.force_grades)
 
     ca = subparsers.add_parser('canvas-grades', help='Create grade sheet for upload to Canvas')
@@ -216,22 +235,6 @@ def main():
     ca.add_argument(dest='email', help='email address')
     ca.set_defaults(func=staff.ssh_access)
 
-    def do_help(_args):
-        print("""e11admin - Quick reference
-
-List information about a student by email:
-  e11admin student-report --email <email>
-  e11admin grades <email>
-
-Force a grade for a specific lab:
-  e11admin force-grade <email> <lab>
-  Example: SQS_SECRET_ID=<secret-arn> AWS_PROFILE=fas AWS_REGION=us-east-1 \\
-    e11admin force-grade student@example.com lab1
-
-Access a student's VM via SSH:
-  e11admin ssh <email>
-
-Run 'e11admin --help' for full option list.""")
     ca = subparsers.add_parser('help', help='Show quick reference for common tasks')
     ca.set_defaults(func=do_help)
 
