@@ -84,7 +84,7 @@ def get_pkey_pem(key_name):
         secret = secretsmanager_client.get_secret_value(SecretId=ssh_secret_id)
     except ClientError as e:
         # ssh_secret_id is an AWS Secrets Manager ARN/identifier, not the actual secret
-        LOGGER.exception("SecureId=%s", ssh_secret_id)  # codeql[py/clear-text-logging-sensitive-data]
+        LOGGER.exception("SecretArn=%s", ssh_secret_id)  # codeql[py/clear-text-logging-sensitive-data]
         raise RuntimeError("Unable to retrieve SSH secret from Secrets Manager") from e
     json_key = secret.get("SecretString")
     keys = json.loads(json_key)  # dictionary in the form of {key_name:value}
