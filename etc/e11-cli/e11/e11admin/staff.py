@@ -9,6 +9,7 @@ import time
 import csv
 import subprocess
 import signal
+import functools
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -145,18 +146,26 @@ def do_student_report(args):
         return a.get('Name', '') + "~" + a.get('Email', '')
     print(tabulate(sorted(pitems, key=sortkey), headers='keys'))
 
+@functools.lru_cache(maxsize=2)
 def get_class_list():
     """Get the entire class list. Requires a scan."""
     kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name, claims' }
     return queryscan_table(users_table.scan, kwargs)
 
+@functools.lru_cache(maxsize=2)
+def userid_to_user():
+    """returns a dictionary of userid to user entries"""
+    return {cl['user_id']:cl for cl in get_class_list()}
+
+def userid_to_email(user_id):
+    return userid_to_user()[user_id]['email']
+
 ################################################################
 ## Print and upload student grades
 
 def print_grades(items, args):
-    userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],
+    all_grades = [(userid_to_email(r[A.USER_ID]),
                    Decimal(r[A.SCORE]),
                    r[A.SK].split('#')[2],
                    r[A.USER_ID])
@@ -361,28 +370,61 @@ def find_secret(substr):
     raise RuntimeError(f"Secret with substring {substr} not found")
 
 def update_path():
+    """update the path and return (home,api)."""
     base_dir = os.path.dirname(__file__)
     home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
     if home_path not in sys.path:
         sys.path.append(home_path)
+    from home_app import home,api # pylint: disable=import-error, disable=import-outside-toplevel
+    return (home,api)
 
 def force_grades(args):
-    update_path()
+    (home,_) = update_path()
     queue_name  = find_queue('home-queue', stage=args.stage)
     secret_name = find_secret("sqs-auth-secret")
     print("sending message to",queue_name)
     print("using secret",secret_name)
     os.environ['SQS_QUEUE_URL'] = queue_name
     os.environ['SQS_SECRET_ID'] = secret_name
+    message = f"Grading was manually queued by {args.who}"
 
-    from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
-    home.queue_grade(args.email,args.lab, f"Grading was manually queued by {args.who}")
+    if args.email=='all':
+        # Find all of the student in args.lab that did not get a 5
+        high_grades = {}
+
+        # start every student with a 0
+        for item in get_class_list():
+            high_grades[ userid_to_email(item['user_id']) ] = Decimal(0.0)
+
+        items = get_items(args.lab)
+        for i in items:
+            email = userid_to_email(i['user_id'])
+            score = Decimal(i['score'])
+            high_grades[email] = max(high_grades.get(email,0), score)
+        print("These students have a 5.0:")
+        count = 0
+        for (email,score) in high_grades.items():
+            if score==5.0:
+                print(email,score)
+                count += 1
+        print("Count:",count)
+        print()
+        print("These students have less than a 5.0 and will receive a forced grading:")
+        count = 0
+        for (email,score) in high_grades.items():
+            if score<5.0:
+                print(email,score)
+                home.queue_grade(email, args.lab, message)
+                count += 1
+        print("Count:",count)
+        sys.exit(0)
+
+    home.queue_grade(args.email,args.lab, message)
 
 def ssh_access(args):
-    update_path()
-    from home_app import api # pylint: disable=import-error, disable=import-outside-toplevel
-    pem_key = api.get_pkey_pem("cscie-bot")
+    (_,api) = update_path()
 
+    pem_key = api.get_pkey_pem("cscie-bot")
     smashed_email = smash_email(args.email)
     hostname = f"{smashed_email}.csci-e-11.org"
 
