@@ -87,8 +87,8 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
                                                 pkey_pem=ctx.pkey_pem))
         except TimeoutError:
             return {"lab": lab,
-                    "passes": 0,
-                    "fails": 0,
+                    "passes": [],
+                    "fails": [],
                     "tests": [{"name":"tests", "status":"fail", "message":"cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?", "duration":0}],
                     "score": 0,
                     "message" : "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?",
@@ -258,5 +258,7 @@ def create_email(summary, note=None):
                 body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
                 if t.get("context"):
                     body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
+    body_lines += [""]
+    body_lines += ["Note: Dashboard grades are not immediately synced with Canvas."]
     body = "\n".join(body_lines)
     return (subject,body)

@@ -360,6 +360,7 @@ def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     else:
         # For other timezones, use the key as-is (e.g., "America/Los_Angeles")
         timezone_display = timezone_name
+
     return resp_text( HTTP_OK,
                       template.render(
                           user=user,

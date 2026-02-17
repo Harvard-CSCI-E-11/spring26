@@ -72,9 +72,13 @@
     </th>
     <th class="fail_names">
       <ul>
+        {% if grade.fail_names is iterable and grade.fail_names is not string %}
         {% for name in grade.fail_names %}
         <li> {{ name }} </li>
         {% endfor %}
+        {% else %}
+        <li> {{ grade.fail_names }} </li>
+        {% endif %}
       </ul>
     </th>
   </tr>
