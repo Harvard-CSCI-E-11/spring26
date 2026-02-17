@@ -178,7 +178,7 @@ def mock_ses(monkeypatch):
 def test_queue_grade_sends_message(mock_sqs, mock_secrets_manager, test_user, fake_aws):
     """Test that queue_grade sends a properly formatted SQS message."""
     # Call queue_grade
-    result = home.queue_grade(test_user["email"], "lab0")
+    result = home.queue_grade(test_user["email"], "lab0", note='test')
 
     # Verify message was sent
     assert len(mock_sqs.messages) == 1
@@ -235,7 +235,7 @@ def test_queue_grade_handles_sqs_event(mock_sqs, mock_secrets_manager, test_user
     monkeypatch.setattr(api_module, "send_email", mock_send_email_api)
 
     # Call queue_grade to send the message
-    result = home.queue_grade(test_user["email"], "lab0")
+    result = home.queue_grade(test_user["email"], "lab0", note='test')
     assert len(mock_sqs.messages) == 1
 
     # Repackage the message as an SQS event (as Lambda would receive it)
@@ -269,4 +269,3 @@ def test_queue_grade_handles_sqs_event(mock_sqs, mock_secrets_manager, test_user
     email = mock_ses[0]
     assert test_user["email"] in email["Destination"]["ToAddresses"]
     assert "lab0" in email["Message"]["Subject"]["Data"].lower() or "grading" in email["Message"]["Subject"]["Data"].lower()
-
