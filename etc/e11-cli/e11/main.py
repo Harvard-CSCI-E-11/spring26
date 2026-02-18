@@ -382,6 +382,8 @@ def do_check_syntax(args):
     for (root,_,files) in os.walk("."):
         if ".venv" in root:
             continue
+        if "node_modules" in root:
+            continue
         for fn in files:
             if not fn.endswith(".py"):
                 continue
