@@ -10,6 +10,7 @@ import csv
 import subprocess
 import signal
 import functools
+from typing import Any, Dict, List
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -147,7 +148,7 @@ def do_student_report(args):
     print(tabulate(sorted(pitems, key=sortkey), headers='keys'))
 
 @functools.lru_cache(maxsize=2)
-def get_class_list():
+def get_class_list() -> List[Dict[str, Any]]:
     """Get the entire class list. Requires a scan."""
     kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name, claims' }
@@ -181,7 +182,7 @@ def print_grades(items, args):
 
     if args.claims:
         # remove grades for which there are no claims
-        all_grades = [row for row in all_grades if userid_to_user.get(row[3], {}).get('claims')]
+        all_grades = [row for row in all_grades if userid_to_user().get(row[3], {}).get('claims')]
 
     all_grades.sort()
     # Now print
@@ -331,7 +332,7 @@ Required columns and order
         if A.SCORE in item:
             print(item)
             unmatched.append(item)
-    if unmatched > 0:
+    if len(unmatched) > 0:
         print("Unmatched.  Will not continued")
         sys.exit(1)
 
@@ -363,7 +364,7 @@ def find_secret(substr):
     secrets_manager = boto3.client('secretsmanager')
     r = secrets_manager.list_secrets()
     for s in r['SecretList']:
-        name = s['Name']
+        name = s.get('Name','')
         print("secret:",name)
         if substr in name:
             return name
@@ -375,7 +376,8 @@ def update_path():
     home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
     if home_path not in sys.path:
         sys.path.append(home_path)
-    from home_app import home,api # pylint: disable=import-error, disable=import-outside-toplevel
+
+    from home_app import home,api # type: ignore # pylint: disable=import-error, disable=import-outside-toplevel
     return (home,api)
 
 def force_grades(args):

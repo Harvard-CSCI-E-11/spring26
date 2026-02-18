@@ -171,7 +171,7 @@ def validate_sqs_message_auth(body: Dict[str, Any]) -> bool:
         unsigned_message = signer.unsign(provided_token).decode('utf-8')
         if unsigned_message != canonical_message:
             LOGGER.error("SQS message canonical content mismatch")
-            raise BadSignature
+            raise BadSignature("Signature mispatch")
         # If we get here, the signature is valid and the message matches
         LOGGER.debug("SQS message authentication successful")
         return True

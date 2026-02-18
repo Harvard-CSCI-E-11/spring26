@@ -12,13 +12,13 @@ import copy
 import base64
 from zoneinfo import ZoneInfo
 from decimal import Decimal
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Dict, List
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 from boto3.dynamodb.conditions import Key
-import botocore
+from botocore.exceptions import ClientError
 
 from e11.e11core.constants import COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11core.utils import get_logger
@@ -193,7 +193,7 @@ def convert_dynamodb_value(value: Any) -> Any:
         return float(value)
     return value
 
-def queryscan_table(what, kwargs):
+def queryscan_table(what: Any, kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Query or Scan a DynamoDB table, returning all matching items.
     :param what:  should be users_table.scan, users_table.query, etc.
     :param kwargs: should be the args that are used for the query or scan.
@@ -204,7 +204,7 @@ def queryscan_table(what, kwargs):
     while True:
         try:
             response = what(**kwargs)
-        except botocore.exceptions.ClientError:
+        except ClientError:
             logger.error("AWS_PROFILE=%s AWS_REGION=%s",os.getenv('AWS_PROFILE'),AWS_REGION)
             logger.exception("Cannot %s",what)
             raise

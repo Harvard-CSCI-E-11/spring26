@@ -6,6 +6,7 @@ import time
 import argparse
 import sys
 import json
+from typing import Any, Dict, List
 from pathlib import Path
 
 import boto3
@@ -52,7 +53,7 @@ def validate_dynamodb():
         print("Wrong AWS_PROFILE?")
         sys.exit(1)
 
-def get_all(*, sk=None, user_id=None, projection=None):
+def get_all(*, sk=None, user_id=None, projection=None) -> List[Dict[str, Any]]:
     """Search the users table and returns all of the recoreds with a particular sk.
     Currently this requires a scan. We need to modify the schema to allow us to do this efficiently with a query.
     """
