@@ -45,7 +45,7 @@
 
 <h3>Grades</h3>
 <p><i>Note: Only the highest grade for each lab is recorded in Canvas.</i></p>
-<table class="pure-table">
+<table class="pure-table grades-table">
   <thead>
     <tr>
       <th class="date">date</th>
@@ -60,11 +60,11 @@
   <tbody>
   {% for grade in grades %}
   <tr>
-    <th class="date">{{ grade.datetime }}</th>
-    <th class="lab">{{ grade.lab }}</th>
-    <th class="public_ip">{{ grade.public_ip }}</th>
-    <th class="score">{{ grade.score }}</th>
-    <th class="pass_names">
+    <td class="date">{{ grade.datetime }}</td>
+    <td class="lab">{{ grade.lab }}</td>
+    <td class="public_ip">{{ grade.public_ip }}</td>
+    <td class="score">{{ grade.score }}</td>
+    <td class="pass_names">
       <ul>
         {% if grade.pass_names is iterable and grade.pass_names is not string %}
         {% for name in grade.pass_names %}
@@ -74,8 +74,8 @@
         <li> <i>{{ grade.pass_names }} </i> </li>
         {% endif %}
       </ul>
-    </th>
-    <th class="fail_names">
+    </td>
+    <td class="fail_names">
       <ul>
         {% if grade.fail_names is iterable and grade.fail_names is not string %}
         {% for name in grade.fail_names %}
@@ -85,8 +85,8 @@
         <li> <i>{{ grade.fail_names }}</i> </li>
         {% endif %}
       </ul>
-    </th>
-    <th class="note">{{ grade.get('note', '') }}</th>
+    </td>
+    <td class="note">{{ grade.get('note', '') }}</td>
   </tr>
   {% endfor %}
   </tbody>
