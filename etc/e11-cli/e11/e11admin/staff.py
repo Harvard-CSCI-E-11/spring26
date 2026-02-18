@@ -426,6 +426,7 @@ def force_grades(args):
 def ssh_access(args):
     (_,api) = update_path()
 
+    os.environ['SSH_SECRET_ID'] = find_secret("ssh")
     pem_key = api.get_pkey_pem("cscie-bot")
     smashed_email = smash_email(args.email)
     hostname = f"{smashed_email}.csci-e-11.org"
@@ -464,17 +465,19 @@ def ssh_access(args):
             env={**os.environ, **agent_env},
             text=True
         ) as ssh_add_proc:
+            pem_key += '\n'
             _, stderr = ssh_add_proc.communicate(input=pem_key)
 
             if ssh_add_proc.returncode != 0:
                 print(f"Error adding key to ssh-agent: {stderr}")
+                print(pem_key)
                 sys.exit(1)
 
         print(f"Connecting to ubuntu@{hostname}")
 
         # Run ssh with the agent environment (allows interactive terminal use)
         ssh_proc = subprocess.run(
-            ['ssh', f'ubuntu@{hostname}'],
+            ['ssh', '-o', 'IdentitiesOnly=no', f'ubuntu@{hostname}'],
             env={**os.environ, **agent_env},
             check=False
         )

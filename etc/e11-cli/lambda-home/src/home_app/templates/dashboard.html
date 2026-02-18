@@ -65,9 +65,13 @@
     <th class="score">{{ grade.score }}</th>
     <th class="pass_names">
       <ul>
+        {% if grade.pass_names is iterable and grade.pass_names is not string %}
         {% for name in grade.pass_names %}
         <li> {{ name }} </li>
         {% endfor %}
+        {% else %}
+        <li> <i>{{ grade.pass_names }} </i> </li>
+        {% endif %}
       </ul>
     </th>
     <th class="fail_names">
@@ -77,7 +81,7 @@
         <li> {{ name }} </li>
         {% endfor %}
         {% else %}
-        <li> {{ grade.fail_names }} </li>
+        <li> <i>{{ grade.fail_names }}</i> </li>
         {% endif %}
       </ul>
     </th>
