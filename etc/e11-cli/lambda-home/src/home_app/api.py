@@ -334,7 +334,7 @@ def api_grader(event, context, payload):
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-    add_grade(user, lab, user.public_ip, summary)
+    add_grade(user, lab, user.public_ip, summary, note=note)
 
     # Send email
     (subject, body) = grader.create_email(summary, note)

@@ -86,12 +86,13 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
                                                 key_filename=ctx.key_filename,
                                                 pkey_pem=ctx.pkey_pem))
         except TimeoutError:
+            fail_msg = "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?"
             return {"lab": lab,
                     "passes": [],
-                    "fails": [],
-                    "tests": [{"name":"tests", "status":"fail", "message":"cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?", "duration":0}],
+                    "fails": [fail_msg],
+                    "tests": [{"name":"tests", "status":"fail", "message": fail_msg, "duration":0}],
                     "score": 0,
-                    "message" : "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?",
+                    "message" : fail_msg,
                     "ctx" : sanitize_ctx(ctx),
                     "error": False}
 

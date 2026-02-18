@@ -323,12 +323,16 @@ def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     grades = [item for item in items if item[A.SK].startswith(A.SK_GRADE_PREFIX)]
     images = [item for item in items if item[A.SK].startswith(A.SK_IMAGE_PREFIX)]
 
-    # Get the lab out of the grades
+    # Get the lab out of the grades; normalize pass_names/fail_names (legacy data may have Decimal)
     for grade in grades:
         try:
             grade['lab'] = grade['sk'].split('#')[1]
         except IndexError:
             grade['lab'] = 'n/a'
+        pn = grade.get('pass_names')
+        fn = grade.get('fail_names')
+        grade['pass_names'] = pn if isinstance(pn, list) else []
+        grade['fail_names'] = fn if isinstance(fn, list) else []
 
     # sign the image URLs
     for image in images:

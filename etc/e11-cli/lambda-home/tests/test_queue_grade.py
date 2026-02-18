@@ -84,7 +84,7 @@ class MockGrader:
         }
 
     @staticmethod
-    def create_email(summary):
+    def create_email(summary, note=None):
         """Return mock email subject and body."""
         return (
             f"Grading Results for {summary['lab']}",

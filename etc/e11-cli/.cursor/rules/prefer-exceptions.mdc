@@ -1,0 +1,13 @@
+---
+description: Prefer exceptions over silent fixes - fail fast, easy to find in logs
+alwaysApply: true
+---
+
+# Prefer Exceptions Over Silent Fixes
+
+**Code must be correct. When things are not correct, throw exceptions—do not silently fix them.**
+
+- **Called functions must NOT fix errors in arguments they receive.** If an argument is wrong, raise an exception. Silent fixes hide bugs and make them hard to find.
+- **Prefer exceptions** because they are easy to find in logfiles. Silent failures (e.g. returning a default, swallowing errors) waste debugging time.
+- **Fail fast.** Do not catch and "fix" errors by substituting defaults. Let the exception propagate so the root cause is visible.
+- **Example:** If a function expects a list and receives an int, raise `TypeError`—do not convert the int to `[]`.

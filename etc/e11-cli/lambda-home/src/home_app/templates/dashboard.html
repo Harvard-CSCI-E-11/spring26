@@ -54,6 +54,7 @@
       <th class="score">score</th>
       <th>Checks passed</th>
       <th>Checks failed</th>
+      <th>Note</th>
     </tr>
   </thead>
   <tbody>
@@ -85,6 +86,7 @@
         {% endif %}
       </ul>
     </th>
+    <th class="note">{{ grade.get('note', '') }}</th>
   </tr>
   {% endfor %}
   </tbody>
