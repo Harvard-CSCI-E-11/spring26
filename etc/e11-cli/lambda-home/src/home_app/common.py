@@ -61,3 +61,13 @@ def get_cookie_domain(event) -> str:
         # so sessions work across both environments
         return COURSE_DOMAIN
     return COOKIE_DOMAIN
+
+
+def get_request_host(event) -> str | None:
+    """Get the request host from the event (e.g. stage.csci-e-11.org or csci-e-11.org).
+    Used for OAuth redirect_uri so users return to the same host they started from."""
+    headers = event.get("headers") or {}
+    host = headers.get("host") or headers.get("Host")
+    if host:
+        return str(host).split(":", maxsplit=1)[0].strip()
+    return event.get("requestContext", {}).get("domainName")

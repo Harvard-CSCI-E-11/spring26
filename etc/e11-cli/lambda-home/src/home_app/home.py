@@ -273,9 +273,9 @@ def do_page(event, status="", extra=""):
         LOGGER.debug("ses=%s redirecting to /dashboard", ses)
         return redirect("/dashboard")
 
-    # Build an authentication login
+    # Build an authentication login (redirect_uri from request host so stage returns to stage)
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(
-        openid_config=oidc.get_oidc_config()
+        openid_config=oidc.get_oidc_config(event)
     )
     LOGGER.debug("url=%s issued_at=%s", url, issued_at)
     template = env.get_template("login.html")
@@ -392,7 +392,7 @@ def oidc_callback(event):
         return {"statusCode": HTTP_BAD_REQUEST, "body": "Missing 'code' in query parameters"}
     try:
         obj = oidc.handle_oidc_redirect_stateless(
-            openid_config=oidc.get_oidc_config(),
+            openid_config=oidc.get_oidc_config(event),
             callback_params={"code": code, "state": state},
         )
     except (SignatureExpired, BadSignature):
@@ -430,7 +430,7 @@ def do_logout(event):
         COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event)
     )
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(
-        openid_config=oidc.get_oidc_config()
+        openid_config=oidc.get_oidc_config(event)
     )
     LOGGER.debug("url=%s issued_at=%s ", url, issued_at)
     return resp_text(
