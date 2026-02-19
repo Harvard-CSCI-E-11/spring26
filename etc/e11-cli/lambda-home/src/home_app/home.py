@@ -127,6 +127,20 @@ def eastern_filter(value):
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
+def utc_iso_to_eastern(iso_str: str) -> str:
+    """Parse ISO datetime string (UTC, no TZ in string) and return formatted in Eastern."""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str.replace(" ", "T"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        eastern = dt.astimezone(LAB_TIMEZONE)
+        return eastern.strftime("%Y-%m-%d %H:%M:%S %Z")
+    except (ValueError, TypeError):
+        return iso_str
+
+
 # ---------- Setup AWS Services  ----------
 
 # jinja2 environment for template substitution
@@ -136,7 +150,9 @@ env = Environment(
     )
 )
 env.globals["API_PATH"] = API_PATH
+env.globals["version"] = __version__
 env.filters["eastern"] = eastern_filter
+env.filters["tojson"] = lambda x: json.dumps(x, default=str) if x is not None else "{}"
 env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
 env.globals["LAB_CONFIG"] = LAB_CONFIG
 
@@ -273,9 +289,9 @@ def do_page(event, status="", extra=""):
         LOGGER.debug("ses=%s redirecting to /dashboard", ses)
         return redirect("/dashboard")
 
-    # Build an authentication login
+    # Build an authentication login (redirect_uri from request host so stage returns to stage)
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(
-        openid_config=oidc.get_oidc_config()
+        openid_config=oidc.get_oidc_config(event)
     )
     LOGGER.debug("url=%s issued_at=%s", url, issued_at)
     template = env.get_template("login.html")
@@ -314,21 +330,26 @@ def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
-    # Create printable dates from the sortkeys
+    # Create printable dates from the sortkeys (UTC) and convert to Eastern for display
     for item in items:
-        item['datetime'] = item['sk'][-26:-7].replace("T"," ")
+        raw = item['sk'][-26:-7].replace("T", " ")
+        item['datetime'] = utc_iso_to_eastern(raw)
 
     # Extract out the data
     logs   = [item for item in items if item[A.SK].startswith(A.SK_LOG_PREFIX)]
     grades = [item for item in items if item[A.SK].startswith(A.SK_GRADE_PREFIX)]
     images = [item for item in items if item[A.SK].startswith(A.SK_IMAGE_PREFIX)]
 
-    # Get the lab out of the grades
+    # Get the lab out of the grades; normalize pass_names/fail_names (legacy data may have Decimal)
     for grade in grades:
         try:
             grade['lab'] = grade['sk'].split('#')[1]
         except IndexError:
             grade['lab'] = 'n/a'
+        pn = grade.get('pass_names')
+        fn = grade.get('fail_names')
+        grade['pass_names'] = pn if isinstance(pn, list) else []
+        grade['fail_names'] = fn if isinstance(fn, list) else []
 
     # sign the image URLs
     for image in images:
@@ -360,6 +381,7 @@ def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     else:
         # For other timezones, use the key as-is (e.g., "America/Los_Angeles")
         timezone_display = timezone_name
+
     return resp_text( HTTP_OK,
                       template.render(
                           user=user,
@@ -387,7 +409,7 @@ def oidc_callback(event):
         return {"statusCode": HTTP_BAD_REQUEST, "body": "Missing 'code' in query parameters"}
     try:
         obj = oidc.handle_oidc_redirect_stateless(
-            openid_config=oidc.get_oidc_config(),
+            openid_config=oidc.get_oidc_config(event),
             callback_params={"code": code, "state": state},
         )
     except (SignatureExpired, BadSignature):
@@ -425,7 +447,7 @@ def do_logout(event):
         COOKIE_NAME, "", clear=True, domain=get_cookie_domain(event)
     )
     (url, issued_at) = oidc.build_oidc_authorization_url_stateless(
-        openid_config=oidc.get_oidc_config()
+        openid_config=oidc.get_oidc_config(event)
     )
     LOGGER.debug("url=%s issued_at=%s ", url, issued_at)
     return resp_text(
@@ -496,13 +518,14 @@ def do_login_direct(event):
         return resp_text(HTTP_INTERNAL_ERROR, "Internal server error")
 
 
-def queue_grade(email: str, lab: str) -> Dict[str, Any]:
+def queue_grade(email: str, lab: str, note: None) -> Dict[str, Any]:
     """
     Queue a grading request for a student's lab via SQS.
 
     Args:
         email: Student email address
         lab: Lab name (e.g., 'lab0', 'lab1')
+        note: Optional note that is displayed to student
 
     Returns:
         SQS send_message response (includes MessageId)
@@ -520,6 +543,7 @@ def queue_grade(email: str, lab: str) -> Dict[str, Any]:
             A.COURSE_KEY: user.course_key,
         },
         "lab": lab,
+        "note": note
     }
 
     # Send the signed message to SQS

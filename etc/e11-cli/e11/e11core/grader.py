@@ -86,12 +86,13 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
                                                 key_filename=ctx.key_filename,
                                                 pkey_pem=ctx.pkey_pem))
         except TimeoutError:
+            fail_msg = "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?"
             return {"lab": lab,
-                    "passes": 0,
-                    "fails": 0,
-                    "tests": [{"name":"tests", "status":"fail", "message":"cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?", "duration":0}],
+                    "passes": [],
+                    "fails": [fail_msg],
+                    "tests": [{"name":"tests", "status":"fail", "message": fail_msg, "duration":0}],
                     "score": 0,
-                    "message" : "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?",
+                    "message" : fail_msg,
                     "ctx" : sanitize_ctx(ctx),
                     "error": False}
 
@@ -236,14 +237,20 @@ def print_summary(summary, verbose=False):
 
 
 
-def create_email(summary):
+def create_email(summary, note=None):
     """Create email message for user. See also print_summary above"""
 
     if summary.get("error",None):
         return ("Error",f"Error: {summary['error']}")
 
     subject = f"[E11] {summary['lab']} score {summary['score']}/{POINTS_PER_LAB}"
-    body_lines = [subject, "", "Passes:"]
+    body_lines = []
+    if note is not None:
+        body_lines += [note]
+        body_lines += [""]
+    body_lines += [subject]
+    body_lines += [""]
+    body_lines += ["Passes:"]
     body_lines += [f"  ✔ {p}" for p in summary["passes"]]
     if summary["fails"]:
         body_lines += ["", "Failures:"]
@@ -252,5 +259,7 @@ def create_email(summary):
                 body_lines += [f"✘ {t['name']}: {t.get('message','')}"]
                 if t.get("context"):
                     body_lines += ["-- context --", (t["context"][:4000] or ""), ""]
+    body_lines += [""]
+    body_lines += ["Note: Dashboard grades are not immediately synced with Canvas."]
     body = "\n".join(body_lines)
     return (subject,body)

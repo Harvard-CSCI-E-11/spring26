@@ -9,6 +9,8 @@ import time
 import csv
 import subprocess
 import signal
+import functools
+from typing import Any, Dict, List
 from decimal import Decimal
 
 from tabulate import tabulate
@@ -88,7 +90,7 @@ def _format_user_item(item):
         claims_name = item['claims']['name']
     except (TypeError, KeyError):
         claims_name = 'n/a'
-    
+
     return {
         "Registered": time.asctime(time.localtime(user_registered)),
         "Email": item.get('email', ""),
@@ -126,7 +128,7 @@ def do_student_report(args):
     except ClientError:
         print("No access: ", table)
         sys.exit(1)
-    
+
     items = response['Items']
     while 'LastEvaluatedKey' in response:
         kwargs['ExclusiveStartKey'] = response['LastEvaluatedKey']
@@ -145,18 +147,26 @@ def do_student_report(args):
         return a.get('Name', '') + "~" + a.get('Email', '')
     print(tabulate(sorted(pitems, key=sortkey), headers='keys'))
 
-def get_class_list():
+@functools.lru_cache(maxsize=2)
+def get_class_list() -> List[Dict[str, Any]]:
     """Get the entire class list. Requires a scan."""
     kwargs:dict = {'FilterExpression':Key(A.SK).eq(A.SK_USER),
                    'ProjectionExpression': f'{A.USER_ID}, email, preferred_name, claims' }
     return queryscan_table(users_table.scan, kwargs)
 
+@functools.lru_cache(maxsize=2)
+def userid_to_user():
+    """returns a dictionary of userid to user entries"""
+    return {cl['user_id']:cl for cl in get_class_list()}
+
+def userid_to_email(user_id):
+    return userid_to_user()[user_id]['email']
+
 ################################################################
 ## Print and upload student grades
 
 def print_grades(items, args):
-    userid_to_user = {cl['user_id']:cl for cl in get_class_list()}
-    all_grades = [(userid_to_user[r[A.USER_ID]]['email'],
+    all_grades = [(userid_to_email(r[A.USER_ID]),
                    Decimal(r[A.SCORE]),
                    r[A.SK].split('#')[2],
                    r[A.USER_ID])
@@ -172,7 +182,7 @@ def print_grades(items, args):
 
     if args.claims:
         # remove grades for which there are no claims
-        all_grades = [row for row in all_grades if userid_to_user.get(row[3], {}).get('claims')]
+        all_grades = [row for row in all_grades if userid_to_user().get(row[3], {}).get('claims')]
 
     all_grades.sort()
     # Now print
@@ -322,7 +332,7 @@ Required columns and order
         if A.SCORE in item:
             print(item)
             unmatched.append(item)
-    if unmatched > 0:
+    if len(unmatched) > 0:
         print("Unmatched.  Will not continued")
         sys.exit(1)
 
@@ -337,40 +347,90 @@ Required columns and order
 ################################################################
 ## Force grading of a specific student
 
-def find_queue():
+def find_queue(substr, stage=False):
     # Find the grade queue
     sqs = boto3.client('sqs')
     r = sqs.list_queues()
     for q in r['QueueUrls']:
-        if 'prod-home-queue' in q:
+        print("queue:",q)
+        if stage and "stage" not in q:
+            continue
+        if substr in q:
             return q
-    raise RuntimeError("prod-home-queue SQS queue not found")
+    raise RuntimeError(f"SQS queue with substring {substr} not found")
+
+def find_secret(substr):
+    # Find the grade queue
+    secrets_manager = boto3.client('secretsmanager')
+    r = secrets_manager.list_secrets()
+    for s in r['SecretList']:
+        name = s.get('Name','')
+        print("secret:",name)
+        if substr in name:
+            return name
+    raise RuntimeError(f"Secret with substring {substr} not found")
 
 def update_path():
+    """update the path and return (home,api)."""
     base_dir = os.path.dirname(__file__)
     home_path = os.path.abspath(os.path.join(base_dir, "..", "..", "lambda-home", "src"))
     if home_path not in sys.path:
         sys.path.append(home_path)
 
-def force_grades(args):
-    update_path()
-    queue_name = find_queue()
-    print("sending message to",queue_name)
-    os.environ['SQS_QUEUE_URL'] = queue_name
-    if 'SQS_SECRET_ID' not in os.environ:
-        raise RuntimeError("Set environment variable SQS_SECRET_ID")
+    from home_app import home,api # type: ignore # pylint: disable=import-error, disable=import-outside-toplevel
+    return (home,api)
 
-    from home_app import home # pylint: disable=import-error, disable=import-outside-toplevel
-    home.queue_grade(args.email,args.lab) # is it this simple?
+def force_grades(args):
+    (home,_) = update_path()
+    queue_name  = find_queue('home-queue', stage=args.stage)
+    secret_name = find_secret("sqs-auth-secret")
+    print("sending message to",queue_name)
+    print("using secret",secret_name)
+    os.environ['SQS_QUEUE_URL'] = queue_name
+    os.environ['SQS_SECRET_ID'] = secret_name
+    message = f"Grading was manually queued by {args.who}"
+
+    if args.email=='all':
+        # Find all of the student in args.lab that did not get a 5
+        high_grades = {}
+
+        # start every student with a 0
+        for item in get_class_list():
+            high_grades[ userid_to_email(item['user_id']) ] = Decimal(0.0)
+
+        items = get_items(args.lab)
+        for i in items:
+            email = userid_to_email(i['user_id'])
+            score = Decimal(i['score'])
+            high_grades[email] = max(high_grades.get(email,0), score)
+        print("These students have a 5.0:")
+        count = 0
+        for (email,score) in high_grades.items():
+            if score==5.0:
+                print(email,score)
+                count += 1
+        print("Count:",count)
+        print()
+        print("These students have less than a 5.0 and will receive a forced grading:")
+        count = 0
+        for (email,score) in high_grades.items():
+            if score<5.0:
+                print(email,score)
+                home.queue_grade(email, args.lab, message)
+                count += 1
+        print("Count:",count)
+        sys.exit(0)
+
+    home.queue_grade(args.email,args.lab, message)
 
 def ssh_access(args):
-    update_path()
-    from home_app import api # pylint: disable=import-error, disable=import-outside-toplevel
-    pem_key = api.get_pkey_pem("cscie-bot")
+    (_,api) = update_path()
 
+    os.environ['SSH_SECRET_ID'] = find_secret("ssh")
+    pem_key = api.get_pkey_pem("cscie-bot")
     smashed_email = smash_email(args.email)
     hostname = f"{smashed_email}.csci-e-11.org"
-    
+
     # Start ssh-agent and get its environment variables
     try:
         result = subprocess.run(['ssh-agent', '-s'], capture_output=True, text=True, check=True)
@@ -380,7 +440,7 @@ def ssh_access(args):
     except FileNotFoundError:
         print("Error: ssh-agent not found. Please ensure OpenSSH is installed.")
         sys.exit(1)
-    
+
     # Parse the ssh-agent output to get SSH_AUTH_SOCK and SSH_AGENT_PID
     agent_env = {}
     for line in result.stdout.split('\n'):
@@ -390,11 +450,11 @@ def ssh_access(args):
             parts = line.split(';')[0].split('=', 1)
             if len(parts) == 2:
                 agent_env[parts[0]] = parts[1]
-    
+
     if 'SSH_AUTH_SOCK' not in agent_env or 'SSH_AGENT_PID' not in agent_env:
         print("Error: Failed to parse ssh-agent environment variables")
         sys.exit(1)
-    
+
     try:
         # Add the private key to the agent via stdin (never touches disk)
         with subprocess.Popen(
@@ -405,23 +465,25 @@ def ssh_access(args):
             env={**os.environ, **agent_env},
             text=True
         ) as ssh_add_proc:
+            pem_key += '\n'
             _, stderr = ssh_add_proc.communicate(input=pem_key)
-            
+
             if ssh_add_proc.returncode != 0:
                 print(f"Error adding key to ssh-agent: {stderr}")
+                print(pem_key)
                 sys.exit(1)
-        
+
         print(f"Connecting to ubuntu@{hostname}")
-        
+
         # Run ssh with the agent environment (allows interactive terminal use)
         ssh_proc = subprocess.run(
-            ['ssh', f'ubuntu@{hostname}'],
+            ['ssh', '-o', 'IdentitiesOnly=no', f'ubuntu@{hostname}'],
             env={**os.environ, **agent_env},
             check=False
         )
-        
+
         sys.exit(ssh_proc.returncode)
-        
+
     finally:
         # Clean up: kill the ssh-agent
         if 'SSH_AGENT_PID' in agent_env:

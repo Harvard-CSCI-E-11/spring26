@@ -6,7 +6,7 @@ SQS is used to queue grading for bulk-grading and for lab7 and lab8, where gradi
 SQS Message Authentication:
 Messages sent to SQS should include an 'auth_token' field in the message body that is an HMAC signature
 of the message content (using itsdangerous.Signer with SHA1). The secret key is stored in AWS Secrets Manager
-under the key specified by SQS_AUTH_SECRET_ID environment variable.
+under the key specified by SQS_SECRET_ID environment variable.
 
 To send an authenticated message:
 1. Get the shared secret from Secrets Manager
@@ -33,23 +33,30 @@ from e11.e11_common import sqs_client, secretsmanager_client
 from . import api
 
 LOGGER = get_logger("home")
-SQS_QUEUE_URL = os.environ.get("SQS_QUEUE_URL", "")
-SQS_QUEUE_ARN = os.environ.get("SQS_QUEUE_ARN", "")
-SQS_AUTH_SECRET_ID = os.environ.get("SQS_SECRET_ID", "")
+#SQS_QUEUE_ARN = os.environ.get("SQS_QUEUE_ARN", "")
 
+def sqs_queue_url():
+    try:
+        return os.environ["SQS_QUEUE_URL"]
+    except KeyError:
+        LOGGER.exception("Environment variable SQS_QUEUE_URL not set")
+        raise
+
+def sqs_secret_id():
+    try:
+        return os.environ["SQS_SECRET_ID"]
+    except KeyError:
+        LOGGER.exception("Environment variable SQS_SECRET_ID not set")
+        raise
 
 @functools.lru_cache(maxsize=1)
 def _get_sqs_auth_secret() -> Optional[str]:
     """
     Get the shared secret for SQS message authentication from Secrets Manager.
-    Returns None if SQS_AUTH_SECRET_ID is not configured (authentication disabled).
     Results are cached to avoid repeated Secrets Manager calls.
     """
-    if not SQS_AUTH_SECRET_ID:
-        LOGGER.error("SQS_AUTH_SECRET_ID not provided")
-        return None
     try:
-        secret_response = secretsmanager_client.get_secret_value(SecretId=SQS_AUTH_SECRET_ID)
+        secret_response = secretsmanager_client.get_secret_value(SecretId=sqs_secret_id())
         secret_string = secret_response.get("SecretString", "")
         # The secret might be stored as JSON or as a plain string
         try:
@@ -57,16 +64,15 @@ def _get_sqs_auth_secret() -> Optional[str]:
             # Try common key names
             secret = secret_dict.get("sqs_auth_secret") or secret_dict.get("auth_secret") or secret_dict.get("secret")
         except json.JSONDecodeError:
-            # Plain string
+            # Plain string?
             secret = secret_string
 
         if not secret:
-            LOGGER.warning("SQS auth secret found but empty in Secrets Manager")
-            return None
+            raise ValueError("SQS auth secret found but empty in Secrets Manager")
         return secret
     except (ClientError, json.JSONDecodeError, KeyError) as e:
-        LOGGER.error("Failed to get SQS auth secret from Secrets Manager: %s", e)
-        return None
+        LOGGER.exception("Failed to get SQS auth secret from Secrets Manager: %s", e)
+        raise
 
 
 def sign_sqs_message(action: str, method: str, payload: Optional[Dict[str, Any]] = None) -> str:
@@ -125,7 +131,7 @@ def validate_sqs_message_auth(body: Dict[str, Any]) -> bool:
         True if authentication is valid or disabled, False if authentication fails
 
     Authentication is disabled (returns True) if:
-    - SQS_AUTH_SECRET_ID is not configured
+    - SQS_SECRET_ID is not configured
     - The secret cannot be retrieved from Secrets Manager
 
     Authentication fails (returns False) if:
@@ -136,14 +142,12 @@ def validate_sqs_message_auth(body: Dict[str, Any]) -> bool:
 
     # If no secret is configured, authentication is disabled
     if secret is None:
-        LOGGER.debug("SQS message authentication disabled (no secret configured)")
-        return True
+        raise ValueError("No SQS secret configured")
 
     # Get the auth token from the message
     provided_token = body.get("auth_token")
     if not provided_token:
-        LOGGER.warning("SQS message missing auth_token but authentication is enabled")
-        return False
+        raise ValueError("SQS message missing auth_token but authentication is enabled")
 
     # Create canonical representation: action + method + sorted JSON of payload
     action = body.get("action", "")
@@ -152,10 +156,8 @@ def validate_sqs_message_auth(body: Dict[str, Any]) -> bool:
 
     # Create a deterministic JSON representation of the payload
     if payload is None:
-        payload_str = "null"
-    else:
-        payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
-
+        raise ValueError("payload not provided")
+    payload_str = json.dumps(payload, sort_keys=True, separators=(',', ':'))
     canonical_message = f"{action}:{method}:{payload_str}"
 
     # Use itsdangerous.Signer to validate the signature
@@ -168,14 +170,14 @@ def validate_sqs_message_auth(body: Dict[str, Any]) -> bool:
         # unsign() returns the original message (bytes), so we decode and compare
         unsigned_message = signer.unsign(provided_token).decode('utf-8')
         if unsigned_message != canonical_message:
-            LOGGER.warning("SQS message canonical content mismatch")
-            return False
+            LOGGER.error("SQS message canonical content mismatch")
+            raise BadSignature("Signature mispatch")
         # If we get here, the signature is valid and the message matches
         LOGGER.debug("SQS message authentication successful")
         return True
     except BadSignature:
-        LOGGER.warning("SQS message auth_token validation failed")
-        return False
+        LOGGER.exception("SQS message auth_token validation failed")
+        raise
 
 def sqs_send_message(message_body: str, *, delay_seconds: int = 0,
                      message_attributes: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -190,11 +192,8 @@ def sqs_send_message(message_body: str, *, delay_seconds: int = 0,
     Returns:
         boto3's response (includes MessageId).
     """
-    if not SQS_QUEUE_URL:
-        raise RuntimeError("SQS_QUEUE_URL is not set")
-
     kwargs: Dict[str, Any] = {
-        "QueueUrl": SQS_QUEUE_URL,
+        "QueueUrl": sqs_queue_url(),
         "MessageBody": message_body,
     }
     if delay_seconds:
@@ -203,9 +202,7 @@ def sqs_send_message(message_body: str, *, delay_seconds: int = 0,
         # boto3 expects the SQS wire format for attributes.
         kwargs["MessageAttributes"] = message_attributes
 
-    result = sqs_client.send_message(**kwargs)
-    return result  # type: ignore[return-value]
-
+    return sqs_client.send_message(**kwargs)# type: ignore[return-value]
 
 def sqs_send_signed_message(action: str, method: str, payload: Optional[Dict[str, Any]] = None,
                            *, delay_seconds: int = 0,
@@ -243,11 +240,8 @@ def sqs_receive_one(*, wait_seconds: int = 10, visibility_timeout: int = 60,
         SQS message dict (with 'body', 'messageId', etc.) or None if no message received.
         If validate_auth=True and validation fails, raises ValueError.
     """
-    if not SQS_QUEUE_URL:
-        raise RuntimeError("SQS_QUEUE_URL is not set")
-
     resp = sqs_client.receive_message(
-        QueueUrl=SQS_QUEUE_URL,
+        QueueUrl=sqs_queue_url(),
         MaxNumberOfMessages=1,
         WaitTimeSeconds=int(wait_seconds),
         VisibilityTimeout=int(visibility_timeout),
@@ -278,13 +272,8 @@ def sqs_delete_message(receipt_handle: str) -> None:
     """
     Delete a message after successful processing.
     """
-    if not SQS_QUEUE_URL:
-        raise RuntimeError("SQS_QUEUE_URL is not set")
-
-    sqs_client.delete_message(
-        QueueUrl=SQS_QUEUE_URL,
-        ReceiptHandle=receipt_handle,
-    )
+    sqs_client.delete_message( QueueUrl=sqs_queue_url(),
+                               ReceiptHandle=receipt_handle )
 
 def is_sqs_event(event: Dict[str, Any]) -> bool:
     recs = event.get("Records")

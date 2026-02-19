@@ -284,7 +284,8 @@ def api_grader(event, context, payload):
                                    "message":"user.email is None",
                                    "user":user})
 
-    lab = payload["lab"]
+    lab  = payload["lab"]
+    note = payload.get("note")
 
     # Check if request is from SQS (allow late grading for SQS requests)
     is_sqs_request = event.get("source") == "sqs"
@@ -324,7 +325,7 @@ def api_grader(event, context, payload):
     ###
     ### Here is where the actual grading happens...
     ###
-    add_user_log(None, user.user_id, f"Grading lab {lab} starts")
+    add_user_log(None, user.user_id, f"Grading lab {lab} starts", note=note)
 
     summary = grader.grade_student_vm( user.email, user.public_ip, lab=lab, pkey_pem=get_pkey_pem(CSCIE_BOT) )
     if summary['error']:
@@ -333,10 +334,10 @@ def api_grader(event, context, payload):
     LOGGER.info("summary=%s",summary)
 
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
-    add_grade(user, lab, user.public_ip, summary)
+    add_grade(user, lab, user.public_ip, summary, note=note)
 
     # Send email
-    (subject, body) = grader.create_email(summary)
+    (subject, body) = grader.create_email(summary, note)
     send_email(to_addr=user.email, email_subject=subject, email_body=body)
     return resp_json(HTTP_OK, {"summary": summary})
 

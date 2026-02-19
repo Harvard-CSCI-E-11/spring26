@@ -112,7 +112,7 @@ functions:
 # Tail logs
 .PHONY: prod-tail
 prod-tail:
-	 sam logs --stack-name $(STACK_PROD) --name E11HomeFunction --tail  --region $(AWS_REGION) --profile $(AWS_PROFILE)
+	 sam logs --stack-name $(STACK_PROD) --name E11HomeFunction --tail  --region $(AWS_REGION)
 
 # Tail stage logs (separate stack)
 .PHONY: stage-tail

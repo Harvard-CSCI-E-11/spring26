@@ -12,13 +12,13 @@ import copy
 import base64
 from zoneinfo import ZoneInfo
 from decimal import Decimal
-from typing import Any, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING, Dict, List
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
 from boto3.dynamodb.conditions import Key
-import botocore
+from botocore.exceptions import ClientError
 
 from e11.e11core.constants import COURSE_KEY_LEN, COURSE_DOMAIN
 from e11.e11core.utils import get_logger
@@ -193,7 +193,7 @@ def convert_dynamodb_value(value: Any) -> Any:
         return float(value)
     return value
 
-def queryscan_table(what, kwargs):
+def queryscan_table(what: Any, kwargs: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Query or Scan a DynamoDB table, returning all matching items.
     :param what:  should be users_table.scan, users_table.query, etc.
     :param kwargs: should be the args that are used for the query or scan.
@@ -204,7 +204,7 @@ def queryscan_table(what, kwargs):
     while True:
         try:
             response = what(**kwargs)
-        except botocore.exceptions.ClientError:
+        except ClientError:
             logger.error("AWS_PROFILE=%s AWS_REGION=%s",os.getenv('AWS_PROFILE'),AWS_REGION)
             logger.exception("Cannot %s",what)
             raise
@@ -363,9 +363,33 @@ def add_user_log(event, user_id, message, **extra):
 
 ################################################################
 ## grading
+##
+## CANONICAL GRADE STORAGE: add_grade() below is the ONLY place that writes
+## grade records (sk starting with grade#) to the users table. All callers
+## (api_grader, leaderboard) must use this function—no direct put_item for grades.
+##
+## ROOT CAUSES of Decimal(0) in pass_names/fail_names (now fixed at source):
+## 1. Grader TimeoutError path (commit b27b4866): When SSH connection fails,
+##    discover_and_run returned "passes": 0, "fails": 0 (ints) instead of [].
+## 2. Lab7 leaderboard (flask_app.py): Used fails=0 or fails=1 (int) instead of list.
+## add_grade now raises TypeError if passes/fails are not lists.
 
-def add_grade(user, lab, public_ip, summary):
+def _require_list(val: Any, field: str) -> List[str]:
+    """Require pass_names/fail_names to be lists. Raises TypeError if not."""
+    if not isinstance(val, list):
+        raise TypeError(
+            f"add_grade: summary[{field!r}] must be a list, got {type(val).__name__}: {val!r}"
+        )
+    return val
+
+
+def add_grade(user, lab, public_ip, summary, note: str | None = None):
     # Record grades
+    passes = summary.get("passes")
+    fails = summary.get("fails")
+    _require_list(passes, "passes")
+    _require_list(fails, "fails")
+
     now = datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
@@ -373,10 +397,12 @@ def add_grade(user, lab, public_ip, summary):
         A.LAB: lab,
         A.PUBLIC_IP: public_ip,
         A.SCORE: str(summary["score"]),
-        "pass_names": summary["passes"],
-        "fail_names": summary["fails"],
+        "pass_names": passes,
+        "fail_names": fails,
         "raw": json.dumps(summary, default=str)[:35000],
     }
+    if note is not None and note != "":
+        item["note"] = note
     ret = users_table.put_item(Item=item)
     get_logger().info("add_grade to %s user=%s ret=%s", users_table, user, ret)
 

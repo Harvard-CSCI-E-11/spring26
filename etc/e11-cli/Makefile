@@ -19,7 +19,7 @@ PYTHON = python3.12
 
 lint: .venv/pyvenv.cfg
 	poetry run pylint e11
-	@echo disabled for now --- poetry run pyright e11
+	poetry run pyright e11
 
 lint-all:
 	make lint

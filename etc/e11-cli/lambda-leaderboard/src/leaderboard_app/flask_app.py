@@ -278,11 +278,11 @@ def api_post_register():
         score = SCORE_WITH_MAGIC
         tests[1]['status'] = 'pass'
         passes.append('Updated user agent to include the word "magic"')
-        fails = 0
+        fails = []
     else:
         score = BASE_SCORE
         tests[1]['status'] = 'fail'
-        fails = 1
+        fails = ['User agent set to include the string "magic"']
 
     # if score is higher than current score, record that
     old_score = get_grade(user, LAB)

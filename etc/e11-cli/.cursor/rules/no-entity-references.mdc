@@ -1,0 +1,11 @@
+---
+description: Do not use HTML entity references; use Unicode characters instead
+alwaysApply: true
+---
+
+# No HTML Entity References
+
+Do not use HTML entity references (e.g. `&times;`, `&nbsp;`, `&amp;`). Use the corresponding Unicode characters instead.
+
+- **Examples:** Use `×` (U+00D7) instead of `&times;`, non-breaking space (U+00A0) instead of `&nbsp;`.
+- **Reason:** Entity references are discouraged by modern linters and tooling.
