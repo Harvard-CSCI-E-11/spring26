@@ -8,9 +8,47 @@ body {
     margin-right: 20px;
 }
 
+/* User Info: compact spacing */
+table.pure-table.user-info-table th,
+table.pure-table.user-info-table td {
+    padding: 1px 0.5em;
+}
+
+/* User Log: compact rows, prevent date wrapping */
+table.pure-table.user-log-table th,
+table.pure-table.user-log-table td {
+    padding: 1px 0.5em;
+}
+table.pure-table.user-log-table .date {
+    white-space: nowrap;
+    width: 1%;
+}
+table.pure-table.user-log-table .client_ip {
+    width: 1%;
+}
+table.pure-table.user-log-table .message {
+    min-width: 20em;
+}
+table.pure-table.user-log-table .claims {
+    width: 1%;
+    white-space: nowrap;
+}
+
 /* Grades table: compact rows, data cells only */
 table.pure-table.grades-table td {
     padding: 1px 0.5em;
+}
+/* Rows with same lab: add 2pt extra space above */
+table.pure-table.grades-table tr.same-lab td {
+    padding-top: 4px;
+}
+/* First row of each lab: smaller gap from previous lab */
+table.pure-table.grades-table tr.new-lab:not(:first-child) td {
+    padding-top: 1px;
+}
+/* 2pt space between Grades and User Log */
+table.pure-table.grades-table {
+    margin-bottom: 3px;
 }
 
 .current-session {
@@ -89,4 +127,49 @@ table.pure-table.grades-table td {
 
 th {
   text-align: left;
+}
+
+/* Claims modal pop-up */
+.claims-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.claims-modal-content {
+  background: white;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.claims-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ddd;
+}
+.claims-modal-header h4 { margin: 0; }
+.claims-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.claims-modal-body {
+  padding: 12px;
+  margin: 0;
+  overflow: auto;
+  flex: 1;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
 }

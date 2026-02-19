@@ -127,6 +127,20 @@ def eastern_filter(value):
     return dt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
 
+def utc_iso_to_eastern(iso_str: str) -> str:
+    """Parse ISO datetime string (UTC, no TZ in string) and return formatted in Eastern."""
+    if not iso_str:
+        return ""
+    try:
+        dt = datetime.datetime.fromisoformat(iso_str.replace(" ", "T"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=datetime.timezone.utc)
+        eastern = dt.astimezone(LAB_TIMEZONE)
+        return eastern.strftime("%Y-%m-%d %H:%M:%S %Z")
+    except (ValueError, TypeError):
+        return iso_str
+
+
 # ---------- Setup AWS Services  ----------
 
 # jinja2 environment for template substitution
@@ -137,6 +151,7 @@ env = Environment(
 )
 env.globals["API_PATH"] = API_PATH
 env.filters["eastern"] = eastern_filter
+env.filters["tojson"] = lambda x: json.dumps(x, default=str) if x is not None else "{}"
 env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
 env.globals["LAB_CONFIG"] = LAB_CONFIG
 
@@ -314,9 +329,10 @@ def do_dashboard(event):  # pylint: disable=too-many-locals,too-many-branches
     kwargs = {'KeyConditionExpression':Key(A.USER_ID).eq(user.user_id)}
     items = queryscan_table(users_table.query, kwargs)
 
-    # Create printable dates from the sortkeys
+    # Create printable dates from the sortkeys (UTC) and convert to Eastern for display
     for item in items:
-        item['datetime'] = item['sk'][-26:-7].replace("T"," ")
+        raw = item['sk'][-26:-7].replace("T", " ")
+        item['datetime'] = utc_iso_to_eastern(raw)
 
     # Extract out the data
     logs   = [item for item in items if item[A.SK].startswith(A.SK_LOG_PREFIX)]

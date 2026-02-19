@@ -8,7 +8,7 @@
 </p>
 {% endif %}
 <h3>User Info</h3>
-<table class="pure-table">
+<table class="pure-table user-info-table">
   <thead>
   </thead>
   <tbody>
@@ -26,25 +26,9 @@
   </tbody>
 </table>
 
-<h3>User Log</h3>
-<table class="pure-table">
-  <thead>
-    <tr><th class="date">date</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
-  </thead>
-  <tbody>
-    {% for log in logs %}
-    <tr>
-      <th class="date">{{ log.datetime }}</th>
-      <td class="client_ip">{{ log.client_ip }}</td>
-      <td class="message">{{ log.message }}</td>
-      <td class="claims">{{ log.claims }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
 <h3>Grades</h3>
 <p><i>Note: Only the highest grade for each lab is recorded in Canvas.</i></p>
+<p><label><input type="checkbox" id="show-all-grades"> Show all grades</label></p>
 <table class="pure-table grades-table">
   <thead>
     <tr>
@@ -59,7 +43,7 @@
   </thead>
   <tbody>
   {% for grade in grades %}
-  <tr>
+  <tr class="grade-row {% if loop.previtem and loop.previtem.lab == grade.lab %}same-lab{% else %}new-lab{% endif %}" data-lab="{{ grade.lab }}" data-score="{{ grade.score }}" data-datetime="{{ grade.datetime }}">
     <td class="date">{{ grade.datetime }}</td>
     <td class="lab">{{ grade.lab }}</td>
     <td class="public_ip">{{ grade.public_ip }}</td>
@@ -92,6 +76,23 @@
   </tbody>
 </table>
 
+<h3>User Log</h3>
+<table class="pure-table user-log-table">
+  <thead>
+    <tr><th class="date">date</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
+  </thead>
+  <tbody>
+    {% for log in logs %}
+    <tr>
+      <td class="date">{{ log.datetime }}</td>
+      <td class="client_ip">{{ log.client_ip }}</td>
+      <td class="message">{{ log.message }}</td>
+      <td class="claims">{% if log.get('claims') %}<button type="button" class="show-claims-btn" data-claims="{{ (log.get('claims') | tojson) | e }}">Show claims</button>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
 {% if images %}
 <h3>Lab8 Images</h3>
 <table class="pure-table">
@@ -118,14 +119,15 @@
   <h4>Active Sessions Table</h4>
   <table class="pure-table">
   <thead>
-    <tr><th>Session #</th><th>sid</th><th colspan="2">Created</th><th>Expires</th><th>Delete</th></tr>
+    <tr><th>Session #</th><th>sid</th><th>Created</th><th>Client IP</th><th>Expires</th><th>Delete</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
     <tr class="{% if session.sid==ses.sid %}current-session{% endif %}" >
       <th>{{ loop.index }}</th>
       <th>{{ session.sid }}</th>
-      <td>{{ session.session_created | eastern }} {{ session.client_ip }}</td>
+      <td>{{ session.session_created | eastern }}</td>
+      <td>{{ session.client_ip }}</td>
       <td>{{ session.session_expire |eastern }}</td>
       <td><span class="delete-session"  data-sid="{{ session.sid }}">×</span></td>
     </tr>
@@ -135,6 +137,15 @@
 <p>All times in {{ timezone_display }}.</p>
 <p><i>Note: Once a session is created from a specific IP address, it can be used from any IP address. This is required to allow users to transition between Wi-Fi access points or from Wi-Fi to cellular networks.</i></p>
 
+<div id="claims-modal" class="claims-modal" style="display:none">
+  <div class="claims-modal-content">
+    <div class="claims-modal-header">
+      <h4>Claims</h4>
+      <button type="button" class="claims-modal-close">&times;</button>
+    </div>
+    <pre class="claims-modal-body"><code id="claims-json"></code></pre>
+  </div>
+</div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -166,6 +177,34 @@ document.addEventListener("DOMContentLoaded", () => {
      setTimeout(updateCountdown, 1000);
    })();
    {% endif %}
+
+   document.querySelectorAll(".show-claims-btn").forEach(btn => {
+     btn.style.cursor = "pointer";
+     btn.addEventListener("click", () => {
+       const raw = btn.dataset.claims || "{}";
+       let formatted;
+       try {
+         const parsed = JSON.parse(raw);
+         formatted = JSON.stringify(parsed, null, 2);
+       } catch {
+         formatted = raw;
+       }
+       document.getElementById("claims-json").textContent = formatted;
+       document.getElementById("claims-modal").style.display = "flex";
+     });
+   });
+   const claimsModal = document.getElementById("claims-modal");
+   const claimsClose = document.querySelector(".claims-modal-close");
+   if (claimsModal && claimsClose) {
+     const closeModal = () => { claimsModal.style.display = "none"; };
+     claimsClose.addEventListener("click", closeModal);
+     claimsModal.addEventListener("click", (e) => {
+       if (e.target === claimsModal) closeModal();
+     });
+     document.addEventListener("keydown", (e) => {
+       if (e.key === "Escape" && claimsModal.style.display === "flex") closeModal();
+     });
+   }
 
    document.querySelectorAll(".delete-image").forEach(btn => {
      btn.style.cursor = "pointer"; // make it obvious it is clickable
@@ -226,6 +265,34 @@ document.addEventListener("DOMContentLoaded", () => {
        }
      });
    });
+
+   // Show all grades checkbox: when unchecked, show only highest grade per lab
+   const showAllCheckbox = document.getElementById("show-all-grades");
+   const gradeRows = document.querySelectorAll(".grade-row");
+   function filterGrades() {
+     const showAll = showAllCheckbox.checked;
+     if (showAll) {
+       gradeRows.forEach(r => r.style.display = "");
+       return;
+     }
+     const byLab = {};
+     gradeRows.forEach(r => {
+       const lab = r.dataset.lab;
+       const score = parseFloat(r.dataset.score) || 0;
+       const dt = r.dataset.datetime || "";
+       if (!byLab[lab] || score > byLab[lab].score || (score === byLab[lab].score && dt > byLab[lab].dt)) {
+         byLab[lab] = { row: r, score, dt };
+       }
+     });
+     const toShow = new Set(Object.values(byLab).map(o => o.row));
+     gradeRows.forEach(r => {
+       r.style.display = toShow.has(r) ? "" : "none";
+     });
+   }
+   if (showAllCheckbox) {
+     showAllCheckbox.addEventListener("change", filterGrades);
+     filterGrades();
+   }
 
    document.querySelectorAll(".check-btn").forEach(btn => {
      btn.style.cursor = "pointer"; // make it obvious it is clickable
