@@ -150,6 +150,7 @@ env = Environment(
     )
 )
 env.globals["API_PATH"] = API_PATH
+env.globals["version"] = __version__
 env.filters["eastern"] = eastern_filter
 env.filters["tojson"] = lambda x: json.dumps(x, default=str) if x is not None else "{}"
 env.globals["GITHUB_REPO_URL"] = GITHUB_REPO_URL
