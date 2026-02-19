@@ -29,10 +29,6 @@ table.pure-table.user-log-table .client_ip {
 table.pure-table.user-log-table .message {
     min-width: 20em;
 }
-table.pure-table.user-log-table .claims {
-    width: 1%;
-    white-space: nowrap;
-}
 
 /* Grades table: compact rows, data cells only */
 table.pure-table.grades-table td {
@@ -46,6 +42,9 @@ table.pure-table.grades-table tr.same-lab td {
 table.pure-table.grades-table tr.new-lab:not(:first-child) td {
     padding-top: 1px;
 }
+tr.grade-row-hidden {
+    display: none;
+}
 /* 2pt space between Grades and User Log */
 table.pure-table.grades-table {
     margin-bottom: 3px;
@@ -55,7 +54,11 @@ table.pure-table.grades-table {
     background-color: #ffeeff;
 }
 
-.delete-btn {
+.delete-btn,
+.show-claims-btn,
+.delete-image,
+.delete-session,
+.check-btn {
   cursor: pointer;
 }
 
@@ -131,12 +134,16 @@ th {
 
 /* Claims modal pop-up */
 .claims-modal {
+  display: none;
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
   z-index: 1000;
   align-items: center;
   justify-content: center;
+}
+.claims-modal.claims-modal-visible {
+  display: flex;
 }
 .claims-modal-content {
   background: white;

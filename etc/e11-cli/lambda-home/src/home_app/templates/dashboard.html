@@ -79,15 +79,14 @@
 <h3>User Log</h3>
 <table class="pure-table user-log-table">
   <thead>
-    <tr><th class="date">date</th><th class="client_ip">client_ip</th><th class="message">message</th><th class="claims">claims</th></tr>
+    <tr><th class="date">date</th><th class="client_ip">client_ip</th><th class="message">message</th></tr>
   </thead>
   <tbody>
     {% for log in logs %}
     <tr>
       <td class="date">{{ log.datetime }}</td>
       <td class="client_ip">{{ log.client_ip }}</td>
-      <td class="message">{{ log.message }}</td>
-      <td class="claims">{% if log.get('claims') %}<button type="button" class="show-claims-btn" data-claims="{{ (log.get('claims') | tojson) | e }}">Show claims</button>{% endif %}</td>
+      <td class="message">{{ log.message }}{% if log.get('claims') %} <button type="button" class="show-claims-btn" data-claims="{{ (log.get('claims') | tojson) | e }}">Show claims</button>{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -137,7 +136,7 @@
 <p>All times in {{ timezone_display }}.</p>
 <p><i>Note: Once a session is created from a specific IP address, it can be used from any IP address. This is required to allow users to transition between Wi-Fi access points or from Wi-Fi to cellular networks.</i></p>
 
-<div id="claims-modal" class="claims-modal" style="display:none">
+<div id="claims-modal" class="claims-modal">
   <div class="claims-modal-content">
     <div class="claims-modal-header">
       <h4>Claims</h4>
@@ -179,7 +178,6 @@ document.addEventListener("DOMContentLoaded", () => {
    {% endif %}
 
    document.querySelectorAll(".show-claims-btn").forEach(btn => {
-     btn.style.cursor = "pointer";
      btn.addEventListener("click", () => {
        const raw = btn.dataset.claims || "{}";
        let formatted;
@@ -190,24 +188,23 @@ document.addEventListener("DOMContentLoaded", () => {
          formatted = raw;
        }
        document.getElementById("claims-json").textContent = formatted;
-       document.getElementById("claims-modal").style.display = "flex";
+       document.getElementById("claims-modal").classList.add("claims-modal-visible");
      });
    });
    const claimsModal = document.getElementById("claims-modal");
    const claimsClose = document.querySelector(".claims-modal-close");
    if (claimsModal && claimsClose) {
-     const closeModal = () => { claimsModal.style.display = "none"; };
+     const closeModal = () => { claimsModal.classList.remove("claims-modal-visible"); };
      claimsClose.addEventListener("click", closeModal);
      claimsModal.addEventListener("click", (e) => {
        if (e.target === claimsModal) closeModal();
      });
      document.addEventListener("keydown", (e) => {
-       if (e.key === "Escape" && claimsModal.style.display === "flex") closeModal();
+       if (e.key === "Escape" && claimsModal.classList.contains("claims-modal-visible")) closeModal();
      });
    }
 
    document.querySelectorAll(".delete-image").forEach(btn => {
-     btn.style.cursor = "pointer"; // make it obvious it is clickable
      btn.addEventListener("click", async (event) => {
        const user_id = btn.dataset.user_id;
        const sk = btn.dataset.sk;
@@ -240,7 +237,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
    document.querySelectorAll(".delete-session").forEach(btn => {
-     btn.style.cursor = "pointer"; // make it obvious it is clickable
      btn.addEventListener("click", async (event) => {
        const sid = btn.dataset.sid;
        try {
@@ -272,7 +268,7 @@ document.addEventListener("DOMContentLoaded", () => {
    function filterGrades() {
      const showAll = showAllCheckbox.checked;
      if (showAll) {
-       gradeRows.forEach(r => r.style.display = "");
+       gradeRows.forEach(r => r.classList.remove("grade-row-hidden"));
        return;
      }
      const byLab = {};
@@ -286,7 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
      });
      const toShow = new Set(Object.values(byLab).map(o => o.row));
      gradeRows.forEach(r => {
-       r.style.display = toShow.has(r) ? "" : "none";
+       r.classList.toggle("grade-row-hidden", !toShow.has(r));
      });
    }
    if (showAllCheckbox) {
@@ -295,7 +291,6 @@ document.addEventListener("DOMContentLoaded", () => {
    }
 
    document.querySelectorAll(".check-btn").forEach(btn => {
-     btn.style.cursor = "pointer"; // make it obvious it is clickable
      btn.addEventListener("click", async (event) => {
        btn.textContent = "Checking...";
        const sid = btn.dataset.sid;
