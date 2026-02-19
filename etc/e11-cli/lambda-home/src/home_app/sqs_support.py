@@ -334,6 +334,13 @@ def handle_sqs_event(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             result = api.dispatch(method, action, sqs_event, context, payload)
             results.append({"messageId": msg_id, "result": result})
 
+            # Explicitly delete after successful processing. Lambda also auto-deletes on
+            # handler success, but explicit delete ensures the message is removed even
+            # if Lambda's cleanup fails. Prevents duplicate processing.
+            receipt_handle = record.get("receiptHandle")
+            if receipt_handle:
+                sqs_delete_message(receipt_handle)
+
         except json.JSONDecodeError as e:
             LOGGER.error("SQS messageId=%s: Invalid JSON in body: %s", msg_id, e)
             # Re-raise to make message visible again after VisibilityTimeout

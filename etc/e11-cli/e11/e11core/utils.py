@@ -12,15 +12,22 @@ LOG_FORMAT = "%(asctime)s %(levelname)s [%(name)s %(filename)s:%(lineno)d %(func
 def get_log_level():
     return os.getenv("LOG_LEVEL", "INFO").upper()
 
+def _ensure_e11_root_handler():
+    """Add a single handler to the root e11 logger. Child loggers propagate to it."""
+    root = logging.getLogger("e11")
+    if not root.handlers:
+        root.setLevel(get_log_level())
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter(LOG_FORMAT))
+        root.addHandler(handler)
+
+
 @functools.lru_cache(maxsize=128)
 def get_logger(name: str | None = None) -> logging.Logger:
     """Get a logger under the 'e11' namespace (e.g., e11.grader)."""
+    _ensure_e11_root_handler()
     logger = logging.getLogger("e11" + ("" if not name else f".{name}"))
-    logger.setLevel(get_log_level() )
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter(LOG_FORMAT)
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
+    logger.setLevel(get_log_level())
     return logger
 
 def smash_email(email):
