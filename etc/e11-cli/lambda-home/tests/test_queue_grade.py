@@ -48,6 +48,9 @@ class MockSQSClient:
             }
         return {"Messages": []}
 
+    def delete_message(self, QueueUrl, ReceiptHandle, **kwargs):
+        """Mock delete - no-op."""
+
 
 class MockSecretsManager:
     """Mock Secrets Manager that returns test secrets."""
