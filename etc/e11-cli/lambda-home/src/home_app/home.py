@@ -45,7 +45,6 @@ from e11.e11_common import (
     queryscan_table,
     SES_VERIFIED_EMAIL,
     ses_client,
-    GITHUB_REPO_URL,
     LAB_CONFIG,
     LAB_TIMEZONE,
     get_user_from_user_id,
@@ -54,6 +53,7 @@ from e11.e11_common import (
 
 from e11.e11core.constants import (
     API_PATH,
+    GITHUB_REPO_URL,
     HTTP_OK,
     HTTP_FOUND,
     HTTP_BAD_REQUEST,
