@@ -343,7 +343,7 @@ def handle_sqs_event(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             else:
                 LOGGER.error("Permanent AWS error: %s", e)
                 # Don't add to batch_item_failures; let it be deleted.
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unexpected bug in code. SQS messageId=%s", msg_id)
             # Don't retry
     return {"batchItemFailures": batch_item_failures}
