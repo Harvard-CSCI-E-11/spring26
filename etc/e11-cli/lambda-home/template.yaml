@@ -189,7 +189,6 @@ Resources:
               Action:
                 - sqs:SendMessage
                 - sqs:ReceiveMessage
-                - sqs:DeleteMessage
                 - sqs:GetQueueAttributes
                 - sqs:ChangeMessageVisibility
               Resource: !GetAtt HomeQueue.Arn
@@ -233,8 +232,10 @@ Resources:
           Type: SQS
           Properties:
             Queue: !GetAtt HomeQueue.Arn
-            BatchSize: 1
+            BatchSize: 1        # prevents batching
             MaximumBatchingWindowInSeconds: 2
+            FunctionResponseTypes:
+              - ReportBatchItemFailures
 
 
   # Sessions table holds the cookie sessions.

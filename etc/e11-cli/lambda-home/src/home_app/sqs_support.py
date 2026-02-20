@@ -268,13 +268,6 @@ def sqs_receive_one(*, wait_seconds: int = 10, visibility_timeout: int = 60,
     return msg  # type: ignore[return-value]
 
 
-def sqs_delete_message(receipt_handle: str) -> None:
-    """
-    Delete a message after successful processing.
-    """
-    sqs_client.delete_message( QueueUrl=sqs_queue_url(),
-                               ReceiptHandle=receipt_handle )
-
 def is_sqs_event(event: Dict[str, Any]) -> bool:
     recs = event.get("Records")
     return (
@@ -298,56 +291,59 @@ def handle_sqs_event(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     - 'auth_token': optional authentication token for SQS message validation
     """
     results = []
+    batch_item_failures = []
     for record in event.get("Records", []):
         msg_id = record.get("messageId")
         body_str = record.get("body", "")
         LOGGER.info("SQS messageId=%s body_len=%s", msg_id, len(body_str))
 
+        # 1. Parse JSON
         try:
-            # Parse the message body
             body = json.loads(body_str) if body_str else {}
-            action = body.get("action", "")
-            method = body.get("method", "POST")
-            payload = body.get("payload")  # Can be None
+        except json.JSONDecodeError as e:
+            LOGGER.error("SQS messageId=%s: Invalid JSON in body: %s", msg_id, e)
+            # DO NOT add to batch_item_failures.
+            # Letting this 'succeed' here means Lambda will delete this broken message.
+            continue
 
-            # Authenticate the SQS message
-            if not validate_sqs_message_auth(body):
-                LOGGER.error("SQS messageId=%s: Authentication failed", msg_id)
-                raise ValueError("SQS message authentication failed")
+        # 2. Authenticate
+        # Authenticate the SQS message
+        if not validate_sqs_message_auth(body):
+            LOGGER.error("SQS messageId=%s: Authentication failed", msg_id)
+            # Same here: don't retry a message that will always fail auth.
+            continue
 
-            # Create a minimal event structure for api.dispatch
-            # SQS events don't have requestContext, so we create a minimal one
-            sqs_event = {
-                "requestContext": {
-                    "stage": "sqs",
-                    "http": {
-                        "method": method,
-                        "sourceIp": record.get("attributes", {}).get("SenderId", "sqs-internal")
-                    }
-                },
-                "source": "sqs",
-                "messageId": msg_id,
-                "receiptHandle": record.get("receiptHandle"),
-            }
+        # Create a minimal event structure for api.dispatch
+        # SQS events don't have requestContext, so we create a minimal one
+        method = body.get("method", "POST")
+        sqs_event = {
+            "requestContext": {
+                "stage": "sqs",
+                "http": {
+                    "method": method,
+                    "sourceIp": record.get("attributes", {}).get("SenderId", "sqs-internal")
+                }
+            },
+            "source": "sqs",
+            "messageId": msg_id,
+            "receiptHandle": record.get("receiptHandle"),
+        }
+        action  = body.get("action", "")
+        payload = body.get("payload")  # Can be None
 
-            # Call api.dispatch with the action and method from the message
+        # Call api.dispatch with the action and method from the message
+        try:
             result = api.dispatch(method, action, sqs_event, context, payload)
             results.append({"messageId": msg_id, "result": result})
 
-            # Explicitly delete after successful processing. Lambda also auto-deletes on
-            # handler success, but explicit delete ensures the message is removed even
-            # if Lambda's cleanup fails. Prevents duplicate processing.
-            receipt_handle = record.get("receiptHandle")
-            if receipt_handle:
-                sqs_delete_message(receipt_handle)
-
-        except json.JSONDecodeError as e:
-            LOGGER.error("SQS messageId=%s: Invalid JSON in body: %s", msg_id, e)
-            # Re-raise to make message visible again after VisibilityTimeout
-            raise
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ProvisionedThroughputExceededException':
+                LOGGER.warning("Throttled by DynamoDB. Adding to retry list.")
+                batch_item_failures.append({"itemIdentifier": msg_id})
+            else:
+                LOGGER.error("Permanent AWS error: %s", e)
+                # Don't add to batch_item_failures; let it be deleted.
         except Exception as e:
-            LOGGER.exception("SQS messageId=%s: Error processing message: %s", msg_id, e)
-            # Re-raise to make message visible again after VisibilityTimeout
-            raise
-
-    return {"ok": True, "processed": len(results), "results": results}
+            LOGGER.exception("Unexpected bug in code. SQS messageId=%s", msg_id)
+            # Don't retry
+    return {"batchItemFailures": batch_item_failures}
