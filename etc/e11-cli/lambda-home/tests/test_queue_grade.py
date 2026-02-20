@@ -265,7 +265,7 @@ def test_queue_grade_handles_sqs_event(mock_sqs, mock_secrets_manager, test_user
 
     # Verify the response
     assert response["ok"] is True
-    assert response["processed"] == 1
+    assert len(response["batchItemFailures"]) == 0
 
     # Verify email was sent
     assert len(mock_ses) == 1
