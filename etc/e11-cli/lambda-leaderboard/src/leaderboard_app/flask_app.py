@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-from e11.e11_common import (get_user_from_email, get_grade, add_user_log, add_leaderboard_log, add_grade, send_email)
+from e11.e11_common import (get_user_from_email, get_grade, add_user_log, add_leaderboard_log, add_grade, send_email2)
 from e11.e11core import grader
 
 __version__ = '1.0.0'
@@ -298,7 +298,7 @@ def api_post_register():
 
     add_grade(user, LAB, request.remote_addr, summary)
     (subject, body) = grader.create_email(summary)
-    send_email(to_addr = user.email,
+    send_email2(to_addrs=[user.email],
                email_subject = subject,
                email_body=body)
 
