@@ -11,6 +11,7 @@ LAB_MAX=8
 SUCCESS_KEY_TEMPLATE = "success/message-{lab}"
 LAB_TIMEZONE = ZoneInfo("America/New_York")  # Eastern timezone for lab deadlines
 CONFIG_FILENAME = "e11-config.ini"
+GITHUB_REPO_URL = f"https://github.com/Harvard-CSCI-E-11/{VERSION}"
 
 INSTANCE_COURSE_ROOT = Path("/home/ubuntu") / VERSION
 COURSE_ROOT = Path.home() / VERSION

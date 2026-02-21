@@ -88,6 +88,8 @@ def test_database_loaded( tr:TestRunner):
 def test_database_search( tr:TestRunner):
     url = f"https://{tr.ctx.labdns}/"
     s0 = tr.ctx['s0']  # Dynamic field, use dict access
+    if s0 is None:
+        raise TestFail("database not loaded")
     student_id = s0.get('student_id','n/a')
     r = tr.http_get(url, method='POST', data=urllib.parse.urlencode({ 'student_id': student_id }).encode("utf-8"))
     if r.status != 200:

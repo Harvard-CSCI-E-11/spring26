@@ -16,6 +16,7 @@ from e11.e11core.utils import get_logger
 from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
+from e11.e11core.constants import VERSION
 
 CONFIG_FILE = "/home/ubuntu/e11-config.ini"
 AUTO_GRADER_KEY_LINE = (
@@ -195,7 +196,7 @@ def test_database_created( tr:TestRunner):
 def test_api_keys_exist( tr: TestRunner):
     lab = tr.ctx.lab
     lab_answers = None
-    for filepath in (f"/home/ubuntu/{lab}-answers.yaml",f"/home/ubuntu/{lab}/{lab}-answers.yaml"):
+    for filepath in (f"/home/ubuntu/{lab}-answers.yaml",f"/home/ubuntu/{VERSION}/{lab}/{lab}-answers.yaml"):
         try:
             lab_answers = tr.read_file(filepath)
             break
