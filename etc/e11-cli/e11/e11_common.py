@@ -471,10 +471,14 @@ def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
 
 ################################################################
 ## SES
-def send_email(to_addr: str, email_subject: str, email_body: str):
+def send_email(to_addr: str, email_subject: str, email_body: str, additional_email=None):
+    """Update this so that to_addr is to_addrs and a list of emails"""
+    to_addrs = [to_addr]
+    if additional_email:
+        to_addrs += [additional_email]
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
-        Destination={"ToAddresses": [to_addr]},
+        Destination={"ToAddresses": to_addrs},
         Message={
             "Subject": {"Data": email_subject},
             "Body": {"Text": {"Data": email_body}},

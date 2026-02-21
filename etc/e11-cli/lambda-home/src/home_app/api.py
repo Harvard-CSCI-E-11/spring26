@@ -317,7 +317,10 @@ def api_grader(event, context, payload):
     if user.public_ip is None:
         send_email(to_addr=user.email,
                    email_subject="Instance not registered",
-                   email_body="Attempt to grade aborted, as your instance is not registered.")
+                   email_body="Attempt to grade aborted, as your instance is not registered.",
+                   additional_email = user.alt_email)
+
+
         return resp_json(HTTP_OK, {"error":True,
                             "message":"Instance not registered",
                             "user":user })
