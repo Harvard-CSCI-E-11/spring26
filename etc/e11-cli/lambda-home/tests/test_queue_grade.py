@@ -219,11 +219,11 @@ def test_queue_grade_handles_sqs_event(mock_sqs, mock_secrets_manager, test_user
     monkeypatch.setattr(e11_common, "add_user_log", mock_add_user_log)
     monkeypatch.setattr(e11_common, "add_grade", mock_add_grade)
 
-    # Mock send_email - it's imported from e11_common in api.py
-    def mock_send_email_api(to_addr, email_subject, email_body):
+    # Mock send_email2 - it's imported from e11_common in api.py
+    def mock_send_email_api(to_addrs, email_subject, email_body):
         mock_ses.append({
             "Source": "noreply@example.com",
-            "Destination": {"ToAddresses": [to_addr]},
+            "Destination": {"ToAddresses": to_addrs},
             "Message": {
                 "Subject": {"Data": email_subject},
                 "Body": {"Text": {"Data": email_body}}
@@ -231,8 +231,8 @@ def test_queue_grade_handles_sqs_event(mock_sqs, mock_secrets_manager, test_user
         })
 
     # Mock it in both places since api.py imports it
-    monkeypatch.setattr(e11_common, "send_email", mock_send_email_api)
-    monkeypatch.setattr(api_module, "send_email", mock_send_email_api)
+    monkeypatch.setattr(e11_common, "send_email2", mock_send_email_api)
+    monkeypatch.setattr(api_module, "send_email2", mock_send_email_api)
 
     # Call queue_grade to send the message
     result = home.queue_grade(test_user["email"], "lab0", note='test')

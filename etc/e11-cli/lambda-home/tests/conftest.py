@@ -255,8 +255,8 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
         def head_object(self, **kwargs):
             return {"ContentLength": 0}
 
-    def fake_send_email(to_addr, email_subject, email_body):
-        # Mock send_email function
+    def fake_send_email(to_addrs, email_subject, email_body):
+        # Mock send_email2 function
         return {"MessageId": "fake-message-id"}
 
     # Configure DynamoDB to use local endpoint
@@ -277,7 +277,7 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     monkeypatch.setattr(e11_common, "users_table", users_table)
     monkeypatch.setattr(e11_common, "sessions_table", sessions_table)
     monkeypatch.setattr(e11_common, "route53_client", fake_route53)
-    monkeypatch.setattr(e11_common, "send_email", fake_send_email)
+    monkeypatch.setattr(e11_common, "send_email2", fake_send_email)
     monkeypatch.setattr(e11_common, "s3_client", fake_s3)
 
     # Also patch the modules that import these directly
@@ -293,7 +293,7 @@ def fake_aws(monkeypatch, dynamodb_local, fake_idp_server):
     monkeypatch.setattr(api_module, "users_table", users_table)
     monkeypatch.setattr(api_module, "sessions_table", sessions_table)
     monkeypatch.setattr(api_module, "route53_client", fake_route53)
-    monkeypatch.setattr(api_module, "send_email", fake_send_email)
+    monkeypatch.setattr(api_module, "send_email2", fake_send_email)
     monkeypatch.setattr(api_module, "s3_client", fake_s3)
 
     yield

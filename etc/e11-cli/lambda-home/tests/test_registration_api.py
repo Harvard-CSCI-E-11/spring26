@@ -87,18 +87,18 @@ def test_registration_api_flow(monkeypatch, fake_aws, dynamodb_local):
     monkeypatch.setattr(e11_common, 'route53_client', trackable_route53)
     monkeypatch.setattr(api_module, 'route53_client', trackable_route53)
 
-    # Mock send_email function to track calls
-    def trackable_send_email(to_addr, email_subject, email_body):
+    # Mock send_email2 function to track calls
+    def trackable_send_email(to_addrs, email_subject, email_body):
         from e11.e11_common import SES_VERIFIED_EMAIL
         mock_aws.ses_emails.append({
             'Source': SES_VERIFIED_EMAIL,
-            'Destination': {'ToAddresses': [to_addr]},
+            'Destination': {'ToAddresses': to_addrs},
             'Message': {'Subject': {'Data': email_subject}, 'Body': {'Text': {'Data': email_body}}}
         })
         return {"MessageId": "fake-message-id"}
 
-    monkeypatch.setattr(e11_common, 'send_email', trackable_send_email)
-    monkeypatch.setattr(api_module, 'send_email', trackable_send_email)
+    monkeypatch.setattr(e11_common, 'send_email2', trackable_send_email)
+    monkeypatch.setattr(api_module, 'send_email2', trackable_send_email)
 
     # Create test user in DynamoDBLocal with unique email
     test_email = f'test-{uuid.uuid4().hex[:8]}@{COURSE_DOMAIN}'
@@ -252,12 +252,12 @@ def test_registration_api_returning_user_flow(monkeypatch, fake_aws, dynamodb_lo
                 }
             }
 
-    # Mock send_email function to track calls
-    def trackable_send_email(to_addr, email_subject, email_body):
+    # Mock send_email2 function to track calls
+    def trackable_send_email(to_addrs, email_subject, email_body):
         from e11.e11_common import SES_VERIFIED_EMAIL
         mock_aws.ses_emails.append({
             'Source': SES_VERIFIED_EMAIL,
-            'Destination': {'ToAddresses': [to_addr]},
+            'Destination': {'ToAddresses': to_addrs},
             'Message': {'Subject': {'Data': email_subject}, 'Body': {'Text': {'Data': email_body}}}
         })
         return {"MessageId": "fake-message-id"}
@@ -266,8 +266,8 @@ def test_registration_api_returning_user_flow(monkeypatch, fake_aws, dynamodb_lo
     trackable_route53 = TrackableRoute53(mock_aws)
     monkeypatch.setattr(e11_common, 'route53_client', trackable_route53)
     monkeypatch.setattr(api_module, 'route53_client', trackable_route53)
-    monkeypatch.setattr(e11_common, 'send_email', trackable_send_email)
-    monkeypatch.setattr(api_module, 'send_email', trackable_send_email)
+    monkeypatch.setattr(e11_common, 'send_email2', trackable_send_email)
+    monkeypatch.setattr(api_module, 'send_email2', trackable_send_email)
 
     # Create test user in DynamoDBLocal (returning user) with unique email
     from e11.e11core.constants import API_PATH
