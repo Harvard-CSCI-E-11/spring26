@@ -186,6 +186,7 @@ def do_class(args):
 def do_help(_args):
     print(HELP_TEXT)
 
+# pylint: disable=too-many-statements
 def main():
     parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
