@@ -239,6 +239,10 @@ class User(DictLikeModel):
     host_registered: int|None = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
 
+    def emails(self) -> list[str]:
+        """Return list of email addresses for this user: primary plus alt if present."""
+        return [addr for addr in [self.email, self.alt_email] if addr]
+
     @field_validator('user_registered', mode='before')
     @classmethod
     def convert_decimal_to_int(cls, v):

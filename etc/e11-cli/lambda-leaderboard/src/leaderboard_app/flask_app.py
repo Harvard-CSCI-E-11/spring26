@@ -298,7 +298,7 @@ def api_post_register():
 
     add_grade(user, LAB, request.remote_addr, summary)
     (subject, body) = grader.create_email(summary)
-    send_email2(to_addrs=[user.email],
+    send_email2(to_addrs=user.emails(),
                email_subject = subject,
                email_body=body)
 
