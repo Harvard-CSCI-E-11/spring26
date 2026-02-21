@@ -112,7 +112,7 @@ def test_api_grader_before_deadline(lab_key, monkeypatch, fake_aws):
     monkeypatch.setattr("home_app.api.secretsmanager_client", mock_secrets)
 
     with patch("home_app.api.grader.grade_student_vm", return_value=mock_summary):
-        with patch("home_app.api.send_email"):
+        with patch("home_app.api.send_email2"):
             # Set current time to before deadline
             # Deadline is in Eastern time (no timezone in string)
             from zoneinfo import ZoneInfo
@@ -240,7 +240,7 @@ def test_api_grader_sqs_bypasses_deadline(monkeypatch, fake_aws):
     monkeypatch.setattr("home_app.api.secretsmanager_client", mock_secrets)
 
     with patch("home_app.api.grader.grade_student_vm", return_value=mock_summary):
-        with patch("home_app.api.send_email"):
+        with patch("home_app.api.send_email2"):
             # Set current time to after deadline
             # Deadline is in Eastern time (no timezone in string)
             from zoneinfo import ZoneInfo

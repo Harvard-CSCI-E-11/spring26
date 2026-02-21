@@ -13,7 +13,7 @@ import base64
 from zoneinfo import ZoneInfo
 from decimal import Decimal
 from typing import Any, TYPE_CHECKING, Dict, List
-from datetime import datetime
+from datetime import datetime,timezone
 
 from pydantic import BaseModel, ConfigDict, field_validator
 import boto3
@@ -181,6 +181,9 @@ class A:                        # pylint: disable=too-few-public-methods
     USER_REGISTERED = 'user_registered'
 
 
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()[0:26]
+
 def convert_dynamodb_value(value: Any) -> Any:
     """Convert DynamoDB values to Python types."""
     if isinstance(value, Decimal):
@@ -223,6 +226,7 @@ class User(DictLikeModel):
     user_id: str
     sk: str
     email: str|None = None      # not all records have email
+    alt_email: str|None = None  # not all records have alt_email
     course_key: str|None = None
     user_registered: int|None = None # time_t of when user is registered
     preferred_name: str|None = None
@@ -231,6 +235,10 @@ class User(DictLikeModel):
     hostname: str|None = None
     host_registered: int|None = None
     model_config = ConfigDict(extra="ignore") # allow additional keys
+
+    def emails(self) -> list[str]:
+        """Return list of email addresses for this user: primary plus alt if present."""
+        return [addr for addr in [self.email, self.alt_email] if addr]
 
     @field_validator('user_registered', mode='before')
     @classmethod
@@ -349,10 +357,9 @@ def add_user_log(event, user_id, message, **extra):
         client_ip  = event["requestContext"]["http"]["sourceIp"]          # canonical client IP
     else:
         client_ip = extra.get('client_ip')
-    now = datetime.now().isoformat()
     logger.debug("client_ip=%s user_id=%s message=%s extra=%s",client_ip, user_id, message, extra)
     ret = users_table.put_item(Item={A.USER_ID:user_id,
-                                     A.SK:f'{A.SK_LOG_PREFIX}{now}',
+                                     A.SK:f'{A.SK_LOG_PREFIX}{now_iso()}',
                                      'client_ip':client_ip,
                                      'message':message,
                                      **extra})
@@ -387,10 +394,9 @@ def add_grade(user, lab, public_ip, summary, note: str | None = None):
     _require_list(passes, "passes")
     _require_list(fails, "fails")
 
-    now = datetime.now().isoformat()
     item = {
         A.USER_ID: user.user_id,
-        A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now),
+        A.SK: A.SK_GRADE_PATTERN.format(lab=lab, now=now_iso()),
         A.LAB: lab,
         A.PUBLIC_IP: public_ip,
         A.SCORE: str(summary["score"]),
@@ -422,10 +428,9 @@ def get_grade(user, lab):
 ## image stuff
 
 def add_image(user_id, lab, bucket, key):
-    now = datetime.now().isoformat()
     item = {
         A.USER_ID: user_id,
-        A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now),
+        A.SK: A.SK_IMAGE_PATTERN.format(lab=lab, now=now_iso()),
         A.BUCKET: bucket,
         A.LAB: lab,
         A.KEY: key,
@@ -455,10 +460,9 @@ def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
     :param message: Message to add to log
     """
     logger = get_logger()
-    now = datetime.now().isoformat()
     logger.debug("client_ip=%s user_id=%s name=%s user_agent=%s",client_ip, user_id, name, user_agent)
     ret = users_table.put_item(Item={A.USER_ID:user_id,
-                                     A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now}',
+                                     A.SK:f'{A.SK_LEADERBOARD_LOG_PREFIX}{now_iso()}',
                                      'client_ip':client_ip,
                                      'name':name,
                                      'user_agent':user_agent,
@@ -468,15 +472,23 @@ def add_leaderboard_log(user_id, client_ip, name, user_agent, **extra):
 
 ################################################################
 ## SES
-def send_email(to_addr: str, email_subject: str, email_body: str):
+def send_email2(to_addrs: list[str], email_subject: str, email_body: str):
+    """
+    Send an email via SES to one or more recipients.
+
+    Args:
+        to_addrs: List of recipient email addresses.
+        email_subject: Subject line for the email.
+        email_body: Plain-text body of the email.
+    """
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
-        Destination={"ToAddresses": [to_addr]},
+        Destination={"ToAddresses": to_addrs},
         Message={
             "Subject": {"Data": email_subject},
             "Body": {"Text": {"Data": email_body}},
         },
     )
-    get_logger().info( "send_email to=%s subject=%s SES response: %s",
-                       to_addr, email_subject, r )
+    get_logger().info( "send_email2 to=%s subject=%s SES response: %s",
+                       to_addrs, email_subject, r )
     return r

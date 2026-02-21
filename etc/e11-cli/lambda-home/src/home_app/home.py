@@ -101,16 +101,16 @@ from .common import (
 
 LOGGER = get_logger("home")
 
-def send_email(to_addr: str, email_subject: str, email_body: str):
+def send_email2(to_addrs: list[str], email_subject: str, email_body: str):
     r = ses_client.send_email(
         Source=SES_VERIFIED_EMAIL,
-        Destination={"ToAddresses": [to_addr]},
+        Destination={"ToAddresses": to_addrs},
         Message={
             "Subject": {"Data": email_subject},
             "Body": {"Text": {"Data": email_body}},
         },
     )
-    LOGGER.info("send_email to=%s subject=%s SES response: %s", to_addr, email_subject, r)
+    LOGGER.info("send_email2 to=%s subject=%s SES response: %s", to_addrs, email_subject, r)
     return r
 
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
