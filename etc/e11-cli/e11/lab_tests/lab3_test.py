@@ -86,6 +86,8 @@ def test_database_loaded( tr:TestRunner):
 
 @timeout(5)
 def test_database_search( tr:TestRunner):
+    if 's0' not in tr.ctx:
+        raise TestFail("database not loaded")
     url = f"https://{tr.ctx.labdns}/"
     s0 = tr.ctx['s0']  # Dynamic field, use dict access
     student_id = s0.get('student_id','n/a')
