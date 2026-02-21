@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
-from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,
+from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,now_iso,
                             get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
 def enabled():
@@ -56,6 +56,25 @@ def do_register_email(args):
         sys.exit(1)
     login_url = generate_direct_login_url(user.user_id, user.course_key)
     print(f"Registered {args.email}\ncourse_key={user.course_key}\nLogin URL: {login_url}")
+
+def do_edit_email(args):
+    try:
+        user = get_user_from_email(args.email)
+    except EmailNotRegistered:
+        print(f"Email {args.email} is not registered")
+        sys.exit(1)
+    if args.alt:
+        users_table.update_item( Key={ 'user_id': user.user_id,
+                                       'sk': '#'},
+                                 UpdateExpression="SET alt_email= :alt",
+                                 ExpressionAttributeValues={':alt':args.alt})
+        add_user_log( None, user.user_id, f"User alt_email updated to {args.alt}")
+    elif args.remove:
+        users_table.update_item( Key={ 'user_id': user.user_id,
+                                       'sk': '#'},
+                                 UpdateExpression="REMOVE alt_email")
+        add_user_log( None, user.user_id, f"User alt_email removed")
+
 
 ################################################################
 ###

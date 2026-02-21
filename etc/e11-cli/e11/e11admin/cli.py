@@ -209,6 +209,12 @@ def main():
     ca.add_argument(dest='email', help='Email address to register')
     ca.set_defaults(func=staff.do_register_email)
 
+    ca = subparsers.add_parser('edit-email', help='Edit a user property by email')
+    ca.add_argument(dest='email', help='Email address to edit')
+    ca.add_argument("--alt", help="alternative email")
+    ca.add_argument("--remove", help="remove alternative email",action='store_true')
+    ca.set_defaults(func=staff.do_edit_email)
+
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
     ca.set_defaults(func=staff.do_student_report)
     ca.add_argument('--email', help='Just this email')
