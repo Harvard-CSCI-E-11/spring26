@@ -21,7 +21,7 @@ from botocore.exceptions import ClientError
 
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.utils import smash_email
-from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,now_iso,
+from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
                             get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
 
 def enabled():
@@ -73,7 +73,7 @@ def do_edit_email(args):
         users_table.update_item( Key={ 'user_id': user.user_id,
                                        'sk': '#'},
                                  UpdateExpression="REMOVE alt_email")
-        add_user_log( None, user.user_id, f"User alt_email removed")
+        add_user_log( None, user.user_id, "User alt_email removed")
 
 
 ################################################################
