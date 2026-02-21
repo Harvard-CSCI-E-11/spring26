@@ -186,6 +186,7 @@ def do_class(args):
 def do_help(_args):
     print(HELP_TEXT)
 
+# pylint: disable=too-many-statements
 def main():
     parser = argparse.ArgumentParser(prog='e11admin', description='E11 admin program',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -208,6 +209,13 @@ def main():
     ca = subparsers.add_parser('register-email', help='Register an email address directly with DynamoDB')
     ca.add_argument(dest='email', help='Email address to register')
     ca.set_defaults(func=staff.do_register_email)
+
+    ca = subparsers.add_parser('edit-email', help='Edit a user property by email')
+    ca.add_argument(dest='email', help='Email address to edit')
+    group = ca.add_mutually_exclusive_group(required=True)
+    group.add_argument("--alt", help="alternative email")
+    group.add_argument("--remove", help="remove alternative email", action='store_true')
+    ca.set_defaults(func=staff.do_edit_email)
 
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
     ca.set_defaults(func=staff.do_student_report)

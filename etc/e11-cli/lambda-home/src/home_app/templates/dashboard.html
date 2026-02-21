@@ -14,6 +14,9 @@
   <tbody>
     <tr><th>Preferred Name</th><td>{{ user.preferred_name }}</td></tr>
     <tr><th>Email</th><td>{{ user.email }}</td></tr>
+{% if user.alt_email %}
+    <tr><th>Alt Email</th><td>{{ user.alt_email }}</td></tr>
+{% endif %}
     <tr><th>Smashed Email</th><td>{{ user.hostname if user.hostname else 'No instance registered' }}</td></tr>
     <tr><th>course_key</th><td>{{ user.course_key }}</td></tr>
     <tr><th>Web browser IP address:</th><td>{{ client_ip }}</td></tr>

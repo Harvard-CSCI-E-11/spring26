@@ -40,7 +40,7 @@ from e11.e11_common import (
     HOSTED_ZONE_ID,
     CSCIE_BOT,
     EMAIL_BODY,
-    send_email,
+    send_email2,
     secretsmanager_client,
     LAB_CONFIG,
     LAB_TIMEZONE,
@@ -239,7 +239,7 @@ def api_register(event, payload):
         if changed_records > 0:
             subject_parts.append(f"DNS records updated for {hostnames[0]}")
         subject = "CSCI E-11 Update: " + "; ".join(subject_parts) if subject_parts else "CSCI E-11 Update"
-        send_email(to_addr=email,
+        send_email2(to_addrs=[email],
                    email_subject = subject,
                    email_body = EMAIL_BODY.format(
                        hostname=hostnames[0],
@@ -315,9 +315,11 @@ def api_grader(event, context, payload):
                 })
 
     if user.public_ip is None:
-        send_email(to_addr=user.email,
+        send_email2(to_addrs=user.emails(),
                    email_subject="Instance not registered",
                    email_body="Attempt to grade aborted, as your instance is not registered.")
+
+
         return resp_json(HTTP_OK, {"error":True,
                             "message":"Instance not registered",
                             "user":user })
@@ -338,7 +340,7 @@ def api_grader(event, context, payload):
 
     # Send email
     (subject, body) = grader.create_email(summary, note)
-    send_email(to_addr=user.email, email_subject=subject, email_body=body)
+    send_email2(to_addrs=user.emails(), email_subject=subject, email_body=body)
     return resp_json(HTTP_OK, {"summary": summary})
 
 
@@ -437,10 +439,10 @@ def dispatch(method, action, event, context, payload):
         case ("POST", "ping-mail"):
             hostnames = ["first"]
             public_ip = "<address>"
-            resp = send_email(
+            resp = send_email2(
+                to_addrs=[payload[A.EMAIL]],
                 email_subject="E11 email ping",
-                email_body=EMAIL_BODY.format( hostname=hostnames[0], public_ip=public_ip ),
-                to_addr=payload[A.EMAIL] )
+                email_body=EMAIL_BODY.format( hostname=hostnames[0], public_ip=public_ip ) )
 
             return resp_json( HTTP_OK, {
                 "error": False,
