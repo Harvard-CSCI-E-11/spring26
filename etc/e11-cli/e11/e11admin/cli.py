@@ -212,8 +212,9 @@ def main():
 
     ca = subparsers.add_parser('edit-email', help='Edit a user property by email')
     ca.add_argument(dest='email', help='Email address to edit')
-    ca.add_argument("--alt", help="alternative email")
-    ca.add_argument("--remove", help="remove alternative email",action='store_true')
+    group = ca.add_mutually_exclusive_group(required=True)
+    group.add_argument("--alt", help="alternative email")
+    group.add_argument("--remove", help="remove alternative email", action='store_true')
     ca.set_defaults(func=staff.do_edit_email)
 
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
