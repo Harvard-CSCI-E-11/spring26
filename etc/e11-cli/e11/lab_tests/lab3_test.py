@@ -10,6 +10,7 @@ from e11.e11core.decorators import timeout, retry
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import assert_contains, TestFail
 from e11.lab_tests.lab_common import (
+    DEFAULT_TEST_TIMEOUT,
     test_service_file_installed,
     test_service_active,
     test_autograder_key_present,
@@ -29,7 +30,7 @@ imported_tests = [
 ]
 
 @retry(times=3, backoff=0.25)
-@timeout(10)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_https_root_ok( tr:TestRunner):
     lab = tr.ctx.lab
     url = f"https://{tr.ctx.labdns}/"
@@ -46,14 +47,14 @@ def test_https_root_ok( tr:TestRunner):
     assert_contains(r.text, re.compile(lab, re.I), context=3)
     return f"Correct webserver running on {url}"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_sqlite3_installed( tr:TestRunner):
     r = tr.run_command("sqlite3 :memory: 'select 1;'")
     if r.exit_code != 0:
         raise TestFail("sqlite3 command not found - install it with 'sudo apt install sqlite3'")
     return "sqlite3 installed"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_database_created( tr:TestRunner):
     fname = tr.ctx.labdir + "/students.db"
     r = tr.run_command(f"sqlite3 {fname} .schema")
@@ -65,7 +66,7 @@ def test_database_created( tr:TestRunner):
 
     return "database created"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_database_loaded( tr:TestRunner):
     fname = tr.ctx.labdir + "/students.db"
     r = tr.run_command(f"sqlite3 {fname} .schema")
@@ -84,7 +85,7 @@ def test_database_loaded( tr:TestRunner):
     return f"Successfully found {len(students)} students in the database. First student is {s0}"
 
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_database_search( tr:TestRunner):
     url = f"https://{tr.ctx.labdns}/"
     s0 = tr.ctx['s0']  # Dynamic field, use dict access
@@ -100,7 +101,7 @@ def test_database_search( tr:TestRunner):
     assert_contains(r.text, student_id)
     return f"Search for {student_id} found the student"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_database_sql_injection_fixed( tr:TestRunner):
     url = f"https://{tr.ctx.labdns}/"
     inject = 'asdf" or "a"="a'
