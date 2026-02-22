@@ -53,9 +53,6 @@ HOSTED_ZONE_ID = "Z05034072HOMXYCK23BRA"  # Route53 hosted zone for course domai
 CSCIE_BOT = "cscie-bot"
 CSCIE_BOT_KEYFILE = 'csci-e-11-bot.pub'
 
-# GitHub Repository
-GITHUB_REPO_URL = "https://github.com/Harvard-CSCI-E-11/spring26"
-
 # Lab Configuration
 # Each lab has a redirect URL and a deadline (ISO-8601 format, Eastern time, no timezone)
 

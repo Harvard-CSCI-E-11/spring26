@@ -12,6 +12,8 @@ from time import monotonic
 import inspect
 from types import FunctionType
 
+import paramiko.ssh_exception
+
 from e11.e11_common import S3_BUCKET
 
 from .assertions import TestFail
@@ -85,8 +87,10 @@ def discover_and_run(ctx: E11Context):  # pylint: disable=too-many-statements
             tr = TestRunner( ctx, ssh = E11Ssh( ctx.public_ip,
                                                 key_filename=ctx.key_filename,
                                                 pkey_pem=ctx.pkey_pem))
-        except TimeoutError:
+        except (TimeoutError, paramiko.ssh_exception.NoValidConnectionsError, OSError) as e:
             fail_msg = "cannot connect by ssh; all tests fail. Is the EC2 instance running? Is access on?"
+            if str(e):
+                fail_msg = fail_msg + " " + str(e)
             return {"lab": lab,
                     "passes": [],
                     "fails": [fail_msg],
