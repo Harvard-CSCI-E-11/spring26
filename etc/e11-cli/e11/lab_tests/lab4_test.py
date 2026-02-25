@@ -12,6 +12,7 @@ from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
 
 from .lab_common import (
+    DEFAULT_TEST_TIMEOUT,
     get_database_tables,
     test_service_file_installed,
     test_service_active,
@@ -41,7 +42,7 @@ imported_tests = [
     test_https_root_ok,
 ]
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_invalid_api_key( tr:TestRunner):
     # test posting with an invalid API key
     msg = 'this should not be posted'
@@ -56,7 +57,7 @@ def test_invalid_api_key( tr:TestRunner):
         raise TestFail(f"attempt to post to {url} with invalid API key was successful: error={r.status} {r.text}")
     return "Cannot post with invalid API key."
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_post_message( tr:TestRunner):
     # post a message and verify it is there
     magic = int(time.time())

@@ -10,12 +10,12 @@ import urllib.request
 import crossplane               # type: ignore // parser for nginx files
 
 # pylint: disable=unused-import
-from e11.e11core.decorators import timeout, retry
+from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
-from e11.e11core.assertions import TestFail, assert_contains
+from e11.e11core.assertions import TestFail
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11core.utils import get_logger
-from e11.lab_tests.lab_common import test_autograder_key_present
+from e11.lab_tests.lab_common import test_autograder_key_present, DEFAULT_TEST_TIMEOUT
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
@@ -80,7 +80,7 @@ def get_cert_organization(cert):
 def domain(tr):
     return f"{tr.ctx.smashedemail}.{COURSE_DOMAIN}"
 
-@timeout(2)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_hostname( tr:TestRunner ):
     """
     See if the hostname program works
@@ -90,6 +90,7 @@ def test_hostname( tr:TestRunner ):
         raise TestFail("hostname command does not work")
     return f"hostname: {r.stdout.strip()}"
 
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_nginx( tr:TestRunner ):
     """
     See if the nginx program is installed
@@ -100,6 +101,7 @@ def test_nginx( tr:TestRunner ):
         raise TestFail(f"{d} not in nginx config file")
     return f"{d} in nginx config file"
 
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_home( tr:TestRunner ):
     """
     See if the home certificate is installed.
@@ -114,6 +116,7 @@ def test_home( tr:TestRunner ):
         raise TestFail(f"TLS certificate issued by {org} and not Let's Encrypt")
     return f"Successfully read {url}. Certificate is valid from Let's Encrypt"
 
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_public( tr:TestRunner ):
     """
     See if the hostname program works
@@ -125,6 +128,7 @@ def test_public( tr:TestRunner ):
         raise TestFail(f"could not read {url}")
     return f"Successfully read {url}."
 
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_confidential_no_password( tr:TestRunner ):
     """
     See if the hostname program works
@@ -138,6 +142,7 @@ def test_confidential_no_password( tr:TestRunner ):
         return f"Received HTTP error 404 attempting to read {url} without a password"
     raise TestFail(f"Error attempting to access {url} status={r.status}")
 
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_confidential_password( tr:TestRunner ):
     """
     See if the hostname program works

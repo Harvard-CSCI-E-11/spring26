@@ -14,6 +14,7 @@ from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
+from e11.lab_tests.lab_common import DEFAULT_TEST_TIMEOUT
 logger = get_logger()
 
 MAGIC = 'magic'
@@ -33,7 +34,7 @@ def get_leaderboard_log( tr  ):
     except ClientError as e:
         raise TestFail(str(e)) from e
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_leaderboard( tr:TestRunner ):
     if not os.getenv("LEADERBOARD_TABLE_NAME"):
         raise TestFail("This test only runs from the course dashboard")
@@ -46,7 +47,7 @@ def test_leaderboard( tr:TestRunner ):
     except ClientError as e:
         raise TestFail(str(e)) from e
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_has_magic( tr:TestRunner ):
     if not os.getenv("LEADERBOARD_TABLE_NAME"):
         raise TestFail("This test only runs from the course dashboard")

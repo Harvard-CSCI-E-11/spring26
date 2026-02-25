@@ -13,10 +13,8 @@ from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
-from e11.lab_tests.nicols import nicols_jpeg
-from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
-    post_image,
+    DEFAULT_TEST_TIMEOUT,
     test_autograder_key_present,
     test_nginx_config_syntax_okay,
     test_venv_present,
@@ -25,6 +23,8 @@ from e11.lab_tests.lab_common import (
     test_api_keys_exist,
     test_database_tables,
     test_https_root_ok,
+    test_post_image1,
+    test_post_image2
 )
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
@@ -37,6 +37,8 @@ imported_tests = [
     test_api_keys_exist,
     test_database_tables,
     test_https_root_ok,
+    test_post_image1,
+    test_post_image2
 ]
 
 IMAGE_TOO_BIG = 5_000_000
@@ -126,15 +128,7 @@ def is_jpeg_no_exif(data: bytes) -> Tuple[bool, str]:
 ################################################################
 
 
-@timeout(5)
-def test_post_image1( tr:TestRunner):
-    return post_image( tr, nicols_jpeg(), "nicols.jpeg")
-
-@timeout(5)
-def test_post_image2( tr:TestRunner):
-    return post_image( tr, harvard_jpeg(), "harvard.jpeg")
-
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_rekognition_enabled( tr:TestRunner ):
     r = tr.run_command("aws rekognition list-collections")
     if r.exit_code != 0:
@@ -144,7 +138,7 @@ def test_rekognition_enabled( tr:TestRunner ):
         raise TestFail("AWS Rekognition API not authorized")
     return "AWS Rekognition API authorized for Instance"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_rekognition_celeb( tr:TestRunner ):
     url = f"https://{tr.ctx.labdns}/api/get-images"
     r = tr.http_get(url)
@@ -156,7 +150,7 @@ def test_rekognition_celeb( tr:TestRunner ):
                 return "Found Nichelle Nichols"
     raise TestFail("Could not find Nichelle Nichols")
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_rekognition_text( tr:TestRunner ):
     url = f"https://{tr.ctx.labdns}/api/get-images"
     r = tr.http_get(url)
@@ -168,7 +162,7 @@ def test_rekognition_text( tr:TestRunner ):
                 return "Found Harvard"
     raise TestFail("Could not find Harvard")
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_memento_dashboard( tr:TestRunner ):
     if not os.getenv("LEADERBOARD_TABLE_NAME"):
         raise TestFail("This test only runs from the course dashboard")

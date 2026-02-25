@@ -10,3 +10,4 @@ bin/*_lib
 bin/*.zip
 var/
 logs/
+*.txt

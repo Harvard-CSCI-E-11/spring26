@@ -5,7 +5,7 @@ from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail, assert_not_contains
 
-from e11.lab_tests.lab_common import test_autograder_key_present
+from e11.lab_tests.lab_common import test_autograder_key_present, DEFAULT_TEST_TIMEOUT
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
 imported_tests = [
@@ -28,7 +28,7 @@ def test_journal_retention( tr:TestRunner):
 
 
 # @retry(times=3, backoff=0.25)
-# @timeout(5)
+# @timeout(DEFAULT_TEST_TIMEOUT)
 # def test_no_ssh_on_port_80( tr:TestRunner ):
 #     """
 #     Ensure port 80 is not an SSH server (no 'SSH-' banner).
@@ -39,7 +39,7 @@ def test_journal_retention( tr:TestRunner):
 #     if banner.startswith("SSH-"):
 #         raise TestFail(f"SSH banner detected on {host}:80", context=banner[:80])
 #
-# @timeout(5)
+# @timeout(DEFAULT_TEST_TIMEOUT)
 # def test_ssh80_service_inactive_and_disabled( tr:TestRunner ):
 #     """
 #     ssh80.service should not be running and should be disabled (or not present).
@@ -61,7 +61,7 @@ def test_journal_retention( tr:TestRunner):
 #             context=(enabled_out or enabled_err) or "(no output)"
 #         )
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_hacker_user_deleted( tr:TestRunner ):
     """
     The 'hacker' user should not exist.

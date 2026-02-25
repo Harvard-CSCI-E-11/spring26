@@ -346,4 +346,4 @@ def handle_sqs_event(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         except Exception:  # pylint: disable=broad-exception-caught
             LOGGER.exception("Unexpected bug in code. SQS messageId=%s", msg_id)
             # Don't retry
-    return {"batchItemFailures": batch_item_failures, "ok":True} # ok is for test
+    return {"batchItemFailures": batch_item_failures, "ok": True}  # ok is for test

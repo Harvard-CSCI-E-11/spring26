@@ -17,6 +17,8 @@ from e11.e11core.decorators import retry, timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail,assert_contains
 from e11.e11core.constants import VERSION
+from e11.lab_tests.nicols import nicols_jpeg
+from e11.lab_tests.harvard import harvard_jpeg
 
 CONFIG_FILE = "/home/ubuntu/e11-config.ini"
 AUTO_GRADER_KEY_LINE = (
@@ -24,7 +26,10 @@ AUTO_GRADER_KEY_LINE = (
     "AAAAC3NzaC1lZDI1NTE5AAAAIEK/6zvwwWOO+ui4zbUYN558g+LKh5N8f3KpoyKKrmoR "
     "auto-grader-do-not-delete"
 )
-UPLOAD_TIMEOUT_SECONDS = 10
+
+DEFAULT_TEST_TIMEOUT = 5
+UPLOAD_TIMEOUT_SECONDS = 20
+POST_IMAGE_TIMEOUT = UPLOAD_TIMEOUT_SECONDS+1
 
 logger = get_logger()
 
@@ -263,7 +268,7 @@ def test_database_tables( tr:TestRunner):
 
 
 @retry(times=3, backoff=0.25)
-@timeout(10)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_https_root_ok( tr:TestRunner):
     lab = tr.ctx.lab
     url = f"https://{tr.ctx.labdns}/"
@@ -346,3 +351,11 @@ def post_image( tr:TestRunner, image_bytes, image_name):
         raise TestFail("Downloaded content is the right size but wrong content???")
 
     return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
+
+@timeout(DEFAULT_TEST_TIMEOUT)
+def test_post_image1( tr:TestRunner):
+    return post_image( tr, nicols_jpeg(), "nicols.jpeg")
+
+@timeout(DEFAULT_TEST_TIMEOUT)
+def test_post_image2( tr:TestRunner):
+    return post_image( tr, harvard_jpeg(), "harvard.jpeg")
