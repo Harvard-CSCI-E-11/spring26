@@ -230,7 +230,7 @@ def print_grades(items, args):
     if not args.all:
         items = get_highest_grades(items)
     else:
-        print("Removing all but highest. Highest grades: ",len(all_grades))
+        print("Removing all but highest grades")
 
     all_grades = [(userid_to_email(r[A.USER_ID]), # email row[0]
                    r[A.SK].split('#')[1],         # lab  row[1]
