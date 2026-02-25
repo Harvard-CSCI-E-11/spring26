@@ -118,6 +118,9 @@ def _format_user_item(item):
         'HarvardKey': ("YES" if item.get('claims') else "NO")
     }
 
+
+################################################################
+
 def do_student_report(args):
     session = boto3.session.Session()
     current_profile = session.profile_name
@@ -142,6 +145,7 @@ def do_student_report(args):
         'ProjectionExpression': 'user_registered, email, preferred_name, claims'
     }
 
+    # Get all of the registration records
     try:
         response = table.scan(**kwargs)
     except ClientError:
@@ -182,40 +186,18 @@ def userid_to_email(user_id):
     return userid_to_user()[user_id]['email']
 
 ################################################################
-## Print and upload student grades
-
-def print_grades(items, args):
-    all_grades = [(userid_to_email(r[A.USER_ID]),
-                   Decimal(r[A.SCORE]),
-                   r[A.SK].split('#')[2],
-                   r[A.USER_ID])
-                  for r in items if r[A.SK].count('#')==2]
-    if not args.all:
-        # Remove all but the highest grades
-        highest_grade = {}
-        for row in all_grades:
-            (email, grade, _sk, _user_id) = row
-            if (email not in highest_grade) or (grade>highest_grade[email][1]):
-                highest_grade[email] = row
-        all_grades = list(highest_grade.values())
-
-    if args.claims:
-        # remove grades for which there are no claims
-        all_grades = [row for row in all_grades if userid_to_user().get(row[3], {}).get('claims')]
-
-    all_grades.sort()
-    # Now print
-    print(tabulate(all_grades))
-    print("Total:",len(all_grades))
+## Compute, Print and upload student grades
 
 def get_items(whowhat):
-    """Return either the grades for a lab or a person"""
+    """Return either the grades for a lab or a person. Returns all, not just the highest"""
     if whowhat.startswith("lab"):
         kwargs:dict = {
             'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{whowhat}#') ),
             'ProjectionExpression' : f'{A.USER_ID}, {A.SK}, {A.SCORE}',
         }
         return queryscan_table(users_table.scan, kwargs)
+
+    # Get all the records for the student
     user = get_user_from_email(whowhat)
     for (k,v) in sorted(dict(user).items()):
         print(f"{k}:{v}")
@@ -226,7 +208,47 @@ def get_items(whowhat):
     )}
     return queryscan_table(users_table.query, kwargs)
 
-def do_student_grades(args):
+
+def get_highest_grades(items):
+    """Given a list of grades, return a list of only the highest grade for each student and each lab"""
+    highest_score = {}
+    for r in items:
+        if r[A.SK].count('#')==2:
+            email = userid_to_email(r[A.USER_ID])
+            lab   = r[A.SK].split('#')[1]
+            score = Decimal(r[A.SCORE])
+
+            if ((email+lab not in highest_score)
+                or (score > Decimal(highest_score[email+lab][A.SCORE]))):
+                highest_score[email+lab] = r
+    return list(highest_score.values())
+
+
+def print_grades(items, args):
+    print(f"print_grades(len(items)={len(items)} args={args}")
+
+    if not args.all:
+        items = get_highest_grades(items)
+    else:
+        print("Removing all but highest. Highest grades: ",len(all_grades))
+
+    all_grades = [(userid_to_email(r[A.USER_ID]), # email row[0]
+                   r[A.SK].split('#')[1],         # lab  row[1]
+                   Decimal(r[A.SCORE]),           # score row[2]
+                   r[A.SK].split('#')[2],         # date row[3]
+                   r[A.USER_ID])                  # user_id row[4]
+                  for r in items if r[A.SK].count('#')==2]
+
+    if args.claims:
+        # remove grades for which there are no claims
+        all_grades = [row for row in all_grades if userid_to_user().get(row[4], {}).get('claims')]
+
+    all_grades.sort()
+    # Now print
+    print(tabulate(all_grades))
+    print("Total:",len(all_grades))
+
+def do_print_grades(args):
     items = get_items(args.whowhat)
     print_grades(items, args)
 
@@ -310,7 +332,7 @@ Required columns and order
         sys.exit(1)
 
     # Get the grades as a set by userid and add each grade to the user_id in the class list
-    for item in get_items(args.lab):
+    for item in get_highest_grades(get_items(args.lab)):
         try:
             class_list[item[A.USER_ID]][A.SCORE] = item[A.SCORE]
         except KeyError:

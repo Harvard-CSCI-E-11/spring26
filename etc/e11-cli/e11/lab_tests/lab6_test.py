@@ -7,12 +7,8 @@ from e11.e11core.utils import get_logger
 from e11.e11core.decorators import timeout
 from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
-from e11.lab_tests.nicols import nicols_jpeg
-from e11.lab_tests.harvard import harvard_jpeg
 from e11.lab_tests.lab_common import (
     DEFAULT_TEST_TIMEOUT,
-    POST_IMAGE_TIMEOUT,
-    post_image,
     test_service_file_installed,
     test_service_active,
     test_previous_lab_service_stopped,
@@ -24,6 +20,8 @@ from e11.lab_tests.lab_common import (
     test_api_keys_exist,
     test_database_tables,
     test_https_root_ok,
+    test_post_image1,
+    test_post_image2
 )
 
 # Imported test functions are used by test discovery system (see grader.collect_tests_in_definition_order)
@@ -39,19 +37,13 @@ imported_tests = [
     test_api_keys_exist,
     test_database_tables,
     test_https_root_ok,
+    test_post_image1,
+    test_post_image2
 ]
 
 IMAGE_TOO_BIG = 5_000_000
 
 logger = get_logger()
-
-@timeout(POST_IMAGE_TIMEOUT)
-def test_post_image1( tr:TestRunner):
-    return post_image( tr, nicols_jpeg(), "nicols.jpeg")
-
-@timeout(POST_IMAGE_TIMEOUT)
-def test_post_image2( tr:TestRunner):
-    return post_image( tr, harvard_jpeg(), "harvard.jpeg")
 
 @timeout(DEFAULT_TEST_TIMEOUT)
 def test_rekognition_enabled( tr:TestRunner ):
