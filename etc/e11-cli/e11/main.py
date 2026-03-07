@@ -382,7 +382,8 @@ def do_check(args):
         if not hasattr(grade_args, "identity"):
             grade_args.identity = None
         if not hasattr(grade_args, "timeout"):
-            grade_args.timeout = GRADING_TIMEOUT
+            # Match the default used by the `grade` command parser (GRADING_TIMEOUT + 5)
+            grade_args.timeout = GRADING_TIMEOUT + 5
         return do_grade(grade_args)
     return 0
 
