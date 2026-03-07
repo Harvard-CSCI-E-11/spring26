@@ -358,7 +358,9 @@ def do_update(_):
         os.system(cmd)
 
 def do_check(args):
-    """e11 check [lab]"""
+    """e11 check [lab]
+    Automatically submits grade request if all checks pass
+    """
     do_check_syntax(args)       # always run the syntax check first
     if args.lab in ('lab7','lab8'):
         print("The rest of lab7 and lab8 cannot be checked because they run on the MEMENTO.")
@@ -371,11 +373,22 @@ def do_check(args):
         return -1
     if summary['score'] == POINTS_PER_LAB:
         print(f"You got a {POINTS_PER_LAB}/{POINTS_PER_LAB}! Submitting grade request....")
-        return do_grade(args)
+        # Ensure we pass all arguments that do_grade() expects, even when invoked from `check`
+        grade_args = argparse.Namespace(**vars(args))
+        if not hasattr(grade_args, "verbose"):
+            grade_args.verbose = False
+        if not hasattr(grade_args, "direct"):
+            grade_args.direct = False
+        if not hasattr(grade_args, "identity"):
+            grade_args.identity = None
+        if not hasattr(grade_args, "timeout"):
+            grade_args.timeout = GRADING_TIMEOUT
+        return do_grade(grade_args)
     return 0
 
 def do_check_syntax(args):
-    """e11 check-syntax [lab]"""
+    """e11 check-syntax [lab]
+    """
     ctx = build_ctx(args.lab)          # args.lab like 'lab3'
     print("Checking",args.lab,"in",ctx.labdir)
     os.chdir(ctx.labdir)
@@ -584,7 +597,7 @@ def get_parser():
     check_parser.set_defaults(func=do_check)
 
     # e11 check-syntax [lab]
-    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance)')
+    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance). Automatically submits a grade request if all checks pass.')
     check_syntax_parser.add_argument(dest='lab', help='Lab to check')
     check_syntax_parser.set_defaults(func=do_check_syntax)
 
