@@ -369,6 +369,9 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     if summary.get('error',None) or summary.get('fails',0):
         return -1
+    if summary['score'] == 5.0:
+        print("You got a 5.0! Submitting grade request....")
+        return do_grade(args)
     return 0
 
 def do_check_syntax(args):
