@@ -65,6 +65,10 @@ install:
 	pipx install --force --python "$(command -v python3.13)" .
 
 
+tags:
+	etags -l python */*.py */*/*.py */*/*/*.py
+.PHONY: tags
+
 ################################################################
 # DynamoDBLocal
 # Installations are used by the CI pipeline and by local developers

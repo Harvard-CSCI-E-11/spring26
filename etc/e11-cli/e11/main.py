@@ -23,7 +23,7 @@ from email_validator import validate_email, EmailNotValidError
 
 from .support import authorized_keys_path,bot_access_check,bot_pubkey,config_path,get_public_ip,on_ec2,get_instanceId,DEFAULT_TIMEOUT,get_config
 
-from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX, COURSE_ROOT
+from .e11core.constants import GRADING_TIMEOUT, API_ENDPOINT, STAGE_ENDPOINT, COURSE_KEY_LEN, LAB_MAX, COURSE_ROOT, POINTS_PER_LAB
 from .e11core.context import LabError,build_ctx, chdir_to_lab
 from .e11core.grader import collect_tests_in_definition_order,print_summary
 from .e11core.utils import get_logger,smash_email
@@ -369,6 +369,9 @@ def do_check(args):
     print_summary(summary, verbose=getattr(args, "verbose", False))
     if summary.get('error',None) or summary.get('fails',0):
         return -1
+    if summary['score'] == POINTS_PER_LAB:
+        print(f"You got a {POINTS_PER_LAB}/{POINTS_PER_LAB}! Submitting grade request....")
+        return do_grade(args)
     return 0
 
 def do_check_syntax(args):
