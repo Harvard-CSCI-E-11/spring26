@@ -597,7 +597,7 @@ def get_parser():
     check_parser.set_defaults(func=do_check)
 
     # e11 check-syntax [lab]
-    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance). Automatically submits a grade request if all checks pass.')
+    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance).')
     check_syntax_parser.add_argument(dest='lab', help='Lab to check')
     check_syntax_parser.set_defaults(func=do_check_syntax)
 
