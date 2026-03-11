@@ -140,7 +140,7 @@ Resources:
       CodeUri: src/
       Handler: home_app.home.lambda_handler
       Timeout: 60
-      MemorySize: 256
+      MemorySize: 1024
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTableName
