@@ -94,7 +94,7 @@ def test_too_big_image2( tr:TestRunner):
     buf = b"X" * IMAGE_TOO_BIG
     r2 = do_presigned_post(r1, tr, "image.jpeg", buf)
     if 200 <= r2.status < 300:
-        raise TestFail("Presigned post for S3 allowed uploading {IMAGE_TOO_BIG:,} bytes. Whoops.")
+        raise TestFail(f"Presigned post for S3 allowed uploading {IMAGE_TOO_BIG:,} bytes. Whoops.")
 
     return "S3 correctly blocked an attempt to upload 10,000,000 bytes."
 
