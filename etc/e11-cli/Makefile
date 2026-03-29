@@ -61,8 +61,14 @@ distclean:
 	make clean
 	/bin/rm -rf .venv
 
+# pipx needs an explicit interpreter; use $(shell …) (not $(command …), which is not shell in Make).
+PYTHON_FOR_PIPX := $(shell command -v python3.14 || command -v python3.13 || command -v python3.12 || command -v python3)
 install:
-	pipx install --force --python "$(command -v python3.13)" .
+	@if [ -z "$(PYTHON_FOR_PIPX)" ]; then \
+		echo "Error: No suitable Python interpreter found for pipx (tried python3.14, python3.13, python3.12, python3)."; \
+		exit 1; \
+	fi
+	pipx install --force --python "$(PYTHON_FOR_PIPX)" .
 
 
 tags:
