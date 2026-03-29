@@ -77,7 +77,7 @@ LAB_CONFIG = {
     },
     "lab4": {
         "redirect": "https://docs.google.com/document/d/1CW48xvpbEE9xPs_6_2cQjOQ4A7xvWgoWCEMgkPjNDuc/edit?usp=drive_link",
-        "deadline": "2026-04-08T23:59:59"
+        "deadline": "2026-04-04T23:59:59"
     },
     "lab5": {
         "redirect": "https://docs.google.com/document/d/1mZOBtyqlpK4OGCXZ80rCWK0ryZ53hNBxL_m-urWzslg/edit?usp=drive_link",
