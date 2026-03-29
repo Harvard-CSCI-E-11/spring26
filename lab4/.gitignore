@@ -1,4 +1,5 @@
 venv
+.venv
 instance
 node_modules
 listing.txt
