@@ -13,7 +13,7 @@ from e11.e11core.testrunner import TestRunner
 from e11.e11core.assertions import TestFail
 from e11.lab_tests.lincoln import lincoln_jpeg
 from e11.lab_tests.lab_common import (
-    POST_IMAGE_TIMEOUT,
+    POST_IMAGE_TEST_TIMEOUT,
     test_service_file_installed,
     test_service_active,
     test_previous_lab_service_stopped,
@@ -48,11 +48,11 @@ IMAGE_TOO_BIG = 5_000_000
 
 logger = get_logger()
 
-@timeout(POST_IMAGE_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_post_image( tr:TestRunner):
     return post_image( tr, lincoln_jpeg(), "lincoln.jpeg")
 
-@timeout(POST_IMAGE_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_too_big_image1( tr:TestRunner):
     """Ask to post an image that is too big."""
     magic = int(time.time())
@@ -73,7 +73,7 @@ def test_too_big_image1( tr:TestRunner):
 
     return f"Image API correctly rejects attempt to upload image of {IMAGE_TOO_BIG} bytes"
 
-@timeout(POST_IMAGE_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_too_big_image2( tr:TestRunner):
     """Ask to post an image that is small but send one through that is too big."""
     magic = int(time.time())
@@ -98,7 +98,7 @@ def test_too_big_image2( tr:TestRunner):
 
     return "S3 correctly blocked an attempt to upload 10,000,000 bytes."
 
-@timeout(POST_IMAGE_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_not_a_jpeg( tr:TestRunner):
     """Ask to post an image that is small but then send through bogus data."""
     magic = int(time.time())

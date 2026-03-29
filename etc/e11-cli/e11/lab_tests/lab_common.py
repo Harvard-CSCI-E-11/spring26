@@ -28,8 +28,9 @@ AUTO_GRADER_KEY_LINE = (
 )
 
 DEFAULT_TEST_TIMEOUT = 5
-UPLOAD_TIMEOUT_SECONDS = 20
-POST_IMAGE_TIMEOUT = UPLOAD_TIMEOUT_SECONDS+1
+PRESIGNED_POST_TIMEOUT = 10
+POST_IMAGE_TIMEOUT = 20
+POST_IMAGE_TEST_TIMEOUT = POST_IMAGE_TIMEOUT + PRESIGNED_POST_TIMEOUT + DEFAULT_TEST_TIMEOUT
 
 logger = get_logger()
 
@@ -92,7 +93,7 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
     r2 = tr.http_get(s3_url,
                       method='POST',
                       data = body,
-                      timeout = UPLOAD_TIMEOUT_SECONDS,
+                      timeout = PRESIGNED_POST_TIMEOUT,
                       headers = { 'Content-Type':content_type,
                                   'Content-Length': str(len(body))
                                  })
@@ -105,7 +106,7 @@ def do_presigned_post(r1, tr, file_name, file_bytes):
 
 ### BASIC TESTS
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_autograder_key_present( tr:TestRunner ):
     """
     The autograder key must exist in ubuntu's authorized_keys.
@@ -120,7 +121,7 @@ def test_autograder_key_present( tr:TestRunner ):
 
 ### VIRTUAL ENVIRONMENT
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_venv_present( tr:TestRunner):
     """Require {labdir}/.venv"""
     labdir = tr.ctx.labdir
@@ -135,7 +136,7 @@ def test_venv_present( tr:TestRunner):
     return f"virtual environment configured in {labdir} and 'poetry run python' command works."
 
 ### SERVICE FILES
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_service_file_installed( tr:TestRunner):
     fn = f"/etc/systemd/system/{tr.ctx.lab}.service"
     r = tr.run_command(f"test -r {fn}")
@@ -143,14 +144,14 @@ def test_service_file_installed( tr:TestRunner):
         raise TestFail(f"{fn} does not exist. Did you install the {tr.ctx.lab}.service file?")
     return f"{fn} exists."
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_service_active( tr:TestRunner):
     r = tr.run_command(f"sudo systemctl is-active {tr.ctx.lab}.service")
     if r.stdout.strip()!='active':
         raise TestFail(f"{tr.ctx.lab} is not active. Be sure to start it.")
     return f"{tr.ctx.lab} is active"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_previous_lab_service_stopped( tr:TestRunner):
     prevlab = f"lab{tr.ctx.labnum-1}"
     r = tr.run_command(f"sudo systemctl is-active {prevlab}.service")
@@ -159,14 +160,14 @@ def test_previous_lab_service_stopped( tr:TestRunner):
     return f"{prevlab} is not active."
 
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_nginx_config_syntax_okay( tr:TestRunner):
     r = tr.run_command("sudo nginx -t")
     if r.exit_code != 0:
         raise TestFail("nginx -t failed", context=r.stderr)
     return "nginx configuration validates"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_gunicorn_running( tr:TestRunner ):
     lab = tr.ctx.lab
     r = tr.run_command("ps auxww")
@@ -197,7 +198,7 @@ def test_database_created( tr:TestRunner):
     tr.ctx.database_fname = fname
     return f"database {fname} created and schema validated"
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_api_keys_exist( tr: TestRunner):
     lab = tr.ctx.lab
     lab_answers = None
@@ -248,7 +249,7 @@ def get_database_tables( tr:TestRunner ):
             raise TestFail(f"JSONDecodeError {e} could not decode: {r.stdout}") from e
 
 
-@timeout(5)
+@timeout(DEFAULT_TEST_TIMEOUT)
 def test_database_tables( tr:TestRunner):
     if tr.ctx.api_key is None:
         raise TestFail(f"Could not complete test because api_key cannot be read from {tr.ctx.lab}-answers.yaml")
@@ -288,6 +289,7 @@ def post_image( tr:TestRunner, image_bytes, image_name):
     image_size = len(image_bytes)
     r1 = tr.http_get(url,
                     method='POST',
+                    timeout=POST_IMAGE_TIMEOUT,
                     data=urllib.parse.urlencode({ 'api_key': tr.ctx.api_key,
                                                   'api_secret_key' : tr.ctx.api_secret_key,
                                                   'message': msg,
@@ -352,10 +354,10 @@ def post_image( tr:TestRunner, image_bytes, image_name):
 
     return f"Image API request to {url} is successful, image uploaded to S3, validated to be in the database, and downloaded from S3"
 
-@timeout(DEFAULT_TEST_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_post_image1( tr:TestRunner):
     return post_image( tr, nicols_jpeg(), "nicols.jpeg")
 
-@timeout(DEFAULT_TEST_TIMEOUT)
+@timeout(POST_IMAGE_TEST_TIMEOUT)
 def test_post_image2( tr:TestRunner):
     return post_image( tr, harvard_jpeg(), "harvard.jpeg")

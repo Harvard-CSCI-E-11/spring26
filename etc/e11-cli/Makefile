@@ -61,8 +61,14 @@ distclean:
 	make clean
 	/bin/rm -rf .venv
 
+# pipx needs an explicit interpreter; use $(shell …) (not $(command …), which is not shell in Make).
+PYTHON_FOR_PIPX := $(shell command -v python3.14 || command -v python3.13 || command -v python3.12 || command -v python3)
 install:
-	pipx install --force --python "$(command -v python3.13)" .
+	@if [ -z "$(PYTHON_FOR_PIPX)" ]; then \
+		echo "Error: No suitable Python interpreter found for pipx (tried python3.14, python3.13, python3.12, python3)."; \
+		exit 1; \
+	fi
+	pipx install --force --python "$(PYTHON_FOR_PIPX)" .
 
 
 tags:
@@ -76,14 +82,11 @@ tags:
 
 # installation:
 DDBL_DOWNLOAD_URL:=https://d1ni2b6xgvw0s0.cloudfront.net/v2.x/dynamodb_local_latest.zip
-bin/dynamodb_local_latest.zip:
+bin/DynamoDBLocal.jar:
 	test -f bin/dynamodb_local_latest.zip || curl $(DDBL_DOWNLOAD_URL) -o bin/dynamodb_local_latest.zip
 	test -f bin/dynamodb_local_latest.zip || (echo could not download $(DDBL_DOWNLOAD_URL); exit 1)
-	find bin -ls
-
-bin/DynamoDBLocal.jar: bin/dynamodb_local_latest.zip
 	(cd bin; unzip -uq dynamodb_local_latest.zip DynamoDBLocal.jar 'DynamoDBLocal_lib/*')
-	touch bin/DynamoDBLocal.jar
+	/bin/rm -f bin/dynamodb_local_latest.zip
 
 # operation:
 start_local_dynamodb: bin/DynamoDBLocal.jar
