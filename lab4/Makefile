@@ -63,8 +63,14 @@ dump-db: $(PYTHON)
 # dump the listing for an AI
 dump-listing:
 	/bin/rm -f listing.txt
-	tree > listing.txt
-	for fn in Makefile */*.py */*/*.html */*/*.js ; \
+	# Exclude large dependency/runtime directories from the tree output
+	tree -I 'node_modules|.venv|instance' > listing.txt
+	# Limit files to project-owned code and templates
+	for fn in Makefile \
+		server/*.py server/*/*.py \
+		server/templates/*.html server/templates/*/*.html \
+		server/static/*.js server/static/*/*.js \
+		tools/*.py tools/*.js ; \
 		do echo "== $$fn ==" >> listing.txt ; cat $$fn >> listing.txt; done
 
 #
