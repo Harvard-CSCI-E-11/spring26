@@ -60,6 +60,19 @@ new-apikey: $(PYTHON)
 dump-db: $(PYTHON)
 	poetry run flask  --app server.main:app dump-db
 
+# dump the listing for an AI
+dump-listing:
+	/bin/rm -f listing.txt
+	# Exclude large dependency/runtime directories from the tree output
+	tree -I 'node_modules|.venv|instance' > listing.txt
+	# Limit files to project-owned code and templates
+	for fn in Makefile \
+		server/*.py server/*/*.py \
+		server/templates/*.html server/templates/*/*.html \
+		server/static/*.js server/static/*/*.js \
+		tools/*.py tools/*.js ; \
+		do echo "== $$fn ==" >> listing.txt ; cat $$fn >> listing.txt; done
+
 #
 # Software engineering targets
 
@@ -74,5 +87,5 @@ distclean:
 	/bin/rm -f instance/message_board.db
 
 # make venv always run, even if it exists
-.PHONY: local-app help init-db wipe-db new-apikey dump-db lint distclean
+.PHONY: local-app help init-db wipe-db new-apikey dump-db lint distclean dump-listing
 .PHONY: install-lab4-service
