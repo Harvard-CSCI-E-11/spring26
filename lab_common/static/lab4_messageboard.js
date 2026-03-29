@@ -19,7 +19,7 @@ function show_messages() {
         })
         .then((obj) => {
             // Clear or update the Tabulator table
-            const table = Tabulator.findTable("#message-table")[0];
+            let table = Tabulator.findTable("#message-table")[0];
             if (table) {
                 // Table exists: update its data
                 table.replaceData(obj);
