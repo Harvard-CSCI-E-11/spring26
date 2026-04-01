@@ -73,8 +73,11 @@ def test_rekognition_text( tr:TestRunner ):
     r = tr.http_get(url)
     if r.status < 200 or r.status >= 300:
         raise TestFail(f"could not http GET to {url} error={r.status} {r.text}")
-    for row in r.json():
-        for dt in row.get('detected_text',[]):
-            if "harvard" in dt.get("DetectedText","").lower():
-                return "Found Harvard"
+    try:
+        for row in r.json():
+            for dt in row.get('detected_text',[]):
+                if "harvard" in dt.get("DetectedText","").lower():
+                    return "Found Harvard"
+    except Exception as e:      # pylint: disable=broad-exception-caught
+        raise TestFail("could not decode API response. text='%s' error='%s",r.text, str(e)) from e
     raise TestFail("Could not find Harvard")
