@@ -24,7 +24,8 @@ HELP_TEXT = """e11admin - Quick reference
 
 List information about a student by email:
   e11admin student-report --email <email>
-  e11admin grades <email>
+  e11admin print-grades <email>
+  e11admin student-log <email>
 
 Force a grade for a specific lab:
   e11admin force-grade <email> <lab>
@@ -221,6 +222,12 @@ def main():
     ca.set_defaults(func=staff.do_student_report)
     ca.add_argument('--email', help='Just this email')
     ca.add_argument("--dump",help="Dump all information", action='store_true')
+
+    ca = subparsers.add_parser('student-log', help='Show grading history for one student')
+    ca.add_argument(dest='email', help='Email address to report')
+    ca.add_argument('lab', nargs='?', help='Optional lab filter (e.g. lab1)')
+    ca.add_argument("--verbose", help="Show stored grader output for each run", action='store_true')
+    ca.set_defaults(func=staff.do_student_log)
 
     ca = subparsers.add_parser('print-grades', help='Show grades or a student or a lab')
     ca.add_argument(dest='whowhat', help='Email address or a lab')
