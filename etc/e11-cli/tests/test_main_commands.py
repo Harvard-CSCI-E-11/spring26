@@ -365,7 +365,7 @@ class TestDoRegister:
         # Should exit with error
         with pytest.raises(SystemExit) as exc_info:
             main.do_register(args)
-        assert exc_info.value.code == 0  # do_register exits with 0 on errors
+        assert exc_info.value.code == 1  # do_register exits with 1 on validation errors
 
     def test_do_register_invalid_email(self, tmp_path, monkeypatch):
         """Test registration with invalid email"""
@@ -488,6 +488,102 @@ class TestDoRegister:
         finally:
             sys.stdout = old_stdout
 
+    def test_do_register_includes_source(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        """Test registration payload includes source"""
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key,
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+
+        seen = {}
+
+        def mock_post(url, json=None, timeout=None, **kwargs):
+            seen["source"] = json.get("source")
+            seen["instanceId"] = json.get("registration", {}).get("instanceId")
+            event = create_lambda_event_from_payload(url, json)
+            response = home_module.lambda_handler(event, None)
+            return convert_lambda_response_to_requests_response(response)
+
+        monkeypatch.setattr(requests, 'post', mock_post)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.fixip = False
+        args.source = "boot-service"
+
+        main.do_register(args)
+        assert seen["source"] == "boot-service"
+        assert seen["instanceId"] == "i-1234567890abcdef0"
+
+    def test_do_register_sends_canonical_instance_id(self, tmp_path, monkeypatch):
+        """Test registration payload explicitly includes canonical instanceId key"""
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email="test@example.com",
+            course_key="123456",
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+
+        seen = {}
+
+        def mock_post(url, json=None, timeout=None, **kwargs):
+            seen["registration"] = json["registration"]
+            response = Response()
+            response.status_code = 200
+            response._content = b'{"message":"ok"}'
+            response.json = lambda: {"message": "ok"}
+            return response
+
+        monkeypatch.setattr(requests, 'post', mock_post)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.fixip = False
+
+        main.do_register(args)
+        assert seen["registration"]["instanceId"] == "i-1234567890abcdef0"
+
+
+class TestDoShutdown:
+    """Tests for do_shutdown command"""
+
+    def test_do_shutdown_success(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key,
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+        mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.source = "boot-service"
+
+        assert main.do_shutdown(args) == 0
+
 
 class TestDoGrade:
     """Tests for do_grade command with HTTP interception"""
@@ -576,6 +672,90 @@ class TestDoGrade:
                 sys.stdout = old_stdout
         finally:
             # Restore original functions
+            api_module.grader.grade_student_vm = original_grade_student_vm
+            api_module.get_pkey_pem = original_get_pkey_pem
+
+    def test_do_grade_email_mentions_previous_higher_score(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        """Test grading email mentions previous higher score for Canvas reporting."""
+        lab = "lab6"
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        from e11.e11_common import users_table, A
+        import time
+        from e11.e11core.utils import smash_email
+        users_table.update_item(
+            Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+            UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+            ExpressionAttributeValues={
+                ":ip": "1.2.3.4",
+                ":hn": smash_email(test_email),
+                ":t": int(time.time()),
+            }
+        )
+        users_table.put_item(Item={
+            A.USER_ID: user[A.USER_ID],
+            A.SK: f"grade#{lab}#2026-02-01T10:00:00.000000",
+            A.LAB: lab,
+            A.PUBLIC_IP: "1.2.3.4",
+            A.SCORE: "5.0",
+        })
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+
+        def mock_grade_student_vm(email, public_ip, lab, pkey_pem=None, key_filename=None):
+            return {
+                'error': False,
+                'fails': ["test2"],
+                'passes': ['test1'],
+                'lab': lab,
+                'tests': [
+                    {'name': 'test1', 'status': 'pass', 'message': 'Test 1 passed'},
+                    {'name': 'test2', 'status': 'fail', 'message': 'Test 2 failed'},
+                ],
+                'score': 2.5,
+                'ctx': {}
+            }
+
+        sent = {}
+
+        def mock_send_email(to_addrs, email_subject, email_body):
+            sent["to"] = to_addrs
+            sent["subject"] = email_subject
+            sent["body"] = email_body
+
+        from home_app import api as api_module
+        import e11.e11_common as e11_common
+
+        original_grade_student_vm = api_module.grader.grade_student_vm
+        original_get_pkey_pem = api_module.get_pkey_pem
+        monkeypatch.setattr(e11_common, "send_email2", mock_send_email)
+        monkeypatch.setattr(api_module, "send_email2", mock_send_email)
+        api_module.grader.grade_student_vm = mock_grade_student_vm
+        api_module.get_pkey_pem = lambda _key_name: "fake-key"
+
+        try:
+            mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
+
+            args = Mock()
+            args.lab = lab
+            args.direct = None
+            args.identity = None
+            args.timeout = 35
+            args.verbose = False
+            args.debug = False
+            args.stage = False
+
+            assert main.do_grade(args) == -1
+            assert "Your previous highest grade was 5.0 on 2026-02-01 10:00:00." in sent["body"]
+            assert "That score will be reported to Canvas." in sent["body"]
+        finally:
             api_module.grader.grade_student_vm = original_grade_student_vm
             api_module.get_pkey_pem = original_get_pkey_pem
 
@@ -695,3 +875,12 @@ def test_get_parser():
     args   = parser.parse_args(args=test_args)
     assert args.debug is False
     assert args.stage is False
+
+
+def test_get_parser_shared_subcommand_options():
+    parser = main.get_parser()
+    args = parser.parse_args(args=['grade', '--stage', '--debug', '--force', 'lab1'])
+    assert args.stage is True
+    assert args.debug is True
+    assert args.force is True
+    assert args.lab == 'lab1'

@@ -424,6 +424,45 @@ def get_grade(user, lab):
         score = 0
     return float(score)
 
+
+def grade_record_rank(item):
+    """Return a sort key for comparing grade records.
+
+    Higher score wins. Ties are broken by the sort key timestamp, so later
+    grade records win over earlier ones.
+    """
+    return (float(item.get(A.SCORE, 0)), str(item.get(A.SK, "")))
+
+
+def select_highest_grade_records(items):
+    """Return the highest grade record for each (user_id, lab) pair."""
+    highest = {}
+    for item in items:
+        sk = str(item.get(A.SK, ""))
+        if sk.count('#') != 2:
+            continue
+        user_id = item.get(A.USER_ID)
+        lab = sk.split('#')[1]
+        key = (user_id, lab)
+        if key not in highest or grade_record_rank(item) > grade_record_rank(highest[key]):
+            highest[key] = item
+    return list(highest.values())
+
+
+def get_highest_grade_record(user, lab):
+    """Return the highest previous grade record for a user/lab, or None."""
+    kwargs = {
+        'KeyConditionExpression': (
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{lab}#')
+        ),
+        'ProjectionExpression': f'{A.USER_ID}, {A.SK}, {A.SCORE}',
+    }
+    items = queryscan_table(users_table.query, kwargs)
+    if not items:
+        return None
+    return max(items, key=grade_record_rank)
+
 ################################################################
 ## image stuff
 

@@ -30,6 +30,13 @@ To see available commands:
 poetry run e11admin --help
 ```
 
+New grading-history command:
+```bash
+poetry run e11admin student-log student@example.edu
+poetry run e11admin student-log student@example.edu lab2
+poetry run e11admin student-log student@example.edu lab2 --verbose
+```
+
 ## Development
 
 To lint the e11admin code, use the main project's linting tools:

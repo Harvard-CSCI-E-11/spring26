@@ -7,12 +7,15 @@ import sys
 import os
 import time
 import csv
+import json
+import re
 import subprocess
 import signal
 import functools
 from typing import Any, Dict, List
 from decimal import Decimal
 
+import dns.resolver
 from tabulate import tabulate
 import boto3
 from boto3.dynamodb.conditions import Attr
@@ -20,9 +23,12 @@ from boto3.dynamodb.conditions import Key
 from botocore.exceptions import ClientError
 
 from e11.e11core.e11ssh import E11Ssh
+from e11.e11core.grader import print_summary
 from e11.e11core.utils import smash_email
+from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
-                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
+                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered,
+                            select_highest_grade_records)
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -211,17 +217,7 @@ def get_items(whowhat):
 
 def get_highest_grades(items):
     """Given a list of grades, return a list of only the highest grade for each student and each lab"""
-    highest_score = {}
-    for r in items:
-        if r[A.SK].count('#')==2:
-            email = userid_to_email(r[A.USER_ID])
-            lab   = r[A.SK].split('#')[1]
-            score = Decimal(r[A.SCORE])
-
-            if ((email+lab not in highest_score)
-                or (score > Decimal(highest_score[email+lab][A.SCORE]))):
-                highest_score[email+lab] = r
-    return list(highest_score.values())
+    return select_highest_grade_records(items)
 
 
 def print_grades(items, args):
@@ -251,6 +247,293 @@ def print_grades(items, args):
 def do_print_grades(args):
     items = get_items(args.whowhat)
     print_grades(items, args)
+
+
+def _lab_sort_key(lab: str) -> tuple[int, str]:
+    try:
+        return (int(lab.replace("lab", "")), lab)
+    except ValueError:
+        return (9999, lab)
+
+
+def _grade_timestamp(item: Dict[str, Any]) -> str:
+    return str(item.get(A.SK, "")).split("#", 2)[2]
+
+
+def _item_timestamp(item: Dict[str, Any]) -> str:
+    sk = str(item.get(A.SK, ""))
+    parts = sk.split("#", 2)
+    return parts[-1] if parts else sk
+
+
+def _display_timestamp(timestamp: str, show_msec: bool) -> str:
+    timestamp = timestamp.replace("T", " ")
+    if show_msec:
+        return timestamp
+    if "." in timestamp:
+        return timestamp.split(".", 1)[0]
+    return timestamp
+
+
+def _grade_score(item: Dict[str, Any]) -> Decimal:
+    return Decimal(str(item.get(A.SCORE, 0)))
+
+
+def _format_score(score: Decimal) -> str:
+    return f"{float(score):.1f}"
+
+
+def _safe_load_grade_summary(item: Dict[str, Any]) -> Dict[str, Any] | None:
+    raw = item.get("raw")
+    if not raw:
+        return None
+    try:
+        summary = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return summary if isinstance(summary, dict) else None
+
+
+def _user_grade_items(email: str) -> List[Dict[str, Any]]:
+    user = get_user_from_email(email)
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": (
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
+        )
+    }
+    return queryscan_table(users_table.query, kwargs)
+
+
+def _user_all_items(user_id: str) -> List[Dict[str, Any]]:
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": Key(A.USER_ID).eq(user_id)
+    }
+    return queryscan_table(users_table.query, kwargs)
+
+
+def _format_epoch_timestamp(value: Any) -> str:
+    try:
+        return time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(int(value)))
+    except (TypeError, ValueError, OSError):
+        return str(value)
+
+
+def _extract_ip_history(user: Any, items: List[Dict[str, Any]], show_msec: bool) -> List[List[str]]:
+    history: list[tuple[str, str, str]] = []
+
+    if getattr(user, "public_ip", None) and getattr(user, "host_registered", None):
+        history.append((
+            _format_epoch_timestamp(user.host_registered),
+            str(user.public_ip),
+            "user record",
+        ))
+
+    for item in items:
+        sk = str(item.get(A.SK, ""))
+        if sk.startswith(A.SK_LOG_PREFIX):
+            message = str(item.get("message", ""))
+            match = re.search(r"public_ip=([0-9.]+)", message)
+            if match:
+                history.append((_item_timestamp(item), match.group(1), "registration log"))
+        elif sk.startswith(A.SK_GRADE_PREFIX):
+            grade_ip = item.get(A.PUBLIC_IP)
+            if grade_ip:
+                history.append((_grade_timestamp(item), str(grade_ip), "grade record"))
+
+    history.sort()
+    rows: list[list[str]] = []
+    seen = set()
+    for row in history:
+        if row in seen:
+            continue
+        seen.add(row)
+        rows.append([_display_timestamp(row[0], show_msec), row[1], row[2]])
+    return rows
+
+
+def _primary_dns_name(user: Any) -> str | None:
+    hostname = getattr(user, "hostname", None)
+    if not hostname and getattr(user, "email", None):
+        hostname = smash_email(user.email)
+    if not hostname:
+        return None
+    return f"{hostname}.{COURSE_DOMAIN}"
+
+
+def _resolve_primary_dns(fqdn: str) -> str:
+    try:
+        answers = dns.resolver.resolve(fqdn, "A")
+        return ", ".join(sorted({str(answer) for answer in answers}))
+    except Exception as exc:  # noqa: BLE001 pylint: disable=broad-exception-caught
+        return f"lookup failed: {exc}"
+
+
+def _run_primary_ping(fqdn: str):
+    cmd = ["ping", "-c", "5", fqdn]
+    print("Ping command:")
+    print(" ".join(cmd))
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10, check=False)
+    except subprocess.TimeoutExpired:
+        print("ping timed out after 10 seconds")
+        print("")
+        return
+    if result.stdout:
+        print(result.stdout.rstrip())
+    if result.stderr:
+        print(result.stderr.rstrip())
+    print("")
+
+
+def _print_primary_dns(user: Any):
+    fqdn = _primary_dns_name(user)
+    if not fqdn:
+        return
+    print("Primary DNS:")
+    print(tabulate([[fqdn, _resolve_primary_dns(fqdn)]], headers=["hostname", "current A record"], disable_numparse=True))
+    print("")
+    _run_primary_ping(fqdn)
+
+
+def _print_ip_history(user: Any, items: List[Dict[str, Any]], show_msec: bool):
+    rows = _extract_ip_history(user, items, show_msec)
+    if not rows:
+        return
+    print("IP history:")
+    print(tabulate(rows, headers=["when", "ip address", "source"], disable_numparse=True))
+    print("")
+
+
+def _extract_lifecycle_events(items: List[Dict[str, Any]], show_msec: bool) -> List[List[str]]:
+    rows: list[list[str]] = []
+    for item in items:
+        sk = str(item.get(A.SK, ""))
+        if not sk.startswith(A.SK_LOG_PREFIX):
+            continue
+        message = str(item.get("message", ""))
+        event_type = str(item.get("event_type", ""))
+        source = str(item.get("source", ""))
+        public_ip = str(item.get("public_ip", ""))
+        instance_id = str(item.get("instanceId", ""))
+
+        if not event_type:
+            if message.startswith("User registered"):
+                event_type = "register"
+                source = source or ("boot-service" if "source=boot-service" in message else "cli")
+                public_ip_match = re.search(r"public_ip=([0-9.]+)", message)
+                instance_id_match = re.search(r"instanceId=([^ ]+)", message)
+                public_ip = public_ip or (public_ip_match.group(1) if public_ip_match else "")
+                instance_id = instance_id or (instance_id_match.group(1) if instance_id_match else "")
+            elif message.startswith("Shutdown reported"):
+                event_type = "shutdown"
+                source = source or ("boot-service" if "source=boot-service" in message else "cli")
+                public_ip_match = re.search(r"public_ip=([0-9.]+)", message)
+                instance_id_match = re.search(r"instanceId=([^ ]+)", message)
+                public_ip = public_ip or (public_ip_match.group(1) if public_ip_match else "")
+                instance_id = instance_id or (instance_id_match.group(1) if instance_id_match else "")
+
+        if event_type not in {"register", "shutdown"}:
+            continue
+
+        rows.append([
+            _display_timestamp(_item_timestamp(item), show_msec),
+            event_type,
+            source,
+            public_ip,
+            instance_id,
+            message,
+        ])
+    rows.sort()
+    return rows
+
+
+def _print_lifecycle_events(items: List[Dict[str, Any]], show_msec: bool):
+    rows = _extract_lifecycle_events(items, show_msec)
+    if not rows:
+        return
+    print("Lifecycle events:")
+    print(tabulate(
+        rows,
+        headers=["when", "event", "source", "ip address", "instanceId", "message"],
+        disable_numparse=True,
+    ))
+    print("")
+
+
+def _grade_attempt_row(item: Dict[str, Any], show_msec: bool) -> List[Any]:
+    summary = _safe_load_grade_summary(item) or {}
+    passes = summary.get("passes", item.get("pass_names", []))
+    fails = summary.get("fails", item.get("fail_names", []))
+    note = item.get("note", "")
+    return [
+        _display_timestamp(_grade_timestamp(item), show_msec),
+        str(item.get(A.PUBLIC_IP, "")),
+        _format_score(_grade_score(item)),
+        len(passes) if isinstance(passes, list) else "n/a",
+        len(fails) if isinstance(fails, list) else "n/a",
+        note,
+    ]
+
+
+def _print_lab_attempts(lab: str, items: List[Dict[str, Any]], verbose: bool, show_msec: bool):
+    rows = [_grade_attempt_row(item, show_msec) for item in items]
+    print(f"\n{lab}:")
+    print(tabulate(rows, headers=["graded", "student ip", "score", "passes", "fails", "note"], disable_numparse=True))
+    if not verbose:
+        return
+    for item in items:
+        summary = _safe_load_grade_summary(item)
+        print(f"\n=== {lab} grading run {_display_timestamp(_grade_timestamp(item), show_msec)} ===")
+        if summary is None:
+            print("No raw grading summary available.")
+            continue
+        print_summary(summary, verbose=True)
+
+
+def do_student_log(args):
+    user = get_user_from_email(args.email)
+    all_items = _user_all_items(user.user_id)
+    _print_primary_dns(user)
+    _print_lifecycle_events(all_items, args.msec)
+    _print_ip_history(user, all_items, args.msec)
+
+    items = [item for item in all_items if str(item.get(A.SK, "")).startswith(A.SK_GRADE_PREFIX)]
+    if args.lab:
+        items = [item for item in items if item.get(A.LAB) == args.lab]
+        items.sort(key=_grade_timestamp)
+        if not items:
+            print(f"No grading sessions found for {args.email} {args.lab}")
+            return
+        _print_lab_attempts(args.lab, items, args.verbose, args.msec)
+        return
+
+    by_lab: Dict[str, List[Dict[str, Any]]] = {}
+    for item in items:
+        lab = str(item.get(A.LAB, "unknown"))
+        by_lab.setdefault(lab, []).append(item)
+
+    if not by_lab:
+        print(f"No grading sessions found for {args.email}")
+        return
+
+    rows = []
+    for lab in sorted(by_lab, key=_lab_sort_key):
+        lab_items = sorted(by_lab[lab], key=_grade_timestamp)
+        scores = [_grade_score(item) for item in lab_items]
+        rows.append([
+            lab,
+            len(lab_items),
+            _display_timestamp(_grade_timestamp(lab_items[0]), args.msec),
+            _display_timestamp(_grade_timestamp(lab_items[-1]), args.msec),
+            _format_score(scores[-1]),
+            _format_score(max(scores)),
+        ])
+    print(tabulate(
+        rows,
+        headers=["lab", "sessions", "first graded", "last graded", "last grade", "highest grade"],
+        disable_numparse=True,
+    ))
 
 # pylint:  disable=too-many-branches,disable=too-many-statements
 def canvas_grades(args):

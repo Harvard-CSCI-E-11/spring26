@@ -3,6 +3,14 @@ import sys
 from pathlib import Path
 import pytest
 
+# Force test-safe AWS config before importing any modules that create boto3 clients.
+os.environ['AWS_ACCESS_KEY_ID'] = 'test'
+os.environ['AWS_SECRET_ACCESS_KEY'] = 'test'
+os.environ['AWS_DEFAULT_REGION'] = os.environ.get('AWS_DEFAULT_REGION', 'us-east-1')
+os.environ['AWS_ENDPOINT_URL_DYNAMODB'] = os.environ.get('AWS_ENDPOINT_URL_DYNAMODB', 'http://localhost:8000/')
+os.environ.pop('AWS_PROFILE', None)
+os.environ.pop('AWS_DEFAULT_PROFILE', None)
+
 TEST_CONFIG="""
 [student]
 preferred_name=Preferred Name

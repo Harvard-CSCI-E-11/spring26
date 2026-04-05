@@ -33,6 +33,7 @@ from e11.e11_common import (
     delete_image,
     route53_client,
     get_user_from_email,
+    get_highest_grade_record,
     sessions_table,
     users_table,
     S3_BUCKET,
@@ -73,6 +74,14 @@ DOMAIN_SUFFIXES = ['', '-lab1', '-lab2', '-lab3', '-lab4', '-lab5', '-lab6', '-l
 LastEvaluatedKey = "LastEvaluatedKey"  # pylint: disable=invalid-name
 
 MAX_IMAGE_SIZE_BYTES = 10_000_000
+
+
+def _format_grade_event_timestamp(sk: str) -> str:
+    timestamp = sk.split("#", 2)[2]
+    timestamp = timestamp.replace("T", " ")
+    if "." in timestamp:
+        timestamp = timestamp.split(".", 1)[0]
+    return timestamp
 
 def get_pkey_pem(key_name):
     """Return the PEM key"""
@@ -172,10 +181,11 @@ def api_register(event, payload):
 
     # Get the registration information
     verbose = payload.get('verbose',True)
+    source = payload.get('source', 'cli')
     registration = payload['registration']
     email = registration.get('email')
     public_ip = registration.get('public_ip')
-    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
+    instanceId = registration.get('instanceId', registration.get('instanceid')) # pylint: disable=invalid-name
     hostname = smash_email(email)
 
     # update the user record in table to match registration information
@@ -188,7 +198,8 @@ def api_register(event, payload):
             ":preferred_name": registration.get(A.PREFERRED_NAME), } )
 
     add_user_log( event, user.user_id,
-                  f"User registered instanceId={instanceId} public_ip={public_ip}")
+                  f"User registered source={source} instanceId={instanceId} public_ip={public_ip}",
+                  event_type="register", source=source, public_ip=public_ip, instanceId=instanceId)
 
     # Hosts that need to be created
     hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
@@ -251,6 +262,27 @@ def api_register(event, payload):
                               'DNS updated and email sent successfully. '
                               f'new_records={new_records} changed_records={changed_records}'})
     return resp_json(HTTP_OK,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
+
+
+def api_shutdown(event, payload):
+    """Record that an instance is shutting down."""
+    user = validate_payload(payload)
+    registration = payload.get('registration', {})
+    source = payload.get('source', 'cli')
+    public_ip = registration.get('public_ip', user.public_ip)
+    instance_id = registration.get('instanceId', registration.get('instanceid'))
+    LOGGER.info("api_shutdown user_id=%s source=%s instanceId=%s public_ip=%s",
+                user.user_id, source, instance_id, public_ip)
+    add_user_log(
+        event,
+        user.user_id,
+        f"Shutdown reported source={source} instanceId={instance_id} public_ip={public_ip}",
+        event_type="shutdown",
+        source=source,
+        public_ip=public_ip,
+        instanceId=instance_id,
+    )
+    return resp_json(HTTP_OK, {"error": False, "message": "shutdown recorded"})
 
 
 def api_heartbeat(event, context):
@@ -335,11 +367,24 @@ def api_grader(event, context, payload):
         return resp_json(HTTP_INTERNAL_ERROR, summary)
     LOGGER.info("summary=%s",summary)
 
+    previous_best_record = None
+    if float(summary.get("score", 0)) < 5.0:
+        previous_best_record = get_highest_grade_record(user, lab)
+
     add_user_log(None, user.user_id, f"Grading lab {lab} ends")
     add_grade(user, lab, user.public_ip, summary, note=note)
 
     # Send email
-    (subject, body) = grader.create_email(summary, note)
+    previous_best = None
+    if previous_best_record is not None:
+        previous_best_score = float(previous_best_record.get(A.SCORE, 0))
+        current_score = float(summary.get("score", 0))
+        if previous_best_score > current_score:
+            previous_best = {
+                "score": previous_best_score,
+                "date": _format_grade_event_timestamp(str(previous_best_record[A.SK])),
+            }
+    (subject, body) = grader.create_email(summary, note, previous_best=previous_best)
     send_email2(to_addrs=user.emails(), email_subject=subject, email_body=body)
     return resp_json(HTTP_OK, {"summary": summary})
 
@@ -420,7 +465,7 @@ def api_delete_image(payload):
         return resp_json(HTTP_BAD_REQUEST, {"error": str(e)})
 
 
-# pylint: disable=too-many-positional-arguments,too-many-return-statements
+# pylint: disable=too-many-positional-arguments,too-many-return-statements,too-many-branches
 def dispatch(method, action, event, context, payload):
     ################################################################
     # JSON API Actions
@@ -454,6 +499,9 @@ def dispatch(method, action, event, context, payload):
 
         case ("POST", "register"):
             return api_register(event, payload)
+
+        case ("POST", "shutdown"):
+            return api_shutdown(event, payload)
 
         case ("POST", "grade"):
             return api_grader(event, context, payload)

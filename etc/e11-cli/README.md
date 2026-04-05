@@ -88,6 +88,7 @@ Available staff commands:
 * `e11 student-report --dump` - Dump all user information
 * `e11 grades <email>` - Show all grades for a specific student
 * `e11 grades <lab>` - Show all grades for a specific lab (e.g., `e11 grades lab1`)
+* `e11admin student-log <email> [lab] [--verbose]` - Show a student's grading history from DynamoDB
 
 ### The `e11admin` Command
 The `e11admin` command is a separate CLI tool for faculty to run on their desktop computers.
