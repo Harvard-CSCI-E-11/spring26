@@ -875,3 +875,12 @@ def test_get_parser():
     args   = parser.parse_args(args=test_args)
     assert args.debug is False
     assert args.stage is False
+
+
+def test_get_parser_shared_subcommand_options():
+    parser = main.get_parser()
+    args = parser.parse_args(args=['grade', '--stage', '--debug', '--force', 'lab1'])
+    assert args.stage is True
+    assert args.debug is True
+    assert args.force is True
+    assert args.lab == 'lab1'
