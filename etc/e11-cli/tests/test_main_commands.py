@@ -488,6 +488,102 @@ class TestDoRegister:
         finally:
             sys.stdout = old_stdout
 
+    def test_do_register_includes_source(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        """Test registration payload includes source"""
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key,
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+
+        seen = {}
+
+        def mock_post(url, json=None, timeout=None, **kwargs):
+            seen["source"] = json.get("source")
+            seen["instanceId"] = json.get("registration", {}).get("instanceId")
+            event = create_lambda_event_from_payload(url, json)
+            response = home_module.lambda_handler(event, None)
+            return convert_lambda_response_to_requests_response(response)
+
+        monkeypatch.setattr(requests, 'post', mock_post)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.fixip = False
+        args.source = "boot-service"
+
+        main.do_register(args)
+        assert seen["source"] == "boot-service"
+        assert seen["instanceId"] == "i-1234567890abcdef0"
+
+    def test_do_register_sends_canonical_instance_id(self, tmp_path, monkeypatch):
+        """Test registration payload explicitly includes canonical instanceId key"""
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email="test@example.com",
+            course_key="123456",
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+
+        seen = {}
+
+        def mock_post(url, json=None, timeout=None, **kwargs):
+            seen["registration"] = json["registration"]
+            response = Response()
+            response.status_code = 200
+            response._content = b'{"message":"ok"}'
+            response.json = lambda: {"message": "ok"}
+            return response
+
+        monkeypatch.setattr(requests, 'post', mock_post)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.fixip = False
+
+        main.do_register(args)
+        assert seen["registration"]["instanceId"] == "i-1234567890abcdef0"
+
+
+class TestDoShutdown:
+    """Tests for do_shutdown command"""
+
+    def test_do_shutdown_success(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key,
+            public_ip="1.2.3.4",
+            instance_id="i-1234567890abcdef0"
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+        mock_ec2_functions(monkeypatch, public_ip="1.2.3.4", instance_id="i-1234567890abcdef0")
+        mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
+
+        args = Mock()
+        args.quiet = True
+        args.stage = False
+        args.source = "boot-service"
+
+        assert main.do_shutdown(args) == 0
+
 
 class TestDoGrade:
     """Tests for do_grade command with HTTP interception"""

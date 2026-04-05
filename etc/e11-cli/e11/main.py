@@ -238,19 +238,28 @@ def do_register(args):
     course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
     if len(course_key)!=COURSE_KEY_LEN:
         print(f"ERROR: course_key '{course_key}' is not valid")
+        errors += 1
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
         print("Please re-run 'e11 config' and then re-run 'e11 config'.")
         sys.exit(0)
 
+    source = getattr(args, 'source', None)
+    if not isinstance(source, str):
+        source = 'cli'
+
+    registration = dict(cp[STUDENT])
+    registration[INSTANCE_ID] = cp[STUDENT].get(INSTANCE_ID, "")
+
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
     data = {'action':'register',
             'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'source': source,
             'verbose':verbose,
-            'registration' : dict(cp[STUDENT])}
+            'registration' : registration}
 
     MAX_RETRIES = 3
     for n in range(1,MAX_RETRIES+1):
@@ -270,6 +279,40 @@ def do_register(args):
         print("Registered!")
         print("Message: ",r.json()['message'])
         print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
+
+
+def do_shutdown(args):
+    cp = get_config()
+    try:
+        auth = {
+            STUDENT_EMAIL: cp[STUDENT][STUDENT_EMAIL],
+            COURSE_KEY: cp[STUDENT][COURSE_KEY],
+        }
+    except KeyError:
+        print("You must run the e11 register command before using the shutdown command.", file=sys.stderr)
+        return -1
+
+    source = getattr(args, 'source', None)
+    if not isinstance(source, str):
+        source = 'cli'
+
+    registration = dict(cp[STUDENT])
+    registration[INSTANCE_ID] = cp[STUDENT].get(INSTANCE_ID, "")
+
+    data = {
+        'action': 'shutdown',
+        'auth': auth,
+        'source': source,
+        'registration': registration,
+    }
+    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
+    if not r.ok:
+        print("Shutdown notification failed:", r.text)
+        return -1
+    if not args.quiet:
+        print("Shutdown notification sent.")
+        print("Message:", r.json().get('message', 'ok'))
+    return 0
 
 
 # pylint: disable=too-many-return-statements
@@ -566,6 +609,14 @@ def get_parser():
     register_parser.set_defaults(func=do_register)
     register_parser.add_argument('--quiet', help='Run quietly', action='store_true')
     register_parser.add_argument('--fixip', help='Fix the IP address', action='store_true')
+    register_parser.add_argument('--source', choices=['cli', 'boot-service'], default='cli',
+                                 help='Describe where the registration request came from')
+
+    shutdown_parser = subparsers.add_parser('shutdown', help='Notify the dashboard that this instance is shutting down')
+    shutdown_parser.set_defaults(func=do_shutdown)
+    shutdown_parser.add_argument('--quiet', help='Run quietly', action='store_true')
+    shutdown_parser.add_argument('--source', choices=['cli', 'boot-service'], default='cli',
+                                 help='Describe where the shutdown request came from')
 
     subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
     subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)

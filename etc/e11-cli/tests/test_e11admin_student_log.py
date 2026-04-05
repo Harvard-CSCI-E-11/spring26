@@ -81,6 +81,18 @@ def _log_item(user_id, timestamp, message):
     }
 
 
+def _structured_log_item(user_id, timestamp, event_type, source, public_ip, instance_id, message):
+    return {
+        "user_id": user_id,
+        "sk": f"log#{timestamp}",
+        "message": message,
+        "event_type": event_type,
+        "source": source,
+        "public_ip": public_ip,
+        "instanceId": instance_id,
+    }
+
+
 def test_student_log_parser_routes_to_handler(monkeypatch):
     from e11.e11admin import cli, staff
 
@@ -90,20 +102,39 @@ def test_student_log_parser_routes_to_handler(monkeypatch):
         called["email"] = args.email
         called["lab"] = args.lab
         called["verbose"] = args.verbose
+        called["msec"] = args.msec
 
     monkeypatch.setattr(staff, "do_student_log", fake_handler)
-    monkeypatch.setattr(sys, "argv", ["e11admin", "student-log", "student@example.edu", "lab2", "--verbose"])
+    monkeypatch.setattr(sys, "argv", ["e11admin", "student-log", "student@example.edu", "lab2", "--verbose", "--msec"])
 
     assert cli.main() == 0
-    assert called == {"email": "student@example.edu", "lab": "lab2", "verbose": True}
+    assert called == {"email": "student@example.edu", "lab": "lab2", "verbose": True, "msec": True}
 
 
 def test_student_log_summary_table(monkeypatch, capsys):
     staff = _patch_admin_query(monkeypatch, [
+        _structured_log_item(
+        "user-123",
+        "2026-04-01T08:59:00.000000",
+        "register",
+        "boot-service",
+        "13.62.54.213",
+        "i-123",
+        "User registered source=boot-service instanceId=i-123 public_ip=13.62.54.213",
+        ),
         _log_item(
         "user-123",
         "2026-04-01T09:00:00.000000",
         "User registered instanceId=i-123 public_ip=13.62.54.213",
+        ),
+        _structured_log_item(
+        "user-123",
+        "2026-04-01T12:00:00.000000",
+        "shutdown",
+        "boot-service",
+        "13.62.54.213",
+        "i-123",
+        "Shutdown reported source=boot-service instanceId=i-123 public_ip=13.62.54.213",
         ),
         _grade_item(
         "user-123",
@@ -130,13 +161,18 @@ def test_student_log_summary_table(monkeypatch, capsys):
         ),
     ])
 
-    staff.do_student_log(argparse.Namespace(email="student@example.edu", lab=None, verbose=False))
+    staff.do_student_log(argparse.Namespace(email="student@example.edu", lab=None, verbose=False, msec=False))
 
     out = capsys.readouterr().out
     assert "Primary DNS:" in out
     assert "Ping command:" in out
     assert "ping -c 5 " in out
     assert "5 packets transmitted" in out
+    assert "Lifecycle events:" in out
+    assert "boot-service" in out
+    assert "shutdown" in out
+    assert "2026-04-01 08:59:00" in out
+    assert "2026-04-01T08:59:00.000000" not in out
     assert "csci-e-11.org" in out
     assert "current A record" in out
     assert "13.60.16.99" in out
@@ -149,14 +185,23 @@ def test_student_log_summary_table(monkeypatch, capsys):
     assert "sessions" in out
     assert "lab1" in out
     assert "lab2" in out
-    assert "2026-02-01T10:00:00.000000" in out
-    assert "2026-02-03T12:30:00.000000" in out
+    assert "2026-02-01 10:00:00" in out
+    assert "2026-02-03 12:30:00" in out
     assert "5.0" in out
     assert "4.0" in out
 
 
 def test_student_log_verbose_lab_output(monkeypatch, capsys):
     staff = _patch_admin_query(monkeypatch, [
+        _structured_log_item(
+        "user-123",
+        "2026-04-01T08:59:00.000000",
+        "register",
+        "boot-service",
+        "13.62.54.213",
+        "i-123",
+        "User registered source=boot-service instanceId=i-123 public_ip=13.62.54.213",
+        ),
         _log_item(
         "user-123",
         "2026-04-01T09:00:00.000000",
@@ -173,17 +218,47 @@ def test_student_log_verbose_lab_output(monkeypatch, capsys):
         ),
     ])
 
-    staff.do_student_log(argparse.Namespace(email="student@example.edu", lab="lab1", verbose=True))
+    staff.do_student_log(argparse.Namespace(email="student@example.edu", lab="lab1", verbose=True, msec=False))
 
     out = capsys.readouterr().out
     assert "Primary DNS:" in out
     assert "Ping command:" in out
+    assert "Lifecycle events:" in out
     assert "IP history:" in out
     assert "lab1:" in out
     assert "student ip" in out
     assert "127.0.0.1" in out
     assert "manual retry" in out
-    assert "=== lab1 grading run 2026-02-01T10:00:00.000000 ===" in out
+    assert "=== lab1 grading run 2026-02-01 10:00:00 ===" in out
     assert '"test_hostname"' in out
     assert "=== lab1 Results ===" in out
     assert "Score: 3.5 / 5.0" in out
+
+
+def test_student_log_msec_preserves_fractional_seconds(monkeypatch, capsys):
+    staff = _patch_admin_query(monkeypatch, [
+        _structured_log_item(
+        "user-123",
+        "2026-04-01T08:59:00.000000",
+        "register",
+        "boot-service",
+        "13.62.54.213",
+        "i-123",
+        "User registered source=boot-service instanceId=i-123 public_ip=13.62.54.213",
+        ),
+        _grade_item(
+        "user-123",
+        "lab1",
+        "2026-02-01T10:00:00.000000",
+        "3.5",
+        passes=["test_hostname"],
+        fails=["test_nginx"],
+        note="manual retry",
+        ),
+    ])
+
+    staff.do_student_log(argparse.Namespace(email="student@example.edu", lab="lab1", verbose=False, msec=True))
+
+    out = capsys.readouterr().out
+    assert "2026-04-01 08:59:00.000000" in out
+    assert "2026-02-01 10:00:00.000000" in out

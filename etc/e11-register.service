@@ -11,8 +11,8 @@ Type=oneshot
 RemainAfterExit=yes
 User=ubuntu
 ExecStartPre=/bin/sleep 60
-ExecStart=/home/ubuntu/.local/bin/e11 register --quiet --fixip
-ExecStop=/home/ubuntu/.local/bin/e11 shutdown
+ExecStart=/home/ubuntu/.local/bin/e11 register --quiet --fixip --source boot-service
+ExecStop=/home/ubuntu/.local/bin/e11 shutdown --quiet --source boot-service
 
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 

@@ -227,6 +227,7 @@ def main():
     ca.add_argument(dest='email', help='Email address to report')
     ca.add_argument('lab', nargs='?', help='Optional lab filter (e.g. lab1)')
     ca.add_argument("--verbose", help="Show stored grader output for each run", action='store_true')
+    ca.add_argument("--msec", help="Show fractional seconds in timestamps", action='store_true')
     ca.set_defaults(func=staff.do_student_log)
 
     ca = subparsers.add_parser('print-grades', help='Show grades or a student or a lab')

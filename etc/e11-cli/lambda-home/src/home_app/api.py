@@ -172,10 +172,11 @@ def api_register(event, payload):
 
     # Get the registration information
     verbose = payload.get('verbose',True)
+    source = payload.get('source', 'cli')
     registration = payload['registration']
     email = registration.get('email')
     public_ip = registration.get('public_ip')
-    instanceId = registration.get('instanceId') # pylint: disable=invalid-name
+    instanceId = registration.get('instanceId', registration.get('instanceid')) # pylint: disable=invalid-name
     hostname = smash_email(email)
 
     # update the user record in table to match registration information
@@ -188,7 +189,8 @@ def api_register(event, payload):
             ":preferred_name": registration.get(A.PREFERRED_NAME), } )
 
     add_user_log( event, user.user_id,
-                  f"User registered instanceId={instanceId} public_ip={public_ip}")
+                  f"User registered source={source} instanceId={instanceId} public_ip={public_ip}",
+                  event_type="register", source=source, public_ip=public_ip, instanceId=instanceId)
 
     # Hosts that need to be created
     hostnames = [f"{hostname}{suffix}.{COURSE_DOMAIN}" for suffix in DOMAIN_SUFFIXES]
@@ -251,6 +253,26 @@ def api_register(event, payload):
                               'DNS updated and email sent successfully. '
                               f'new_records={new_records} changed_records={changed_records}'})
     return resp_json(HTTP_OK,{'message':f'DNS updated. No email sent. new_records={new_records} changed_records={changed_records}'})
+
+
+def api_shutdown(event, payload):
+    """Record that an instance is shutting down."""
+    LOGGER.info("api_shutdown payload=%s event=%s", payload, event)
+    user = validate_payload(payload)
+    registration = payload.get('registration', {})
+    source = payload.get('source', 'cli')
+    public_ip = registration.get('public_ip', user.public_ip)
+    instance_id = registration.get('instanceId', registration.get('instanceid'))
+    add_user_log(
+        event,
+        user.user_id,
+        f"Shutdown reported source={source} instanceId={instance_id} public_ip={public_ip}",
+        event_type="shutdown",
+        source=source,
+        public_ip=public_ip,
+        instanceId=instance_id,
+    )
+    return resp_json(HTTP_OK, {"error": False, "message": "shutdown recorded"})
 
 
 def api_heartbeat(event, context):
@@ -454,6 +476,9 @@ def dispatch(method, action, event, context, payload):
 
         case ("POST", "register"):
             return api_register(event, payload)
+
+        case ("POST", "shutdown"):
+            return api_shutdown(event, payload)
 
         case ("POST", "grade"):
             return api_grader(event, context, payload)
