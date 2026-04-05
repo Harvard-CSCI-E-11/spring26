@@ -365,7 +365,7 @@ class TestDoRegister:
         # Should exit with error
         with pytest.raises(SystemExit) as exc_info:
             main.do_register(args)
-        assert exc_info.value.code == 0  # do_register exits with 0 on errors
+        assert exc_info.value.code == 1  # do_register exits with 1 on validation errors
 
     def test_do_register_invalid_email(self, tmp_path, monkeypatch):
         """Test registration with invalid email"""

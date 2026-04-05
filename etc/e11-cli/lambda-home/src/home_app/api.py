@@ -465,7 +465,7 @@ def api_delete_image(payload):
         return resp_json(HTTP_BAD_REQUEST, {"error": str(e)})
 
 
-# pylint: disable=too-many-positional-arguments,too-many-return-statements
+# pylint: disable=too-many-positional-arguments,too-many-return-statements,too-many-branches
 def dispatch(method, action, event, context, payload):
     ################################################################
     # JSON API Actions
