@@ -266,12 +266,13 @@ def api_register(event, payload):
 
 def api_shutdown(event, payload):
     """Record that an instance is shutting down."""
-    LOGGER.info("api_shutdown payload=%s event=%s", payload, event)
     user = validate_payload(payload)
     registration = payload.get('registration', {})
     source = payload.get('source', 'cli')
     public_ip = registration.get('public_ip', user.public_ip)
     instance_id = registration.get('instanceId', registration.get('instanceid'))
+    LOGGER.info("api_shutdown user_id=%s source=%s instanceId=%s public_ip=%s",
+                user.user_id, source, instance_id, public_ip)
     add_user_log(
         event,
         user.user_id,
