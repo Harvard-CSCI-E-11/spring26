@@ -677,6 +677,7 @@ class TestDoGrade:
 
     def test_do_grade_email_mentions_previous_higher_score(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
         """Test grading email mentions previous higher score for Canvas reporting."""
+        lab = "lab6"
         test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
         course_key = user['course_key']
@@ -695,8 +696,8 @@ class TestDoGrade:
         )
         users_table.put_item(Item={
             A.USER_ID: user[A.USER_ID],
-            A.SK: "grade#lab1#2026-02-01T10:00:00.000000",
-            A.LAB: "lab1",
+            A.SK: f"grade#{lab}#2026-02-01T10:00:00.000000",
+            A.LAB: lab,
             A.PUBLIC_IP: "1.2.3.4",
             A.SCORE: "5.0",
         })
@@ -743,7 +744,7 @@ class TestDoGrade:
             mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
 
             args = Mock()
-            args.lab = "lab1"
+            args.lab = lab
             args.direct = None
             args.identity = None
             args.timeout = 35
@@ -751,7 +752,7 @@ class TestDoGrade:
             args.debug = False
             args.stage = False
 
-            assert main.do_grade(args) == 0
+            assert main.do_grade(args) == -1
             assert "Your previous highest grade was 5.0 on 2026-02-01 10:00:00." in sent["body"]
             assert "That score will be reported to Canvas." in sent["body"]
         finally:
