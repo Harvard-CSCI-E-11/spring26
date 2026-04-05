@@ -27,7 +27,8 @@ from e11.e11core.grader import print_summary
 from e11.e11core.utils import smash_email
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
-                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered)
+                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered,
+                            select_highest_grade_records)
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -216,17 +217,7 @@ def get_items(whowhat):
 
 def get_highest_grades(items):
     """Given a list of grades, return a list of only the highest grade for each student and each lab"""
-    highest_score = {}
-    for r in items:
-        if r[A.SK].count('#')==2:
-            email = userid_to_email(r[A.USER_ID])
-            lab   = r[A.SK].split('#')[1]
-            score = Decimal(r[A.SCORE])
-
-            if ((email+lab not in highest_score)
-                or (score > Decimal(highest_score[email+lab][A.SCORE]))):
-                highest_score[email+lab] = r
-    return list(highest_score.values())
+    return select_highest_grade_records(items)
 
 
 def print_grades(items, args):

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from e11.e11core.grader import print_summary
+from e11.e11core.grader import create_email, print_summary
 
 
 @pytest.fixture
@@ -240,3 +240,22 @@ class TestPrintSummary:
         assert "test_one" in captured.out
         assert "test_two" in captured.out
         assert "test_three" in captured.out
+
+    def test_create_email_includes_previous_highest_grade_note(self):
+        """Test email includes note when a previous higher grade exists."""
+        summary = {
+            "lab": "lab1",
+            "score": 3.5,
+            "passes": ["test_one"],
+            "fails": [],
+            "tests": [{"name": "test_one", "status": "pass", "message": "Passed"}],
+            "error": False,
+        }
+
+        _, body = create_email(
+            summary,
+            previous_best={"score": 5.0, "date": "2026-02-01 10:00:00"},
+        )
+
+        assert "Your previous highest grade was 5.0 on 2026-02-01 10:00:00." in body
+        assert "That score will be reported to Canvas." in body

@@ -675,6 +675,89 @@ class TestDoGrade:
             api_module.grader.grade_student_vm = original_grade_student_vm
             api_module.get_pkey_pem = original_get_pkey_pem
 
+    def test_do_grade_email_mentions_previous_higher_score(self, tmp_path, monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
+        """Test grading email mentions previous higher score for Canvas reporting."""
+        test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+        user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
+        course_key = user['course_key']
+
+        from e11.e11_common import users_table, A
+        import time
+        from e11.e11core.utils import smash_email
+        users_table.update_item(
+            Key={"user_id": user[A.USER_ID], "sk": user[A.SK]},
+            UpdateExpression=f"SET {A.PUBLIC_IP} = :ip, {A.HOSTNAME} = :hn, {A.HOST_REGISTERED} = :t",
+            ExpressionAttributeValues={
+                ":ip": "1.2.3.4",
+                ":hn": smash_email(test_email),
+                ":t": int(time.time()),
+            }
+        )
+        users_table.put_item(Item={
+            A.USER_ID: user[A.USER_ID],
+            A.SK: "grade#lab1#2026-02-01T10:00:00.000000",
+            A.LAB: "lab1",
+            A.PUBLIC_IP: "1.2.3.4",
+            A.SCORE: "5.0",
+        })
+
+        config_file = tmp_path / "e11-config.ini"
+        config_file.write_text(create_test_config_file_content(
+            email=test_email,
+            course_key=course_key
+        ))
+        monkeypatch.setenv("E11_CONFIG", str(config_file))
+
+        def mock_grade_student_vm(email, public_ip, lab, pkey_pem=None, key_filename=None):
+            return {
+                'error': False,
+                'fails': ["test2"],
+                'passes': ['test1'],
+                'lab': lab,
+                'tests': [
+                    {'name': 'test1', 'status': 'pass', 'message': 'Test 1 passed'},
+                    {'name': 'test2', 'status': 'fail', 'message': 'Test 2 failed'},
+                ],
+                'score': 2.5,
+                'ctx': {}
+            }
+
+        sent = {}
+
+        def mock_send_email(to_addrs, email_subject, email_body):
+            sent["to"] = to_addrs
+            sent["subject"] = email_subject
+            sent["body"] = email_body
+
+        from home_app import api as api_module
+        import e11.e11_common as e11_common
+
+        original_grade_student_vm = api_module.grader.grade_student_vm
+        original_get_pkey_pem = api_module.get_pkey_pem
+        monkeypatch.setattr(e11_common, "send_email2", mock_send_email)
+        monkeypatch.setattr(api_module, "send_email2", mock_send_email)
+        api_module.grader.grade_student_vm = mock_grade_student_vm
+        api_module.get_pkey_pem = lambda _key_name: "fake-key"
+
+        try:
+            mock_requests_post_to_lambda(monkeypatch, home_module.lambda_handler)
+
+            args = Mock()
+            args.lab = "lab1"
+            args.direct = None
+            args.identity = None
+            args.timeout = 35
+            args.verbose = False
+            args.debug = False
+            args.stage = False
+
+            assert main.do_grade(args) == 0
+            assert "Your previous highest grade was 5.0 on 2026-02-01 10:00:00." in sent["body"]
+            assert "That score will be reported to Canvas." in sent["body"]
+        finally:
+            api_module.grader.grade_student_vm = original_grade_student_vm
+            api_module.get_pkey_pem = original_get_pkey_pem
+
     def test_do_grade_missing_config(self, tmp_path, monkeypatch):
         """Test grading with missing course_key"""
         config_file = tmp_path / "e11-config.ini"

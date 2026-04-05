@@ -241,7 +241,7 @@ def print_summary(summary, verbose=False):
 
 
 
-def create_email(summary, note=None):
+def create_email(summary, note=None, previous_best=None):
     """Create email message for user. See also print_summary above"""
 
     if summary.get("error",None):
@@ -253,6 +253,12 @@ def create_email(summary, note=None):
         body_lines += [note]
         body_lines += [""]
     body_lines += [subject]
+    if previous_best is not None:
+        body_lines += [""]
+        body_lines += [
+            f"Your previous highest grade was {previous_best['score']} on {previous_best['date']}. "
+            "That score will be reported to Canvas."
+        ]
     body_lines += [""]
     body_lines += ["Passes:"]
     body_lines += [f"  ✔ {p}" for p in summary["passes"]]
