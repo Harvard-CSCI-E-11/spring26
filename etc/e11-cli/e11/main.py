@@ -238,19 +238,28 @@ def do_register(args):
     course_key = cp[STUDENT].get(COURSE_KEY,"").strip()
     if len(course_key)!=COURSE_KEY_LEN:
         print(f"ERROR: course_key '{course_key}' is not valid")
+        errors += 1
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
-        print("Please re-run 'e11 config' and then re-run 'e11 config'.")
-        sys.exit(0)
+        print("Please re-run 'e11 config' and then run 'e11 register'.")
+        sys.exit(1)
+
+    source = getattr(args, 'source', None)
+    if not isinstance(source, str):
+        source = 'cli'
+
+    registration = dict(cp[STUDENT])
+    registration[INSTANCE_ID] = cp[STUDENT].get(INSTANCE_ID, "")
 
     print("Attempting to register...")
 
     # write to the S3 storage with the email address as the key
     data = {'action':'register',
             'auth':{STUDENT_EMAIL:cp[STUDENT][STUDENT_EMAIL], COURSE_KEY:cp[STUDENT][COURSE_KEY]},
+            'source': source,
             'verbose':verbose,
-            'registration' : dict(cp[STUDENT])}
+            'registration' : registration}
 
     MAX_RETRIES = 3
     for n in range(1,MAX_RETRIES+1):
@@ -270,6 +279,40 @@ def do_register(args):
         print("Registered!")
         print("Message: ",r.json()['message'])
         print("You should also receive an email within 60 seconds. If not, please check your email address and try again.")
+
+
+def do_shutdown(args):
+    cp = get_config()
+    try:
+        auth = {
+            STUDENT_EMAIL: cp[STUDENT][STUDENT_EMAIL],
+            COURSE_KEY: cp[STUDENT][COURSE_KEY],
+        }
+    except KeyError:
+        print("You must run the e11 register command before using the shutdown command.", file=sys.stderr)
+        return -1
+
+    source = getattr(args, 'source', None)
+    if not isinstance(source, str):
+        source = 'cli'
+
+    registration = dict(cp[STUDENT])
+    registration[INSTANCE_ID] = cp[STUDENT].get(INSTANCE_ID, "")
+
+    data = {
+        'action': 'shutdown',
+        'auth': auth,
+        'source': source,
+        'registration': registration,
+    }
+    r = requests.post(endpoint(args), json=data, timeout=DEFAULT_TIMEOUT)
+    if not r.ok:
+        print("Shutdown notification failed:", r.text)
+        return -1
+    if not args.quiet:
+        print("Shutdown notification sent.")
+        print("Message:", r.json().get('message', 'ok'))
+    return 0
 
 
 # pylint: disable=too-many-return-statements
@@ -535,13 +578,18 @@ def do_lab8(args):
 def get_parser():
     parser = argparse.ArgumentParser(prog='e11', description='Manage student VM access',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    shared_parser = argparse.ArgumentParser(add_help=False)
+    shared_parser.add_argument("--debug", help='Run in debug mode', action='store_true')
+    shared_parser.add_argument("--stage", help='Use stage API', action='store_true')
+    shared_parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
+
     parser.add_argument("--debug", help='Run in debug mode', action='store_true')
     parser.add_argument("--stage", help='Use stage API', action='store_true')
     parser.add_argument('--force', help='Run even if not on ec2',action='store_true')
     subparsers = parser.add_subparsers(dest='command', required=True)
 
     # e11 config
-    config_parser = subparsers.add_parser('config', help='Config E11 student variables')
+    config_parser = subparsers.add_parser('config', help='Config E11 student variables', parents=[shared_parser])
     config_parser.add_argument("--get",action='store_true',help='get a value')
     config_parser.add_argument("--section", help='the section to --get or --setvalue')
     config_parser.add_argument("--key", help='the key to --get or --setvalue')
@@ -550,41 +598,49 @@ def get_parser():
     config_parser.set_defaults(func=do_config)
 
     # e11 access [on|off|check]
-    access_parser = subparsers.add_parser('access', help='Enable or disable access')
+    access_parser = subparsers.add_parser('access', help='Enable or disable access', parents=[shared_parser])
     access_parser.set_defaults(func=lambda _: access_parser.print_help())
     access_subparsers = access_parser.add_subparsers(dest='action')
 
-    access_subparsers.add_parser('on', help='Enable SSH access to grading bot and staff').set_defaults(func=do_access_on)
-    access_subparsers.add_parser('off', help='Disable SSH access to grading bot and staff').set_defaults(func=do_access_off)
-    access_subparsers.add_parser('check', help='Report SSH access').set_defaults(func=do_access_check)
+    access_subparsers.add_parser('on', help='Enable SSH access to grading bot and staff', parents=[shared_parser]).set_defaults(func=do_access_on)
+    access_subparsers.add_parser('off', help='Disable SSH access to grading bot and staff', parents=[shared_parser]).set_defaults(func=do_access_off)
+    access_subparsers.add_parser('check', help='Report SSH access', parents=[shared_parser]).set_defaults(func=do_access_check)
     access_subparsers.add_parser('check-dashboard',
-                                 help='Report SSH access from the dashboard for authenticated users').set_defaults(func=do_access_check_dashboard)
-    access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody').set_defaults(func=do_access_check_me)
+                                 help='Report SSH access from the dashboard for authenticated users', parents=[shared_parser]).set_defaults(func=do_access_check_dashboard)
+    access_subparsers.add_parser('check-me', help='Report SSH access from the dashboard for anybody', parents=[shared_parser]).set_defaults(func=do_access_check_me)
 
     # Other primary commands
-    register_parser = subparsers.add_parser('register', help='Register this instance')
+    register_parser = subparsers.add_parser('register', help='Register this instance', parents=[shared_parser])
     register_parser.set_defaults(func=do_register)
     register_parser.add_argument('--quiet', help='Run quietly', action='store_true')
     register_parser.add_argument('--fixip', help='Fix the IP address', action='store_true')
+    register_parser.add_argument('--source', choices=['cli', 'boot-service'], default='cli',
+                                 help='Describe where the registration request came from')
 
-    subparsers.add_parser('status', help='Report status of the e11 system.').set_defaults(func=do_status)
-    subparsers.add_parser('update', help='Update the e11 system').set_defaults(func=do_update)
-    subparsers.add_parser('version', help='Update the e11 system').set_defaults(func=do_version)
-    subparsers.add_parser('doctor', help='Self-test the system').set_defaults(func=run_doctor)
+    shutdown_parser = subparsers.add_parser('shutdown', help='Notify the dashboard that this instance is shutting down', parents=[shared_parser])
+    shutdown_parser.set_defaults(func=do_shutdown)
+    shutdown_parser.add_argument('--quiet', help='Run quietly', action='store_true')
+    shutdown_parser.add_argument('--source', choices=['cli', 'boot-service'], default='cli',
+                                 help='Describe where the shutdown request came from')
+
+    subparsers.add_parser('status', help='Report status of the e11 system.', parents=[shared_parser]).set_defaults(func=do_status)
+    subparsers.add_parser('update', help='Update the e11 system', parents=[shared_parser]).set_defaults(func=do_update)
+    subparsers.add_parser('version', help='Update the e11 system', parents=[shared_parser]).set_defaults(func=do_version)
+    subparsers.add_parser('doctor', help='Self-test the system', parents=[shared_parser]).set_defaults(func=run_doctor)
 
     # e11 report [tests]
-    report_parser = subparsers.add_parser('report', help='Generate reports')
+    report_parser = subparsers.add_parser('report', help='Generate reports', parents=[shared_parser])
     report_parser.set_defaults(func=lambda _: report_parser.print_help())
     report_subparsers = report_parser.add_subparsers(dest='report_type')
-    report_subparsers.add_parser('tests', help='List all available tests in markdown format').set_defaults(func=do_report_tests)
+    report_subparsers.add_parser('tests', help='List all available tests in markdown format', parents=[shared_parser]).set_defaults(func=do_report_tests)
 
     # e11 answer [lab] - answer solutions
-    answer_parser = subparsers.add_parser('answer', help='Answer additional questions for a particular lab prior to grading')
+    answer_parser = subparsers.add_parser('answer', help='Answer additional questions for a particular lab prior to grading', parents=[shared_parser])
     answer_parser.add_argument(dest='lab', help='Lab for answers')
     answer_parser.set_defaults(func=do_answer)
 
     # e11 grade [lab]
-    grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)')
+    grade_parser = subparsers.add_parser('grade', help='Request lab grading (run from course server)', parents=[shared_parser])
     grade_parser.add_argument(dest='lab', help='Lab to grade')
     grade_parser.add_argument('--verbose', help='print all details',action='store_true')
     grade_parser.add_argument('--direct', help='Instead of grading [student]public_ip from server, grade from this system. Requires SSH access to target')
@@ -593,17 +649,17 @@ def get_parser():
     grade_parser.set_defaults(func=do_grade)
 
     # e11 check [lab]
-    check_parser = subparsers.add_parser('check', help='Check a lab (run from your instance)')
+    check_parser = subparsers.add_parser('check', help='Check a lab (run from your instance)', parents=[shared_parser])
     check_parser.add_argument(dest='lab', help='Lab to check')
     check_parser.set_defaults(func=do_check)
 
     # e11 check-syntax [lab]
-    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance).')
+    check_syntax_parser = subparsers.add_parser('check-syntax', help='Check just the syntax of the lab files (run from your instance).', parents=[shared_parser])
     check_syntax_parser.add_argument(dest='lab', help='Lab to check')
     check_syntax_parser.set_defaults(func=do_check_syntax)
 
     # e11 lab8
-    lab8_parser = subparsers.add_parser('lab8', help='Lab8 commands')
+    lab8_parser = subparsers.add_parser('lab8', help='Lab8 commands', parents=[shared_parser])
     lab8_parser.add_argument("--upload", help="File to upload", type=Path)
     lab8_parser.add_argument("--timeout", type=int, default=GRADING_TIMEOUT+5)
     lab8_parser.set_defaults(func=do_lab8)
