@@ -242,7 +242,7 @@ def do_register(args):
 
     if errors>0:
         print(f"\n{errors} error{'s' if errors!=1 else ''} in configuration file.")
-        print("Please re-run 'e11 config' and then re-run 'e11 config'.")
+        print("Please re-run 'e11 config' and then run 'e11 register'.")
         sys.exit(1)
 
     source = getattr(args, 'source', None)
