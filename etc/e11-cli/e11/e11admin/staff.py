@@ -569,9 +569,12 @@ def do_student_log(args):
 
 def _admin_log_items() -> List[Dict[str, Any]]:
     kwargs: dict[str, Any] = {
-        "FilterExpression": Attr(A.SK).begins_with(A.SK_ADMIN_LOG_PREFIX),
+        "KeyConditionExpression": (
+            Key(A.USER_ID).eq(A.ADMIN_LOG_USER_ID)
+            & Key(A.SK).begins_with(A.SK_ADMIN_LOG_PREFIX)
+        ),
     }
-    return queryscan_table(users_table.scan, kwargs)
+    return queryscan_table(users_table.query, kwargs)
 
 
 def _latest_canvas_grade_exports() -> Dict[str, Dict[str, Any]]:
