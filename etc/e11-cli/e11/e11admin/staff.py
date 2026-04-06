@@ -622,12 +622,33 @@ Required columns and order
             print("cannot match grades:",item)
 
 
+    def _normalize_spaces(value):
+        return " ".join(value.lower().strip().split())
+
+    def _strip_middle_initial(name):
+        parts = name.split()
+        if len(parts) == 3 and len(parts[1].rstrip(".")) == 1:
+            return f"{parts[0]} {parts[2]}"
+        return None
+
+    def _candidate_names(item):
+        candidates = set()
+        claims = item.get("claims") or {}
+        for candidate in [claims.get("name"), item.get("preferred_name")]:
+            if not candidate:
+                continue
+            normalized = _normalize_spaces(candidate)
+            candidates.add(normalized)
+            stripped = _strip_middle_initial(normalized)
+            if stripped:
+                candidates.add(stripped)
+        return candidates
+
     def exact_match(name):
         (last,first) = name.lower().split(", ")
-        lower_name = first + " " + last
+        lower_name = _normalize_spaces(first + " " + last)
         for item in class_list.values():
-            claims_name = item['claims']['name'].lower()
-            if lower_name == claims_name:
+            if lower_name in _candidate_names(item):
                 return item
         return None
 
@@ -652,7 +673,7 @@ Required columns and order
     print("Total grades:",len(output_names_and_grades)-1,"\n")
     print("unmatched grades:")
     unmatched = []
-    for item in class_list:
+    for item in class_list.values():
         if A.SCORE in item:
             print(item)
             unmatched.append(item)
