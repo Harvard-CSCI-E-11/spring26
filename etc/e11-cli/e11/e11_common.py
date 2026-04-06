@@ -176,6 +176,7 @@ class A:                        # pylint: disable=too-few-public-methods
     SK_USER = '#'                  # sort key for the user record
     SK_IMAGE_PREFIX = 'image#'     # sort key for images
     SK_IMAGE_PATTERN = SK_IMAGE_PREFIX + "{lab}#{now}"
+    SK_ADMIN_LOG_PREFIX = 'admin-log#' # e11admin action log
     SK_LEADERBOARD_LOG_PREFIX = 'leaderboard-log#' # leaderboard-log
     USER_ID = 'user_id'
     USER_REGISTERED = 'user_registered'
@@ -364,6 +365,22 @@ def add_user_log(event, user_id, message, **extra):
                                      'message':message,
                                      **extra})
     logger.debug("put_table=%s",ret)
+
+
+ADMIN_LOG_USER_ID = "__e11admin__"
+
+
+def add_admin_log(action: str, message: str, **extra):
+    """Record an e11admin action in the users table."""
+    logger = get_logger()
+    ret = users_table.put_item(Item={
+        A.USER_ID: ADMIN_LOG_USER_ID,
+        A.SK: f'{A.SK_ADMIN_LOG_PREFIX}{now_iso()}',
+        'action': action,
+        'message': message,
+        **extra,
+    })
+    logger.debug("add_admin_log put_table=%s", ret)
 
 ################################################################
 ## grading

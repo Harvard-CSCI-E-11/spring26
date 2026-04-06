@@ -26,6 +26,7 @@ List information about a student by email:
   e11admin student-report --email <email>
   e11admin print-grades <email>
   e11admin student-log <email>
+  e11admin status
 
 Force a grade for a specific lab:
   e11admin force-grade <email> <lab>
@@ -222,6 +223,7 @@ def main():
     ca.set_defaults(func=staff.do_student_report)
     ca.add_argument('--email', help='Just this email')
     ca.add_argument("--dump",help="Dump all information", action='store_true')
+    ca.add_argument("--debug", help="Print matching user records as JSON", action='store_true')
 
     ca = subparsers.add_parser('student-log', help='Show grading history for one student')
     ca.add_argument(dest='email', help='Email address to report')
@@ -248,6 +250,9 @@ def main():
     ca.add_argument("--template", help="Canvas exported grade sheet", type=Path, required=True)
     ca.add_argument("--outfile", help="Output file to create", type=Path, required=True)
     ca.set_defaults(func=staff.canvas_grades)
+
+    ca = subparsers.add_parser('status', help='Show grade increases since the last Canvas export')
+    ca.set_defaults(func=staff.do_status)
 
     ca = subparsers.add_parser('ssh', help="access a student's VM via SSH (specify email address)")
     ca.add_argument(dest='email', help='email address')
