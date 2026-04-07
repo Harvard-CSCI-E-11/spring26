@@ -27,6 +27,7 @@ from e11.e11core.grader import print_summary
 from e11.e11core.utils import smash_email
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
+                            add_admin_log,
                             get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered,
                             select_highest_grade_records)
 
@@ -169,7 +170,8 @@ def do_student_report(args):
 
     pitems = []
     for item in items:
-        print(item)
+        if args.debug:
+            print(json.dumps(item, indent=4, default=str))
         pitems.append(_format_user_item(item))
 
     def sortkey(a):
@@ -339,7 +341,8 @@ def _extract_ip_history(user: Any, items: List[Dict[str, Any]], show_msec: bool)
         elif sk.startswith(A.SK_GRADE_PREFIX):
             grade_ip = item.get(A.PUBLIC_IP)
             if grade_ip:
-                history.append((_grade_timestamp(item), str(grade_ip), "grade record"))
+                lab = str(item.get(A.LAB, "") or sk.split("#")[1])
+                history.append((_grade_timestamp(item), str(grade_ip), f"grade record ({lab})"))
 
     history.sort()
     rows: list[list[str]] = []
@@ -402,6 +405,33 @@ def _print_ip_history(user: Any, items: List[Dict[str, Any]], show_msec: bool):
         return
     print("IP history:")
     print(tabulate(rows, headers=["when", "ip address", "source"], disable_numparse=True))
+    print("")
+
+
+def _extract_image_history(items: List[Dict[str, Any]], show_msec: bool) -> List[List[str]]:
+    rows: list[list[str]] = []
+    for item in items:
+        sk = str(item.get(A.SK, ""))
+        if not sk.startswith(A.SK_IMAGE_PREFIX):
+            continue
+        parts = sk.split("#", 2)
+        lab = parts[1] if len(parts) > 1 else str(item.get(A.LAB, ""))
+        rows.append([
+            _display_timestamp(_item_timestamp(item), show_msec),
+            lab,
+            str(item.get(A.BUCKET, "")),
+            str(item.get(A.KEY, "")),
+        ])
+    rows.sort()
+    return rows
+
+
+def _print_image_history(items: List[Dict[str, Any]], show_msec: bool):
+    rows = _extract_image_history(items, show_msec)
+    if not rows:
+        return
+    print("Images:")
+    print(tabulate(rows, headers=["when", "lab", "bucket", "key"], disable_numparse=True))
     print("")
 
 
@@ -497,6 +527,7 @@ def do_student_log(args):
     _print_primary_dns(user)
     _print_lifecycle_events(all_items, args.msec)
     _print_ip_history(user, all_items, args.msec)
+    _print_image_history(all_items, args.msec)
 
     items = [item for item in all_items if str(item.get(A.SK, "")).startswith(A.SK_GRADE_PREFIX)]
     if args.lab:
@@ -534,6 +565,84 @@ def do_student_log(args):
         headers=["lab", "sessions", "first graded", "last graded", "last grade", "highest grade"],
         disable_numparse=True,
     ))
+
+
+def _admin_log_items() -> List[Dict[str, Any]]:
+    kwargs: dict[str, Any] = {
+        "KeyConditionExpression": (
+            Key(A.USER_ID).eq(A.ADMIN_LOG_USER_ID)
+            & Key(A.SK).begins_with(A.SK_ADMIN_LOG_PREFIX)
+        ),
+    }
+    return queryscan_table(users_table.query, kwargs)
+
+
+def _latest_canvas_grade_exports() -> Dict[str, Dict[str, Any]]:
+    exports: Dict[str, Dict[str, Any]] = {}
+    for item in _admin_log_items():
+        if item.get("action") != "canvas-grades":
+            continue
+        lab = str(item.get(A.LAB, ""))
+        if not lab:
+            continue
+        current = exports.get(lab)
+        if current is None or _item_timestamp(item) > _item_timestamp(current):
+            exports[lab] = item
+    return exports
+
+
+def _highest_grade_by_user(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    return {str(item[A.USER_ID]): item for item in get_highest_grades(items)}
+
+
+def _status_rows_for_lab(lab: str, exported_at: str) -> List[List[str]]:
+    all_items = get_items(lab)
+    exported_items = [item for item in all_items if _grade_timestamp(item) <= exported_at]
+    exported_by_user = _highest_grade_by_user(exported_items)
+    current_by_user = _highest_grade_by_user(all_items)
+    rows: list[list[str]] = []
+
+    for user in sorted(get_class_list(), key=lambda item: str(item.get("email", ""))):
+        if not user.get("claims"):
+            continue
+        user_id = str(user[A.USER_ID])
+        current = current_by_user.get(user_id)
+        if current is None:
+            continue
+        current_score = _grade_score(current)
+        exported = exported_by_user.get(user_id)
+        exported_score = _grade_score(exported) if exported else Decimal(0)
+        if current_score <= exported_score:
+            continue
+        exported_score_text = _format_score(exported_score) if exported else "none"
+        rows.append([
+            str(user.get("email", "")),
+            f"{exported_score_text} -> {_format_score(current_score)}",
+        ])
+    return rows
+
+
+def do_status(_args):
+    exports = _latest_canvas_grade_exports()
+    if not exports:
+        print("No canvas-grades runs have been logged.")
+        return
+
+    changes_found = False
+    for lab in sorted(exports, key=_lab_sort_key):
+        export_item = exports[lab]
+        exported_at = _item_timestamp(export_item)
+        rows = _status_rows_for_lab(lab, exported_at)
+        if not rows:
+            continue
+        changes_found = True
+        exported_at_display = _display_timestamp(exported_at, False)
+        print(f"{lab} since canvas-grades on {exported_at_display}:")
+        print(tabulate(rows, headers=["email", "grade change"], disable_numparse=True))
+        print("")
+
+    if not changes_found:
+        print("No grade increases since the last canvas-grades run for any lab.")
 
 # pylint:  disable=too-many-branches,disable=too-many-statements
 def canvas_grades(args):
@@ -665,6 +774,14 @@ Required columns and order
         writer = csv.writer(f, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for row in output_names_and_grades:
             writer.writerow(row)
+    add_admin_log(
+        "canvas-grades",
+        f"Canvas grades exported for {args.lab} to {args.outfile}",
+        lab=args.lab,
+        template=str(args.template),
+        outfile=str(args.outfile),
+        exported_count=len(output_names_and_grades) - 1,
+    )
 
 
 

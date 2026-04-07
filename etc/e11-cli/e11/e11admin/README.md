@@ -35,6 +35,8 @@ New grading-history command:
 poetry run e11admin student-log student@example.edu
 poetry run e11admin student-log student@example.edu lab2
 poetry run e11admin student-log student@example.edu lab2 --verbose
+poetry run e11admin canvas-grades lab2 --template canvas.csv --outfile canvas-out.csv
+poetry run e11admin status
 ```
 
 ## Development

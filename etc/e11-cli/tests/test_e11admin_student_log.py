@@ -93,6 +93,16 @@ def _structured_log_item(user_id, timestamp, event_type, source, public_ip, inst
     }
 
 
+def _image_item(user_id, lab, timestamp, bucket, key):
+    return {
+        "user_id": user_id,
+        "sk": f"image#{lab}#{timestamp}",
+        "lab": lab,
+        "bucket": bucket,
+        "key": key,
+    }
+
+
 def test_student_log_parser_routes_to_handler(monkeypatch):
     from e11.e11admin import cli, staff
 
@@ -151,6 +161,13 @@ def test_student_log_summary_table(monkeypatch, capsys):
         "5.0",
         passes=["test_a", "test_b"],
         ),
+        _image_item(
+        "user-123",
+        "lab2",
+        "2026-02-04T08:00:00.000000",
+        "csci-e-11-images",
+        "student/lab2/screenshot.png",
+        ),
         _grade_item(
         "user-123",
         "lab2",
@@ -181,6 +198,11 @@ def test_student_log_summary_table(monkeypatch, capsys):
     assert "13.60.16.99" in out
     assert "registration log" in out
     assert "user record" in out
+    assert "grade record (lab1)" in out
+    assert "grade record (lab2)" in out
+    assert "Images:" in out
+    assert "csci-e-11-images" in out
+    assert "student/lab2/screenshot.png" in out
     assert "lab" in out
     assert "sessions" in out
     assert "lab1" in out
@@ -207,6 +229,13 @@ def test_student_log_verbose_lab_output(monkeypatch, capsys):
         "2026-04-01T09:00:00.000000",
         "User registered instanceId=i-123 public_ip=13.62.54.213",
         ),
+        _image_item(
+        "user-123",
+        "lab1",
+        "2026-02-01T09:30:00.000000",
+        "csci-e-11-images",
+        "student/lab1/failure.png",
+        ),
         _grade_item(
         "user-123",
         "lab1",
@@ -225,6 +254,8 @@ def test_student_log_verbose_lab_output(monkeypatch, capsys):
     assert "Ping command:" in out
     assert "Lifecycle events:" in out
     assert "IP history:" in out
+    assert "Images:" in out
+    assert "student/lab1/failure.png" in out
     assert "lab1:" in out
     assert "student ip" in out
     assert "127.0.0.1" in out
