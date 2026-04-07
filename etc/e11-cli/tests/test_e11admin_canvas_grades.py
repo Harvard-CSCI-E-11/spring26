@@ -66,4 +66,4 @@ def test_canvas_grades_matches_middle_initial_and_preferred_name(tmp_path, monke
     ]
 
     out = capsys.readouterr().out
-    assert "Unmatched.  Will not continued" not in out
+    assert "Unmatched.  Will not continue" not in out
