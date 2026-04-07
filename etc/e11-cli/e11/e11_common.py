@@ -179,6 +179,7 @@ class A:                        # pylint: disable=too-few-public-methods
     SK_ADMIN_LOG_PREFIX = 'admin-log#' # e11admin action log
     SK_LEADERBOARD_LOG_PREFIX = 'leaderboard-log#' # leaderboard-log
     USER_ID = 'user_id'
+    ADMIN_LOG_USER_ID = "__e11admin__"
     USER_REGISTERED = 'user_registered'
 
 
@@ -367,14 +368,11 @@ def add_user_log(event, user_id, message, **extra):
     logger.debug("put_table=%s",ret)
 
 
-ADMIN_LOG_USER_ID = "__e11admin__"
-
-
 def add_admin_log(action: str, message: str, **extra):
     """Record an e11admin action in the users table."""
     logger = get_logger()
     ret = users_table.put_item(Item={
-        A.USER_ID: ADMIN_LOG_USER_ID,
+        A.USER_ID: A.ADMIN_LOG_USER_ID,
         A.SK: f'{A.SK_ADMIN_LOG_PREFIX}{now_iso()}',
         'action': action,
         'message': message,
