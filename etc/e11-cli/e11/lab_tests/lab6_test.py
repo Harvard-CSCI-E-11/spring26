@@ -76,8 +76,11 @@ def test_rekognition_text( tr:TestRunner ):
     try:
         for row in r.json():
             for dt in row.get('detected_text',[]):
-                if "harvard" in dt.get("DetectedText","").lower():
+                if isinstance(dt,str):
+                    if "harvard" in dt.lower():
+                        return "Found Harvard"
+                elif "harvard" in dt.get("DetectedText","").lower():
                     return "Found Harvard"
-    except Exception as e:      # pylint: disable=broad-exception-caught
+    except (ValueError,KeyError,AttributeError,TypeError) as e:
         raise TestFail(f"could not decode API response. text='{r.text}' error='{e}") from e
     raise TestFail("Could not find Harvard")

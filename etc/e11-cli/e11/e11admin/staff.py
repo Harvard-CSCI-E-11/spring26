@@ -780,15 +780,10 @@ Required columns and order
     for row in output_names_and_grades:
         print(row)
     print("Total grades:",len(output_names_and_grades)-1,"\n")
-    print("unmatched grades:")
-    unmatched = []
+    print("unmatched grades with claims:")
     for item in class_list.values():
-        if A.SCORE in item:
-            print(item)
-            unmatched.append(item)
-    if len(unmatched) > 0:
-        print("Unmatched.  Will not continued")
-        sys.exit(1)
+        if A.SCORE in item and A.CLAIMS in item:
+            print(item.get('preferred_name'),item.get('email'))
 
     print("Generating output")
     with args.outfile.open("w") as f:

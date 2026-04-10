@@ -112,7 +112,9 @@ def validate_image_table_row(app, conn, row):
             # pylint: disable=unused-variable
             rekognition_client = boto3.client("rekognition",
                                               region_name=s3_client.meta.region_name)
-            # INSERT LAB6 CODE HERE
+            # INSERT LAB6 FIRST MODIFICATION HERE
+
+            # END LAB6 FIRST MODIFICATION
         except BotoCoreError as e:
             celeb = []
             app.logger.error("rekognition error: %s",e)
