@@ -71,3 +71,12 @@ def get_request_host(event) -> str | None:
     if host:
         return str(host).split(":", maxsplit=1)[0].strip()
     return event.get("requestContext", {}).get("domainName")
+
+
+def get_public_host(event=None) -> str | None:
+    """Return the configured public host for this stack, falling back to the request host."""
+    if host := os.environ.get("PUBLIC_DOMAIN_NAME"):
+        return host.strip()
+    if event is None:
+        return None
+    return get_request_host(event)

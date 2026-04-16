@@ -547,9 +547,11 @@ def queue_grade(email: str, lab: str, note: None) -> Dict[str, Any]:
     }
 
     # Send the signed message to SQS
-    LOGGER.info("Queueing grade request for email=%s lab=%s", email, lab)
     result = sqs_send_signed_message(action="grade", method="POST", payload=payload)
-    LOGGER.info("Queued grade request MessageId=%s", result.get("MessageId"))
+    if message_id := result.get("MessageId"):
+        LOGGER.info("Queued grade request for email=%s lab=%s MessageId=%s", email, lab, message_id)
+    else:
+        LOGGER.error("Could not queue grade request for email=%s lab=%s",email, lab)
     return result
 
 

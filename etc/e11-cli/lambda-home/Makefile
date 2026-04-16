@@ -84,6 +84,7 @@ vend-e11: install
 
 .PHONY: prod-vbd stage-vbd
 prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11 lint
+	finch vm start || echo AWS finch is already running
 	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-prod.toml"  \
@@ -92,6 +93,7 @@ prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11 lint
 	curl --silent  https://$(ROOT_DOMAIN)/ | head -3
 
 stage-vbd: template.yaml samconfig-stage.toml src/requirements.txt vend-e11
+	finch vm start || echo AWS finch is already running
 	sam validate --config-file samconfig-stage.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-stage.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-stage.toml" \

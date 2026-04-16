@@ -18,7 +18,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from e11.e11core.utils import get_logger
 from e11 import e11_common
 
-from .common import get_request_host
+from .common import get_public_host
 
 LOGGER = get_logger("grader")
 
@@ -28,17 +28,15 @@ LOGGER = get_logger("grader")
 ## Secrets management
 def get_oidc_config(event=None):
     """Return the config from AWS Secrets.
-    If event is provided and contains a request host (e.g. stage.csci-e-11.org),
-    redirect_uri is built as https://{host}/auth/callback so OAuth returns to the same host."""
+    If a public host is configured for the stack, use it for redirect_uri. Otherwise
+    fall back to the request host so OAuth returns to the same host the user started from."""
     oidc_secret_id = os.environ.get("OIDC_SECRET_ID","please define OIDC_SECRET_ID")
     LOGGER.debug("fetching secret %s",oidc_secret_id)
     harvard_secrets = json.loads(e11_common.secretsmanager_client.get_secret_value(SecretId=oidc_secret_id)['SecretString'])
     redirect_uri = harvard_secrets['redirect_uri']
-    if event:
-        host = get_request_host(event)
-        if host:
-            redirect_uri = f"https://{host}/auth/callback"
-            LOGGER.debug("redirect_uri from request host: %s", redirect_uri)
+    if host := get_public_host(event):
+        redirect_uri = f"https://{host}/auth/callback"
+        LOGGER.debug("redirect_uri from public host: %s", redirect_uri)
     config = load_openid_config(harvard_secrets['oidc_discovery_endpoint'],
                                      client_id=harvard_secrets['client_id'],
                                      redirect_uri=redirect_uri)
