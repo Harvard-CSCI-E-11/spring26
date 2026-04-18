@@ -734,11 +734,23 @@ Required columns and order
     def _normalize_spaces(value):
         return " ".join(value.lower().strip().split())
 
-    def _strip_middle_initial(name):
+    def _strip_middle_name(name):
         parts = name.split()
-        if len(parts) == 3 and len(parts[1].rstrip(".")) == 1:
-            return f"{parts[0]} {parts[2]}"
+        if len(parts) >= 3:
+            return f"{parts[0]} {parts[-1]}"
         return None
+
+    def _template_name_candidates(name):
+        parts = name.lower().split(", ", 1)
+        if len(parts) != 2:
+            return {_normalize_spaces(name)}
+        last, first = parts
+        candidates = set()
+        for first_variant in {first, _strip_middle_name(first)}:
+            if not first_variant:
+                continue
+            candidates.add(_normalize_spaces(f"{first_variant} {last}"))
+        return candidates
 
     def _candidate_names(item):
         candidates = set()
@@ -748,16 +760,15 @@ Required columns and order
                 continue
             normalized = _normalize_spaces(candidate)
             candidates.add(normalized)
-            stripped = _strip_middle_initial(normalized)
+            stripped = _strip_middle_name(normalized)
             if stripped:
                 candidates.add(stripped)
         return candidates
 
     def exact_match(name):
-        (last,first) = name.lower().split(", ")
-        lower_name = _normalize_spaces(first + " " + last)
+        template_candidates = _template_name_candidates(name)
         for item in class_list.values():
-            if lower_name in _candidate_names(item):
+            if template_candidates & _candidate_names(item):
                 return item
         return None
 
@@ -766,13 +777,11 @@ Required columns and order
     for name in template_names:
         em = exact_match(name[0])
         if em:
-            try:
-                grade = em[A.SCORE]
-                output_names_and_grades.append( name[0:5] + [grade])
-            except KeyError:
-                print("No grade for",name)
+            grade = em.get(A.SCORE, _format_score(Decimal(0)))
+            output_names_and_grades.append(name[0:5] + [grade])
             del class_list[em[A.USER_ID]]
         else:
+            output_names_and_grades.append(name[0:5] + [_format_score(Decimal(0))])
             unmatched_names.append(name)
 
     # debug
@@ -784,6 +793,10 @@ Required columns and order
     for item in class_list.values():
         if A.SCORE in item and A.CLAIMS in item:
             print(item.get('preferred_name'),item.get('email'))
+    if unmatched_names:
+        print("Template students without registered instances:")
+        for name in unmatched_names:
+            print(name[0])
 
     print("Generating output")
     with args.outfile.open("w") as f:
@@ -797,6 +810,7 @@ Required columns and order
         template=str(args.template),
         outfile=str(args.outfile),
         exported_count=len(output_names_and_grades) - 1,
+        unmatched_count=len(unmatched_names),
     )
 
 

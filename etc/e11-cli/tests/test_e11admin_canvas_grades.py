@@ -3,18 +3,27 @@ import csv
 from pathlib import Path
 
 
-def _make_template(tmp_path, template_name="Garfinkel, Simson"):
+def _make_template(tmp_path, template_names=None):
     """Create a Canvas template CSV with a single student row."""
+    template_names = template_names or ["Garfinkel, Simson"]
     template = tmp_path / "template.csv"
     with template.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["Student", "ID", "SIS User ID", "SIS Login ID", "Section", "Lab 1"])
         writer.writerow(["Points Possible", "", "", "", "", "5"])
-        writer.writerow([template_name, "1001", "sis-1001", "sgarfinkel", "01", ""])
+        for index, template_name in enumerate(template_names, start=1):
+            writer.writerow([
+                template_name,
+                f"{1000 + index}",
+                f"sis-{1000 + index}",
+                f"login{index}",
+                "01",
+                "",
+            ])
     return template
 
 
-def _run_canvas_grades(tmp_path, monkeypatch, roster_entry):
+def _run_canvas_grades(tmp_path, monkeypatch, roster_entries, grade_user_ids=None, template_names=None):
     """Patch staff helpers and run canvas_grades; return (output_rows, stdout)."""
     from e11.e11admin import staff
     from e11.e11_common import A
@@ -23,18 +32,21 @@ def _run_canvas_grades(tmp_path, monkeypatch, roster_entry):
     staff.userid_to_user.cache_clear()
 
     outfile = tmp_path / "out.csv"
-    template = _make_template(tmp_path)
+    template = _make_template(tmp_path, template_names=template_names)
+    grade_user_ids = grade_user_ids or {entry[A.USER_ID] for entry in roster_entries}
 
-    monkeypatch.setattr(staff, "get_class_list", lambda: [roster_entry])
+    monkeypatch.setattr(staff, "get_class_list", lambda: roster_entries)
     monkeypatch.setattr(
         staff,
         "get_items",
         lambda lab: [
             {
-                A.USER_ID: roster_entry[A.USER_ID],
+                A.USER_ID: entry[A.USER_ID],
                 A.SK: "grade#lab1#2026-04-06T12:00:00.000000",
                 A.SCORE: "5.0",
             }
+            for entry in roster_entries
+            if entry[A.USER_ID] in grade_user_ids
         ],
     )
     monkeypatch.setattr(staff, "get_highest_grades", lambda items: items)
@@ -74,11 +86,11 @@ def test_canvas_grades_matches_via_middle_initial_strip(tmp_path, monkeypatch):
         "claims": {"name": "Simson L. Garfinkel"},
     }
 
-    rows, out = _run_canvas_grades(tmp_path, monkeypatch, roster_entry)
+    rows, out = _run_canvas_grades(tmp_path, monkeypatch, [roster_entry])
 
     assert rows == [
         ["Student", "ID", "SIS User ID", "SIS Login ID", "Section", "Lab 1"],
-        ["Garfinkel, Simson", "1001", "sis-1001", "sgarfinkel", "01", "5.0"],
+        ["Garfinkel, Simson", "1001", "sis-1001", "login1", "01", "5.0"],
     ], "Expected match via middle-initial stripping"
     assert "Unmatched.  Will not continue" not in out
 
@@ -104,10 +116,65 @@ def test_canvas_grades_matches_via_preferred_name(tmp_path, monkeypatch):
         "claims": {"name": "Sim Garfinkel"},
     }
 
-    rows, out = _run_canvas_grades(tmp_path, monkeypatch, roster_entry)
+    rows, out = _run_canvas_grades(tmp_path, monkeypatch, [roster_entry])
 
     assert rows == [
         ["Student", "ID", "SIS User ID", "SIS Login ID", "Section", "Lab 1"],
-        ["Garfinkel, Simson", "1001", "sis-1001", "sgarfinkel", "01", "5.0"],
+        ["Garfinkel, Simson", "1001", "sis-1001", "login1", "01", "5.0"],
     ], "Expected match via preferred_name"
     assert "Unmatched.  Will not continue" not in out
+
+
+def test_canvas_grades_keeps_unmatched_template_students_with_zeroes(tmp_path, monkeypatch):
+    """Unmatched template rows should still be written with a zero score."""
+    from e11.e11admin import staff
+    from e11.e11_common import A
+
+    staff.get_class_list.cache_clear()
+    staff.userid_to_user.cache_clear()
+
+    roster_entry = {
+        A.USER_ID: "user-1",
+        "email": "simson@example.edu",
+        "preferred_name": "Simson Garfinkel",
+        "claims": {"name": "Simson Garfinkel"},
+    }
+
+    rows, out = _run_canvas_grades(
+        tmp_path,
+        monkeypatch,
+        [roster_entry],
+        template_names=["Garfinkel, Simson", "Student, Unregistered"],
+    )
+
+    assert rows == [
+        ["Student", "ID", "SIS User ID", "SIS Login ID", "Section", "Lab 1"],
+        ["Garfinkel, Simson", "1001", "sis-1001", "login1", "01", "5.0"],
+        ["Student, Unregistered", "1002", "sis-1002", "login2", "01", "0.0"],
+    ]
+    assert "Template students without registered instances:" in out
+    assert "Student, Unregistered" in out
+
+
+def test_canvas_grades_matches_when_claims_name_has_middle_name(tmp_path, monkeypatch):
+    """Match should succeed when Harvard claims include a full middle name."""
+    from e11.e11admin import staff
+    from e11.e11_common import A
+
+    staff.get_class_list.cache_clear()
+    staff.userid_to_user.cache_clear()
+
+    roster_entry = {
+        A.USER_ID: "user-1",
+        "email": "simson@example.edu",
+        "preferred_name": "Sim Garfinkel",
+        "claims": {"name": "Simson Lee Garfinkel"},
+    }
+
+    rows, out = _run_canvas_grades(tmp_path, monkeypatch, [roster_entry])
+
+    assert rows == [
+        ["Student", "ID", "SIS User ID", "SIS Login ID", "Section", "Lab 1"],
+        ["Garfinkel, Simson", "1001", "sis-1001", "login1", "01", "5.0"],
+    ], "Expected match via middle-name stripping"
+    assert "Template students without registered instances:" not in out
