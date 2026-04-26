@@ -16,7 +16,7 @@ from botocore.exceptions import ClientError
 import boto3
 from itsdangerous import Serializer,BadSignature,BadData
 
-from e11.e11_common import (get_user_from_email, get_grade, add_user_log, add_leaderboard_log, add_grade, send_email2)
+from e11.e11_common import (get_user_from_email, get_grade, add_user_log, add_leaderboard_log, add_grade, send_email2, EmailNotRegistered)
 from e11.e11core import grader
 
 __version__ = '1.0.0'
@@ -249,7 +249,10 @@ def api_post_register():
     email = request.form.get('email','')
     course_key = request.form.get('course_key','')
 
-    user = get_user_from_email(email)
+    try:
+        user = get_user_from_email(email)
+    except EmailNotRegistered as e:
+        abort(404, f'email address {email} is not registered')
     if not user:
         abort(404, 'invalid email')
     if user.course_key != course_key:

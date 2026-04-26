@@ -24,12 +24,14 @@ from botocore.exceptions import ClientError
 
 from e11.e11core.e11ssh import E11Ssh
 from e11.e11core.grader import print_summary
-from e11.e11core.utils import smash_email
+from e11.e11core.utils import smash_email,get_logger
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
                             add_admin_log,
                             get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered,
                             select_highest_grade_records)
+
+logger = get_logger()
 
 def enabled():
     return os.getenv('E11_STAFF','0')[0:1].upper() in ['Y','T','1']
@@ -823,7 +825,7 @@ def find_queue(substr, stage=False):
     sqs = boto3.client('sqs')
     r = sqs.list_queues()
     for q in r['QueueUrls']:
-        print("queue:",q)
+        logger.debug("queue: %s",q)
         if stage and "stage" not in q:
             continue
         if substr in q:
@@ -836,7 +838,7 @@ def find_secret(substr):
     r = secrets_manager.list_secrets()
     for s in r['SecretList']:
         name = s.get('Name','')
-        print("secret:",name)
+        logger.debug("secret: %s",name)
         if substr in name:
             return name
     raise RuntimeError(f"Secret with substring {substr} not found")
@@ -855,8 +857,6 @@ def force_grades(args):
     (home,_) = update_path()
     queue_name  = find_queue('home-queue', stage=args.stage)
     secret_name = find_secret("sqs-auth-secret")
-    print("sending message to",queue_name)
-    print("using secret",secret_name)
     os.environ['SQS_QUEUE_URL'] = queue_name
     os.environ['SQS_SECRET_ID'] = secret_name
     message = f"Grading was manually queued by {args.who}"
@@ -874,25 +874,46 @@ def force_grades(args):
             email = userid_to_email(i['user_id'])
             score = Decimal(i['score'])
             high_grades[email] = max(high_grades.get(email,0), score)
-        print("These students have a 5.0:")
         count = 0
         for (email,score) in high_grades.items():
             if score==5.0:
-                print(email,score)
+                logger.debug("5.0 student %s=%s",email,score)
                 count += 1
-        print("Count:",count)
-        print()
-        print("These students have less than a 5.0 and will receive a forced grading:")
         count = 0
         for (email,score) in high_grades.items():
             if score<5.0:
-                print(email,score)
+                logger.debug("Will regrade: %s (%s)",email,score)
                 home.queue_grade(email, args.lab, message)
                 count += 1
-        print("Count:",count)
+        logger.info("Students to regrade: %s",count)
         sys.exit(0)
 
     home.queue_grade(args.email,args.lab, message)
+
+def _run_interactive_ssh(cmd, env):
+    """Run an interactive SSH session and tear it down on local Ctrl-C."""
+    try:
+        proc = subprocess.Popen(cmd, env=env)
+    except FileNotFoundError:
+        print("Error: ssh not found. Please ensure OpenSSH is installed.")
+        return 1
+
+    try:
+        return proc.wait()
+    except KeyboardInterrupt:
+        print("\nDisconnecting SSH session.")
+        try:
+            proc.terminate()
+        except ProcessLookupError:
+            pass
+        try:
+            return proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
+            return proc.wait()
 
 def ssh_access(args):
     (_,api) = update_path()
@@ -947,13 +968,12 @@ def ssh_access(args):
         print(f"Connecting to ubuntu@{hostname}")
 
         # Run ssh with the agent environment (allows interactive terminal use)
-        ssh_proc = subprocess.run(
+        ssh_rc = _run_interactive_ssh(
             ['ssh', '-o', 'IdentitiesOnly=no', f'ubuntu@{hostname}'],
             env={**os.environ, **agent_env},
-            check=False
         )
 
-        sys.exit(ssh_proc.returncode)
+        sys.exit(ssh_rc)
 
     finally:
         # Clean up: kill the ssh-agent
