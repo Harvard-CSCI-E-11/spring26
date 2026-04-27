@@ -12,8 +12,16 @@ class DummyTable:
         return {"Items": list(self._items)}
 
 
+class DummyUserTable:
+    def __init__(self, items):
+        self._items = items
+
+    def scan(self, **_kwargs):
+        return {"Items": list(self._items)}
+
+
 def _patch_admin_query(monkeypatch, items):
-    from e11.e11admin import staff
+    from e11.e11admin import staff, student_selector
 
     monkeypatch.setattr(staff, "users_table", DummyTable(items))
     fake_user = type(
@@ -24,13 +32,23 @@ def _patch_admin_query(monkeypatch, items):
             "email": "student@example.edu",
             "public_ip": "13.60.16.99",
             "host_registered": 1775332800,
+            "claims": {
+                "email": "student@example.edu",
+                "email_verified": True,
+                "name": "Student Example",
+                "sub": "abc123",
+            },
         },
     )()
-    monkeypatch.setattr(
-        staff,
-        "get_user_from_email",
-        lambda email: fake_user,
-    )
+    monkeypatch.setattr(student_selector, "users_table", DummyUserTable([{
+        "user_id": fake_user.user_id,
+        "sk": "#",
+        "email": fake_user.email,
+        "public_ip": fake_user.public_ip,
+        "host_registered": fake_user.host_registered,
+        "claims": fake_user.claims,
+    }]))
+    monkeypatch.setattr(student_selector, "get_user_from_user_id", lambda user_id: fake_user)
     monkeypatch.setattr(staff, "_resolve_primary_dns", lambda fqdn: "13.60.16.99")
     monkeypatch.setattr(
         staff.subprocess,
@@ -181,6 +199,15 @@ def test_student_log_summary_table(monkeypatch, capsys):
     staff.do_student_log(argparse.Namespace(email="student@example.edu", lab=None, verbose=False, msec=False))
 
     out = capsys.readouterr().out
+    assert "Student:" in out
+    assert "Name" in out
+    assert "Student Example" in out
+    assert "Email" in out
+    assert "student@example.edu" in out
+    assert "user_id" in out
+    assert "user-123" in out
+    assert "claims.email_verified" in out
+    assert "True" in out
     assert "Primary DNS:" in out
     assert "Ping command:" in out
     assert "ping -c 5 " in out
@@ -211,6 +238,24 @@ def test_student_log_summary_table(monkeypatch, capsys):
     assert "2026-02-03 12:30:00" in out
     assert "5.0" in out
     assert "4.0" in out
+
+
+def test_student_log_summary_table_by_user_id(monkeypatch, capsys):
+    staff = _patch_admin_query(monkeypatch, [
+        _grade_item(
+            "user-123",
+            "lab1",
+            "2026-02-01T10:00:00.000000",
+            "5.0",
+            passes=["test_a"],
+        ),
+    ])
+
+    staff.do_student_log(argparse.Namespace(email=None, user_id="user-123", lab=None, verbose=False, msec=False))
+
+    out = capsys.readouterr().out
+    assert "lab1" in out
+    assert "5.0" in out
 
 
 def test_student_log_verbose_lab_output(monkeypatch, capsys):

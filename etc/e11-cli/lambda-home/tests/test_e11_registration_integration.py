@@ -1,6 +1,5 @@
-import json
+import json as json_module
 import pytest
-import os
 from unittest.mock import Mock, patch
 
 from e11.e11_common import create_new_user
@@ -10,12 +9,13 @@ import home_app.api as api
 from test_utils import ( create_test_config_data, create_test_config_file )
 
 
-def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local):
+def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local, clean_dynamodb):
     """Test e11 registration command using the test config file"""
 
-    # Create test user in DynamoDBLocal
+    # Create test user in DynamoDB Local
+    import uuid
     from e11.e11core.constants import COURSE_DOMAIN
-    test_email = f'user@{COURSE_DOMAIN}'
+    test_email = f'user-{uuid.uuid4().hex[:8]}@{COURSE_DOMAIN}'
     user = create_new_user(test_email, {"email": test_email, "name": "Test User"})
     course_key = user['course_key']
 
@@ -30,10 +30,10 @@ def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local
     # Mock the requests.post to capture what e11 CLI would send
     captured_requests = []
 
-    def mock_requests_post(url, json_data=None, **kwargs):
+    def mock_requests_post(url, json=None, **kwargs):
         captured_requests.append({
             'url': url,
-            'json': json_data,
+            'json': json,
             'kwargs': kwargs
         })
 
@@ -49,17 +49,16 @@ def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local
                         'sourceIp': test_config_data.get('public_ip', '1.2.3.4')
                     }
                 },
-                'body': json.dumps(json_data),
+                'body': json_module.dumps(json),
                 'isBase64Encoded': False
             }
 
-            print(f"DEBUG: json_data = {json_data}")
-            registration_payload = json_data.get('registration', json_data)
-            response = api.dispatch("POST", "register", event, None, registration_payload)
+            response = api.dispatch("POST", "register", event, None, json)
             return Mock(
                 ok=response['statusCode'] == 200,
                 text=response['body'],
-                status_code=response['statusCode']
+                status_code=response['statusCode'],
+                json=lambda: json
             )
 
         return Mock(ok=False, text="Not found", status_code=404)
@@ -78,68 +77,32 @@ def test_e11_registration_with_test_config(monkeypatch, fake_aws, dynamodb_local
             return Mock(text='i-1234567890abcdef0')
         return Mock(stdout='', stderr='', returncode=0)
 
-    # Mock the get_instanceId function
     def mock_get_instance_id():
         return 'i-1234567890abcdef0'
 
-        # Apply the mocks
-        with patch('e11.__main__.requests.post', side_effect=mock_requests_post), \
-             patch('e11.__main__.requests.get', side_effect=mock_requests_get), \
-             patch('subprocess.run', side_effect=mock_subprocess_run):
+    config_path = create_test_config_file(test_config_data)
+    monkeypatch.setenv('E11_CONFIG', config_path)
 
-            # Create a temporary config file for the e11 CLI to use
-            config_path = create_test_config_file(test_config_data)
-            monkeypatch.setenv('E11_CONFIG', config_path)
+    import e11.main as e11_main
+    monkeypatch.setattr(e11_main, 'get_instanceId', mock_get_instance_id)
+    monkeypatch.setattr(e11_main, 'get_public_ip', lambda: test_config_data['public_ip'])
 
-            # Mock EC2 check to return True
-            def mock_on_ec2():
-                return True
+    args = Mock(quiet=True, stage=False, fixip=False, source="test")
+    with patch('e11.main.requests.post', side_effect=mock_requests_post), \
+         patch('e11.main.requests.get', side_effect=mock_requests_get), \
+         patch('subprocess.run', side_effect=mock_subprocess_run):
+        e11_main.do_register(args)
 
-            # Import and patch the e11 module
-            import e11.__main__ as e11_main
-            monkeypatch.setattr(e11_main, 'on_ec2', mock_on_ec2)
-            monkeypatch.setattr(e11_main, 'get_instanceId', mock_get_instance_id)
+    assert len(captured_requests) == 1
+    request = captured_requests[0]
+    from e11.e11core.constants import API_ENDPOINT
+    assert request['url'] == API_ENDPOINT
 
-            # Mock get_public_ip to return the expected IP
-            def mock_get_public_ip():
-                return test_config_data['public_ip']
-            monkeypatch.setattr(e11_main, 'get_public_ip', mock_get_public_ip)
-
-            # Call the registration function directly
-            args = Mock()
-            try:
-                e11_main.do_register(args)
-            except SystemExit as e:
-                print(f"DEBUG: e11 CLI exited with code {e.code}")
-                # Check if there were any captured requests
-                if len(captured_requests) == 0:
-                    print("DEBUG: No HTTP requests were made - e11 CLI failed validation")
-                    # Let's see what the config looks like
-                    cp = e11_main.get_config()
-                    print(f"DEBUG: Config: {cp}")
-                    return  # Exit the test early
-
-        # Verify that a request was made to the API endpoint
-        assert len(captured_requests) == 1
-        request = captured_requests[0]
-        from e11.e11core.constants import API_ENDPOINT
-        assert request['url'] == API_ENDPOINT
-
-        # Verify the registration payload contains the config data
-        registration_data = request['json']['registration']
-        assert registration_data['name'] == test_config_data['name']
-        assert registration_data['email'] == test_config_data['email']
-        assert registration_data['course_key'] == test_config_data['course_key']
-        assert registration_data['public_ip'] == test_config_data['public_ip']
-
-        # Verify the backend processed the registration correctly
-        # (DynamoDBLocal will have the actual data, but we can't easily verify it without querying)
-        # The response should be successful
-        assert request['json']['registration']['name'] == test_config_data['name']
-        assert request['json']['registration']['email'] == test_config_data['email']
-
-        # Clean up temporary config file
-        os.unlink(config_path)
+    registration_data = request['json']['registration']
+    assert registration_data['preferred_name'] == test_config_data['preferred_name']
+    assert registration_data['email'] == test_config_data['email']
+    assert registration_data['course_key'] == test_config_data['course_key']
+    assert registration_data['public_ip'] == test_config_data['public_ip']
 
 
 if __name__ == '__main__':

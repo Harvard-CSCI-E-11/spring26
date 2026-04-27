@@ -40,9 +40,9 @@ This will:
 - Generate coverage reports (terminal and XML)
 - Validate SAM templates
 
-### CI/CD Integration
+### Integration With Automation
 
-All tests run automatically in CI/CD pipelines. Both test suites must pass before code can be merged.
+The Makefile targets are the source of truth for local and automated validation. Both root and Lambda test suites should pass before code is merged or deployed.
 
 ### Pre-Deployment Requirements
 
@@ -58,7 +58,7 @@ All tests run automatically in CI/CD pipelines. Both test suites must pass befor
 2. **All tests must pass**:
    - All unit tests
    - All integration tests
-   - Coverage thresholds must be met
+   - Coverage reports must be generated for review
 
 This is enforced by the Makefile targets (`make check` and `make lint`). The deployment targets (`make prod-vbd` and `make stage-vbd`) will automatically run these checks before deploying.
 
@@ -70,13 +70,14 @@ This is enforced by the Makefile targets (`make check` and `make lint`). The dep
 
 1. **No Monkeypatching**: We avoid monkeypatching whenever possible. Instead, we use:
    - Real filesystem operations in temporary directories
-   - Real HTTP requests to test servers (pytest-httpserver)
+   - Real HTTP requests to local test servers
    - Real subprocess calls with controlled inputs
    - Environment isolation through pytest fixtures
 
-2. **Minimal Code Duplication**: Shared testing utilities are located in:
-   - `tests/shared_fixtures/` - Common fixtures for both test suites
-   - `tests/shared_helpers/` - Shared assertion helpers and data factories
+2. **Minimal Code Duplication**: Reuse the existing pytest fixtures and helper modules:
+   - `tests/conftest.py` - Root CLI fixtures and Lambda fixture bridge
+   - `lambda-home/tests/conftest.py` - DynamoDB Local, fake IdP, and non-DynamoDB service fixtures
+   - `lambda-home/tests/test_utils.py` - Shared Lambda test data and assertions
 
 3. **Test Real Behavior**: Tests should exercise actual functionality, not mocked interfaces. This makes tests more reliable and easier to understand.
 
@@ -90,10 +91,11 @@ This is enforced by the Makefile targets (`make check` and `make lint`). The dep
 
 2. **Lab Tests**: The `e11/lab_tests/*.py` files are test definitions, not code to be tested. These are integration tests that run against student VMs. See `e11/lab_tests/README.md` for details.
 
-3. **External Services**: Some AWS service interactions are tested using `moto` or skipped entirely:
-   - DynamoDB operations are tested using `moto` (in-memory DynamoDB)
-   - Future work may use DynamoDBLocal for more accurate testing
-   - Route53 operations are tested using `moto`
+3. **External Services**:
+   - DynamoDB operations must use DynamoDB Local, not mocked tables or moto.
+   - S3 behavior should use local MinIO where practical.
+   - Route53, SES, Secrets Manager, and live SSH are mocked where real local service coverage is not practical.
+   - Mocking is acceptable only when it isolates an external boundary that cannot be exercised locally without unacceptable cost or risk.
 
 ## Test Structure
 
@@ -133,52 +135,22 @@ See the actual test directories for the current structure.
 
 ## Static Analysis Tools
 
-### Pylint
+Static analysis is run through Makefile targets.
 
-Configuration: `.pylintrc` (if present) or default settings
+- Root `make lint` runs Pylint and Pyright for the CLI package.
+- `lambda-home` `make lint` runs import validation, djlint, Ruff, Pylint, Pyright, and SAM validation.
+- `lambda-leaderboard` `make lint` runs Pylint for the leaderboard package.
 
-Run manually:
-```bash
-poetry run pylint e11/
-poetry run pylint lambda-home/src
-```
-
-### Pyright
-
-Type checking for Python code. Configured via `pyproject.toml` or `pyrightconfig.json`.
-
-Run manually:
-```bash
-poetry run pyright
-```
-
-### Ruff
-
-Fast Python linter and formatter. Configuration in `pyproject.toml`.
-
-Run manually:
-```bash
-poetry run ruff check --fix
-poetry run ruff format
-```
-
-### djlint
-
-Linter for Jinja2 templates (HTML templates in lambda-home).
-
-Run manually:
-```bash
-poetry run djlint --profile=jinja --lint lambda-home/src/home_app/templates/
-```
+Add or update Makefile targets when a repeated static-analysis workflow needs more detail.
 
 ## Test Fixtures and Utilities
 
-### Common Fixtures (in `tests/shared/`)
+### Common Fixtures
 
 - **Config Fixtures**: Create test configuration files
 - **Filesystem Fixtures**: Temporary directories and files
 - **HTTP Fixtures**: Test HTTP servers for API testing
-- **AWS Fixtures**: Mock AWS services (DynamoDB, Route53, SES, Secrets Manager)
+- **AWS Fixtures**: DynamoDB Local for DynamoDB, MinIO for S3 where available, and fakes for services that are not practical to run locally
 
 ### Dependency Injection Pattern
 
@@ -186,24 +158,17 @@ Instead of monkeypatching, we use dependency injection by designing functions to
 
 ## Future Testing Improvements
 
-1. **DynamoDBLocal Integration**: Use Amazon's DynamoDBLocal.jar for more accurate DynamoDB testing
-2. **SSH Testing**: Add SSH testing capabilities using test containers or mock SSH servers
-3. **Integration Tests**: Add more end-to-end integration tests that exercise the full system
-4. **Performance Tests**: Add tests for performance-critical paths
-5. **Security Tests**: Add tests for security-sensitive operations
+1. **MinIO Integration**: Replace fake S3 test clients with local MinIO where practical.
+2. **Admin DynamoDB Tests**: Move admin report/status tests from dummy tables to DynamoDB Local.
+3. **SSH Testing**: Add SSH testing capabilities using test containers or a local SSH fixture where practical.
+4. **Integration Tests**: Add more end-to-end integration tests that exercise the full system.
+5. **Security Tests**: Add tests for security-sensitive operations.
 
 ## Debugging Tests
 
-### Running Individual Tests
+### Running Focused Tests
 
-```bash
-# E11 CLI
-poetry run pytest tests/test_specific.py::test_function -v
-
-# Lambda-Home
-cd lambda-home
-poetry run pytest tests/test_specific.py::test_function -v
-```
+The supported validation interface is the Makefile. Use `make check` from the relevant component directory. If a narrower test command becomes a repeated workflow, add a named Makefile target for it rather than documenting a one-off direct pytest invocation.
 
 ### Coverage Reports
 
@@ -213,22 +178,11 @@ Coverage reports are generated in multiple formats:
 - **XML**: `coverage.xml` (for CI/CD integration)
 - **HTML**: Generated with `coverage html` (not in default Makefile targets)
 
-View HTML coverage:
-```bash
-coverage html
-open htmlcov/index.html  # or browse to htmlcov/index.html
-```
+Generate HTML coverage only through an explicit Makefile target if the project needs it.
 
 ### Verbose Output
 
-```bash
-# E11 CLI
-poetry run pytest tests/ -v --log-cli-level=DEBUG
-
-# Lambda-Home
-cd lambda-home
-poetry run pytest tests/ -v --log-cli-level=DEBUG
-```
+Prefer adding or extending a Makefile target when verbose test output is needed repeatedly.
 
 ## Best Practices
 
@@ -261,4 +215,3 @@ poetry run pytest tests/ -v --log-cli-level=DEBUG
 - Fix errors locally before committing
 - Use `--fix` flags where available (ruff, djlint)
 - Document any necessary suppressions (pylint disable comments)
-

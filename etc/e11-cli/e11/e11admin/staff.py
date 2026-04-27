@@ -28,8 +28,9 @@ from e11.e11core.utils import smash_email,get_logger
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import (dynamodb_client,dynamodb_resource,A,create_new_user,users_table,add_user_log,
                             add_admin_log,
-                            get_user_from_email,queryscan_table,generate_direct_login_url,EmailNotRegistered,
+                            get_user_from_email,get_user_from_user_id,queryscan_table,generate_direct_login_url,EmailNotRegistered,
                             select_highest_grade_records)
+from e11.e11admin.student_selector import print_student_header, student_user
 
 logger = get_logger()
 
@@ -48,6 +49,9 @@ def do_check_access(args):
             print("err:\n",err)
 
 def do_register_email(args):
+    if not args.email:
+        print("Specify --email or a positional email address.", file=sys.stderr)
+        sys.exit(2)
     print("Lab instructions are at https://github.com/Harvard-CSCI-E-11/spring26")
     try:
         user = get_user_from_email(args.email)
@@ -68,9 +72,9 @@ def do_register_email(args):
 
 def do_edit_email(args):
     try:
-        user = get_user_from_email(args.email)
+        user = student_user(args)
     except EmailNotRegistered:
-        print(f"Email {args.email} is not registered")
+        print(f"Student {getattr(args, 'email', None) or getattr(args, 'user_id', None)} is not registered")
         sys.exit(1)
     if args.alt:
         users_table.update_item( Key={ 'user_id': user.user_id,
@@ -83,8 +87,6 @@ def do_edit_email(args):
                                        'sk': '#'},
                                  UpdateExpression="REMOVE alt_email")
         add_user_log( None, user.user_id, "User alt_email removed")
-
-
 ################################################################
 ###
 def _dump_table_items(table_name, user_id):
@@ -136,7 +138,10 @@ def do_student_report(args):
     print(f"Current AWS Profile: {current_profile}\n")
 
     response = dynamodb_client.list_tables()
-    user_id = get_user_from_email(args.email)['user_id'] if args.email else None
+    user = student_user(args) if getattr(args, "email", None) or getattr(args, "user_id", None) else None
+    user_id = user.user_id if user else None
+    if user:
+        print_student_header(user)
 
     print("DynamoDB Tables:")
     for table_name in response['TableNames']:
@@ -151,7 +156,7 @@ def do_student_report(args):
     table = dynamodb_resource.Table('e11-users')
     kwargs = {
         'FilterExpression': Attr(A.SK).eq(A.SK_USER),
-        'ProjectionExpression': 'user_registered, email, preferred_name, claims'
+        'ProjectionExpression': 'user_id, user_registered, email, preferred_name, claims'
     }
 
     # Get all of the registration records
@@ -167,8 +172,8 @@ def do_student_report(args):
         response = table.scan(**kwargs)
         items.extend(response['Items'])
 
-    if args.email:
-        items = [item for item in items if item['email'] == args.email]
+    if user_id:
+        items = [item for item in items if item[A.USER_ID] == user_id]
 
     pitems = []
     for item in items:
@@ -179,7 +184,6 @@ def do_student_report(args):
     def sortkey(a):
         return a.get('Name', '') + "~" + a.get('Email', '')
     print(tabulate(sorted(pitems, key=sortkey), headers='keys'))
-
 @functools.lru_cache(maxsize=2)
 def get_class_list() -> List[Dict[str, Any]]:
     """Get the entire class list. Requires a scan."""
@@ -198,8 +202,19 @@ def userid_to_email(user_id):
 ################################################################
 ## Compute, Print and upload student grades
 
-def get_items(whowhat):
+def get_items(whowhat=None, *, user_id=None):
     """Return either the grades for a lab or a person. Returns all, not just the highest"""
+    if user_id:
+        user = get_user_from_user_id(user_id)
+        for (k,v) in sorted(dict(user).items()):
+            print(f"{k}:{v}")
+        kwargs:dict = {'KeyConditionExpression' : (
+            Key(A.USER_ID).eq(user.user_id) &
+            Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
+        )}
+        return queryscan_table(users_table.query, kwargs)
+
+    assert whowhat is not None
     if whowhat.startswith("lab"):
         kwargs:dict = {
             'FilterExpression' : ( Key(A.SK).begins_with(f'{A.SK_GRADE_PREFIX}{whowhat}#') ),
@@ -249,10 +264,11 @@ def print_grades(items, args):
     print("Total:",len(all_grades))
 
 def do_print_grades(args):
-    items = get_items(args.whowhat)
+    if not args.whowhat and not args.user_id:
+        print("Specify a lab, email address, or --user-id.", file=sys.stderr)
+        sys.exit(2)
+    items = get_items(args.whowhat, user_id=args.user_id)
     print_grades(items, args)
-
-
 def _lab_sort_key(lab: str) -> tuple[int, str]:
     try:
         return (int(lab.replace("lab", "")), lab)
@@ -296,17 +312,6 @@ def _safe_load_grade_summary(item: Dict[str, Any]) -> Dict[str, Any] | None:
     except json.JSONDecodeError:
         return None
     return summary if isinstance(summary, dict) else None
-
-
-def _user_grade_items(email: str) -> List[Dict[str, Any]]:
-    user = get_user_from_email(email)
-    kwargs: dict[str, Any] = {
-        "KeyConditionExpression": (
-            Key(A.USER_ID).eq(user.user_id) &
-            Key(A.SK).begins_with(A.SK_GRADE_PREFIX)
-        )
-    }
-    return queryscan_table(users_table.query, kwargs)
 
 
 def _user_all_items(user_id: str) -> List[Dict[str, Any]]:
@@ -524,7 +529,8 @@ def _print_lab_attempts(lab: str, items: List[Dict[str, Any]], verbose: bool, sh
 
 
 def do_student_log(args):
-    user = get_user_from_email(args.email)
+    user = student_user(args)
+    print_student_header(user)
     all_items = _user_all_items(user.user_id)
     _print_primary_dns(user)
     _print_lifecycle_events(all_items, args.msec)
@@ -536,7 +542,7 @@ def do_student_log(args):
         items = [item for item in items if item.get(A.LAB) == args.lab]
         items.sort(key=_grade_timestamp)
         if not items:
-            print(f"No grading sessions found for {args.email} {args.lab}")
+            print(f"No grading sessions found for {user.email} {args.lab}")
             return
         _print_lab_attempts(args.lab, items, args.verbose, args.msec)
         return
@@ -547,7 +553,7 @@ def do_student_log(args):
         by_lab.setdefault(lab, []).append(item)
 
     if not by_lab:
-        print(f"No grading sessions found for {args.email}")
+        print(f"No grading sessions found for {user.email}")
         return
 
     rows = []
@@ -577,8 +583,6 @@ def _admin_log_items() -> List[Dict[str, Any]]:
         ),
     }
     return queryscan_table(users_table.query, kwargs)
-
-
 def _latest_canvas_grade_exports() -> Dict[str, Dict[str, Any]]:
     exports: Dict[str, Dict[str, Any]] = {}
     for item in _admin_log_items():
@@ -591,8 +595,6 @@ def _latest_canvas_grade_exports() -> Dict[str, Dict[str, Any]]:
         if current is None or _item_timestamp(item) > _item_timestamp(current):
             exports[lab] = item
     return exports
-
-
 def _highest_grade_by_user(items: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     return {str(item[A.USER_ID]): item for item in get_highest_grades(items)}
 
@@ -748,7 +750,7 @@ Required columns and order
             return {_normalize_spaces(name)}
         last, first = parts
         candidates = set()
-        for first_variant in {first, _strip_middle_name(first)}:
+        for first_variant in (first, _strip_middle_name(first)):
             if not first_variant:
                 continue
             candidates.add(_normalize_spaces(f"{first_variant} {last}"))
@@ -888,12 +890,13 @@ def force_grades(args):
         logger.info("Students to regrade: %s",count)
         sys.exit(0)
 
-    home.queue_grade(args.email,args.lab, message)
+    user = student_user(args)
+    home.queue_grade(user.email,args.lab, message)
 
 def _run_interactive_ssh(cmd, env):
     """Run an interactive SSH session and tear it down on local Ctrl-C."""
     try:
-        proc = subprocess.Popen(cmd, env=env)
+        proc = subprocess.Popen(cmd, env=env)  # pylint: disable=consider-using-with
     except FileNotFoundError:
         print("Error: ssh not found. Please ensure OpenSSH is installed.")
         return 1
@@ -917,10 +920,11 @@ def _run_interactive_ssh(cmd, env):
 
 def ssh_access(args):
     (_,api) = update_path()
+    user = student_user(args)
 
     os.environ['SSH_SECRET_ID'] = find_secret("ssh")
     pem_key = api.get_pkey_pem("cscie-bot")
-    smashed_email = smash_email(args.email)
+    smashed_email = smash_email(user.email)
     hostname = f"{smashed_email}.csci-e-11.org"
 
     # Start ssh-agent and get its environment variables

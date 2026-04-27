@@ -752,7 +752,17 @@ class TestDoGrade:
             args.debug = False
             args.stage = False
 
-            assert main.do_grade(args) == -1
+            from datetime import datetime, timedelta
+            from zoneinfo import ZoneInfo
+            from e11.e11_common import LAB_CONFIG, LAB_TIMEZONE
+
+            deadline = datetime.fromisoformat(LAB_CONFIG[lab]["deadline"]).replace(
+                tzinfo=ZoneInfo(str(LAB_TIMEZONE))
+            )
+            with patch("home_app.api.datetime") as mock_dt:
+                mock_dt.fromisoformat = datetime.fromisoformat
+                mock_dt.now.return_value = deadline - timedelta(days=1)
+                assert main.do_grade(args) == -1
             assert "Your previous highest grade was 5.0 on 2026-02-01 10:00:00." in sent["body"]
             assert "That score will be reported to Canvas." in sent["body"]
         finally:

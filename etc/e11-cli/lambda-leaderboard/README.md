@@ -70,15 +70,10 @@ You can find more information and examples about filtering Lambda function logs 
 
 ## Tests
 
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
+Tests are defined in the `tests` folder in this project. Use the Makefile from this directory.
 
 ```bash
-leaderboard$ pip install -r tests/requirements.txt --user
-n# unit test
-leaderboard$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-leaderboard$ AWS_SAM_STACK_NAME="leaderboard" python -m pytest tests/integration -v
+leaderboard$ make check
 ```
 
 ## Cleanup

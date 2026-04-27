@@ -34,18 +34,22 @@ New grading-history command:
 ```bash
 poetry run e11admin student-log student@example.edu
 poetry run e11admin student-log student@example.edu lab2
+poetry run e11admin student-log --user-id 3c139e61-4932-4f2d-910d-fe8a5fc1741d lab2
 poetry run e11admin student-log student@example.edu lab2 --verbose
 poetry run e11admin canvas-grades lab2 --template canvas.csv --outfile canvas-out.csv
 poetry run e11admin status
 ```
 
+Commands that select an existing student accept either `--email <email>` or
+`--user-id <user_id>`/`--user_id <user_id>`. Positional email arguments remain
+available for existing workflows.
+
 ## Development
 
-To lint the e11admin code, use the main project's linting tools:
+To validate the e11admin code, use the main Makefile:
 ```bash
 cd /path/to/e11-cli
-poetry run pylint e11/e11admin
-poetry run pyright e11/e11admin
+make check
 ```
 
 See the main project README and ARCHITECTURE.md for more information about the e11 package structure.

@@ -12,11 +12,13 @@ This document is the canonical source for repository-wide coding standards.
 
 ## Package Boundaries
 
-- Shared code belongs in `src/common/`.
-- Robot-only code belongs in `src/robot_app/`.
-- Web-only code belongs in `src/web_app/`.
-- Code that needs shared schemas should import `common.schema` directly. Do not create `robot_app.schema`, `web_app.schema`, or similar alias modules.
-- Do not add dependencies from `robot_app` to `web_app`, or from `web_app` to `robot_app`.
+- Shared CLI and Lambda code belongs in the root `e11/` package.
+- Student-facing CLI behavior belongs in `e11/main.py`, `e11/support.py`, and `e11/e11core/`.
+- Staff-only administrative behavior belongs in `e11/e11admin/`.
+- Lambda dashboard behavior belongs in `lambda-home/src/home_app/`.
+- Lambda leaderboard behavior belongs in `lambda-leaderboard/src/leaderboard_app/`.
+- The Lambda projects consume `e11/` through the vendored `e11.whl`; do not edit vendored wheel contents directly.
+- Keep component-specific logic inside its component. If shared behavior is needed by both CLI and Lambda code, put it in `e11/` and re-vend the wheel through the Makefile workflow.
 
 ## Testing
 
@@ -32,7 +34,9 @@ This document is the canonical source for repository-wide coding standards.
 
 - Use the `Makefile` as the contract for build, test, validation, and deployment workflows.
 - Do not introduce parallel one-off command paths in the documentation when a `make` target is the supported workflow.
-- For Lambda/runtime-sensitive Python code, keep the AWS-like validation path in `make pytest-lambda`.
+- For repo-wide validation, use `make check-all`.
+- For component validation, use `make check` from the component directory.
+- For Lambda code, keep `vend-e11` in the validation and deployment path so the packaged runtime sees the current shared `e11/` code.
 
 ## Documentation
 

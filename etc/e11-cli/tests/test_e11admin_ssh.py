@@ -1,6 +1,14 @@
 import argparse
 
 
+class DummyUserTable:
+    def __init__(self, items):
+        self._items = items
+
+    def scan(self, **_kwargs):
+        return {"Items": list(self._items)}
+
+
 def test_run_interactive_ssh_returns_child_exit_code(monkeypatch):
     from e11.e11admin import staff
 
@@ -46,11 +54,16 @@ def test_run_interactive_ssh_terminates_on_ctrl_c(monkeypatch, capsys):
 
 
 def test_ssh_access_exits_with_helper_return_code(monkeypatch):
-    from e11.e11admin import staff
+    from e11.e11admin import staff, student_selector
 
     monkeypatch.setattr(staff, "update_path", lambda: (None, type("Api", (), {"get_pkey_pem": lambda self, name: "KEY"})()))
     monkeypatch.setattr(staff, "find_secret", lambda name: "secret-id")
     monkeypatch.setattr(staff, "smash_email", lambda email: "studentexampleedu")
+    monkeypatch.setattr(student_selector, "users_table", DummyUserTable([{
+        "user_id": "user-123",
+        "sk": "#",
+        "email": "student@example.edu",
+    }]))
     monkeypatch.setattr(
         staff.subprocess,
         "run",

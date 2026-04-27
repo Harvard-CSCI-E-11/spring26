@@ -1,5 +1,3 @@
-# This needs to be updated to pyproject.toml and poetry
-
 .PHONY: install lint check test clean
 install:
 	poetry install --with dev
@@ -18,9 +16,7 @@ sam-sync: install
 	sam sync --code --watch
 
 .PHONY: prod-vbd stage-vbd
-prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11
-	echo make lint
-	echo make check
+prod-vbd: template.yaml samconfig-prod.toml src/requirements.txt vend-e11 lint check
 	sam validate --config-file samconfig-prod.toml -t template.yaml --lint
 	sam build --parallel --use-container --config-file samconfig-prod.toml -t template.yaml
 	sam deploy --config-file "$$(pwd)/samconfig-prod.toml"  --parameter-overrides DeploymentTimestamp="$$(date +'%Y-%m-%dT%H:%M:%S%z %Z')" --no-confirm-changeset -t .aws-sam/build/template.yaml

@@ -48,7 +48,7 @@ This document summarizes the typos, code issues, and refactoring opportunities i
    - **Issue**: Missing `f` prefix in f-string: `"could not determine key type from {pkey_pem}"`
    - **Fixed**: Added `f` prefix: `f"could not determine key type from {pkey_pem}"`
 
-10. **e11/staff.py** (line 21)
+10. **e11/e11admin/staff.py** (line 21)
     - **Issue**: Missing `f` prefix in f-string: `"Checking access to {args.host}..."`
     - **Fixed**: Added `f` prefix: `f"Checking access to {args.host}..."`
 
@@ -118,7 +118,7 @@ The following files were modified to fix the issues:
 5. `e11/lab_tests/lab_common.py` - Typo, incomplete message, and hardcoded value fixed (3 issues)
 6. `e11/lab_tests/lab3_test.py` - Typo fixed
 7. `e11/lab_tests/lab1_test.py` - Function name typo fixed
-8. `e11/staff.py` - Missing f-string prefix fixed
+8. `e11/e11admin/staff.py` - Missing f-string prefix fixed
 9. `Makefile` - Duplicate command removed
 
 ## Verification
@@ -130,4 +130,3 @@ All fixes have been verified to maintain functionality:
 - Code follows Python best practices
 
 These fixes improve code quality, readability, and maintainability without changing functionality.
-

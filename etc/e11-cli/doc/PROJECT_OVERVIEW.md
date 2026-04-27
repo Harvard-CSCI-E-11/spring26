@@ -19,7 +19,7 @@ e11-cli/
 │   ├── main.py                   # Main CLI command handler
 │   ├── support.py                # Utility functions for file/config access
 │   ├── doctor.py                 # System diagnostic tool
-│   ├── staff.py                  # Staff-only commands (when E11_STAFF env var set)
+│   ├── e11admin/staff.py         # Staff-only command implementations
 │   ├── e11_common.py             # Shared DynamoDB and AWS utilities
 │   ├── e11core/                  # Core grader framework
 │   │   ├── assertions.py         # Test assertion helpers
@@ -294,17 +294,7 @@ Pre-deployment checks include:
 
 ### Known Technical Debt
 
-- `context.py` should be folded into `config.py` (noted in README)
-- `utils.py` and `constants.py` could be merged into `common.py` (noted in README)
-- Not all uses of 'spring26' are fully parameterized (noted in constants.py)
-
-### Future Improvements
-
-- Increase test coverage for E11 CLI
-- Add SSH testing capabilities
-- More comprehensive integration tests
-- Performance testing for critical paths
-- Security testing for authentication flows
+See `doc/TODO.md` for the current ranked list of testing, documentation, and code debt.
 
 ## Related Documentation
 
@@ -320,4 +310,3 @@ For issues or questions:
 - Course staff: See course communication channels
 - Technical issues: GitHub repository issues
 - Author: Simson Garfinkel <simsong@acm.org>
-

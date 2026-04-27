@@ -10,6 +10,15 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from fake_idp import create_app, ServerThread
+
+# Force test-safe AWS config before importing modules that create boto3 clients.
+os.environ.setdefault("AWS_ACCESS_KEY_ID", "test")
+os.environ.setdefault("AWS_SECRET_ACCESS_KEY", "test")
+os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+os.environ.setdefault("AWS_ENDPOINT_URL_DYNAMODB", "http://localhost:8000/")
+os.environ.pop("AWS_PROFILE", None)
+os.environ.pop("AWS_DEFAULT_PROFILE", None)
+
 from e11.e11core.constants import COURSE_DOMAIN
 from e11.e11_common import AWS_REGION
 

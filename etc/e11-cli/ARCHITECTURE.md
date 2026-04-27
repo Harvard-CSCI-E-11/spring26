@@ -14,7 +14,7 @@ e11-cli/
 │   ├── main.py                   # Main CLI command handler (do_register, do_grade, do_config, etc.)
 │   ├── support.py                # Utility functions for file/config access
 │   ├── doctor.py                 # System diagnostic tool
-│   ├── staff.py                  # Staff-only commands
+│   ├── e11admin/staff.py         # Staff-only command implementations
 │   ├── e11_common.py             # Shared DynamoDB and AWS utilities
 │   ├── e11admin/                 # Admin CLI tool (staff-only commands)
 │   │   └── cli.py                # Entry point for 'e11admin' command
@@ -168,9 +168,8 @@ e11-cli/
 
 ## Important Reminders
 
-- **Never modify code in `lambda-home/src/home_app/e11/` or `lambda-leaderboard/src/leaderboard_app/e11/`** - these are vendored wheels, not source code
+- **Never modify vendored `e11.whl` artifacts in `lambda-home/src/home_app/` or `lambda-leaderboard/src/leaderboard_app/` directly** - update `e11/` and re-vend through the Makefile
 - **Always re-vend after changing `e11/` or `e11core/`**
 - **Changes to `e11/` or `e11core/` affect both CLI and Lambda functions**
 - **Use DynamoDB Local for testing, never mock DynamoDB operations**
 - **For integration testing, intercept HTTP requests and route to `lambda_handler`**
-

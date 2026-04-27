@@ -86,9 +86,11 @@ Available staff commands:
 * `e11 register-email <email>` - Register an email address directly with DynamoDB
 * `e11 student-report` - Generate user report from DynamoDB (shows table stats and registered users)
 * `e11 student-report --dump` - Dump all user information
-* `e11 grades <email>` - Show all grades for a specific student
-* `e11 grades <lab>` - Show all grades for a specific lab (e.g., `e11 grades lab1`)
+* `e11admin print-grades <email>` - Show all grades for a specific student
+* `e11admin print-grades --user-id <user_id>` - Show all grades for a specific student by `user_id`
+* `e11admin print-grades <lab>` - Show all grades for a specific lab (e.g., `lab1`)
 * `e11admin student-log <email> [lab] [--verbose]` - Show a student's grading history from DynamoDB
+* `e11admin student-log --user-id <user_id> [lab] [--verbose]` - Show a student's grading history by `user_id`
 
 ### The `e11admin` Command
 The `e11admin` command is a separate CLI tool for faculty to run on their desktop computers.
@@ -124,14 +126,17 @@ E11_STAFF=1 AWS_REGION=us-east-1 AWS_PROFILE=e11-staff poetry run e11admin
 - Running `e11admin` without arguments displays all registered users and DynamoDB tables
 - Python 3.12-3.13 required (3.14 not supported)
 
-Options:
-* `--dump` - Dump all table data
-* `--delete_userid <id>` - Delete a user by user_id
-* `--delete_item` - Delete a specific item (requires --user_id and --sk)
-* `--newkey <email>` - Create a new course key for a user
-* `--user_id <id>` - Specify user_id for operations
-* `--sk <key>` - Specify sort key for operations
-* `--ssh <email>` - SSH into a student's VM
+Student selectors:
+* `--email <email>` - Select a student by email where the command supports a student selector
+* `--user-id <user_id>` or `--user_id <user_id>` - Select a student by `user_id`
+
+Selected options:
+* `class --dump` - Dump all table data
+* `class --delete-userid <id>` or `class --delete_userid <id>` - Delete a user by `user_id`
+* `class --delete_item --user-id <id> --sk <key>` - Delete a specific item
+* `class --newkey <email>` - Create a new course key for a user by email
+* `class --newkey --user-id <id>` - Create a new course key for a user by `user_id`
+* `ssh --email <email>` or `ssh --user-id <id>` - SSH into a student's VM
 
 See `e11/e11admin/README.md` for details.
 

@@ -12,7 +12,7 @@ from pathlib import Path
 import boto3
 from boto3.dynamodb.conditions import Key,Attr
 from tabulate import tabulate
-from e11.e11_common import A,make_course_key,get_user_from_email
+from e11.e11_common import A,make_course_key,get_user_from_email,get_user_from_user_id
 
 from . import staff
 
@@ -24,8 +24,11 @@ HELP_TEXT = """e11admin - Quick reference
 
 List information about a student by email:
   e11admin student-report --email <email>
+  e11admin student-report --user-id <user_id>
   e11admin print-grades <email>
+  e11admin print-grades --user-id <user_id>
   e11admin student-log <email>
+  e11admin student-log --user-id <user_id>
   e11admin status
 
 Force a grade for a specific lab:
@@ -35,6 +38,7 @@ Force a grade for a specific lab:
 
 Access a student's VM via SSH:
   e11admin ssh <email>
+  e11admin ssh --user-id <user_id>
 
 Run 'e11admin --help' for full option list."""
 
@@ -145,8 +149,8 @@ def delete_items(items):
 def delete_item(*,user_id,sk):
     users_table.delete_item(Key={'user_id':user_id, 'sk':sk})
 
-def new_course_key(user_id):
-    user = get_user_from_email(user_id)
+def new_course_key(*, email=None, user_id=None):
+    user = get_user_from_user_id(user_id) if user_id else get_user_from_email(email)
     if not user:
         print("User not found")
         return
@@ -158,7 +162,7 @@ def new_course_key(user_id):
         UpdateExpression=f'SET {A.COURSE_KEY} = :new_course_key',
         ExpressionAttributeValues={ ':new_course_key': newkey}
     )
-    user = get_user_from_email(user_id)
+    user = get_user_from_user_id(user.user_id)
     print("new user:",json.dumps(dict(user),indent=4,default=str))
 
 
@@ -169,7 +173,13 @@ def do_class(args):
         delete_item(user_id=args.user_id, sk=args.sk)
 
     if args.newkey:
-        new_course_key(args.newkey)
+        if args.newkey is True:
+            if not args.user_id:
+                print("--newkey without an email requires --user-id", file=sys.stderr)
+                sys.exit(2)
+            new_course_key(user_id=args.user_id)
+        else:
+            new_course_key(email=args.newkey)
         return
 
     show_registered_users(claims=args.claims)
@@ -196,10 +206,15 @@ def main():
     class_parser = subparsers.add_parser('class', help='Commands for E11 class')
     class_parser.set_defaults(func=do_class)
     class_parser.add_argument("--dump", help='Dump all ', action='store_true')
-    class_parser.add_argument("--delete_userid", help='Delete a user')
+    class_parser.add_argument("--delete_userid", "--delete-userid", dest="delete_userid", help='Delete a user')
     class_parser.add_argument("--delete_item", help='Delete a user_id, sk',action='store_true')
-    class_parser.add_argument("--newkey", help="Create a new course key for the user specified by email address")
-    class_parser.add_argument("--user_id", help='Specify the user_id')
+    class_parser.add_argument(
+        "--newkey",
+        nargs="?",
+        const=True,
+        help="Create a new course key for the user specified by email address, or by --user-id if no email is given",
+    )
+    class_parser.add_argument("--user_id", "--user-id", dest="user_id", help='Specify the user_id')
     class_parser.add_argument("--sk", help='Specify the sk')
     class_parser.add_argument("--claims", help="Only show users with claims", action='store_true')
 
@@ -209,11 +224,14 @@ def main():
     ca.set_defaults(func=staff.do_check_access)
 
     ca = subparsers.add_parser('register-email', help='Register an email address directly with DynamoDB')
-    ca.add_argument(dest='email', help='Email address to register')
+    ca.add_argument(dest='email_arg', nargs='?', help='Email address to register')
+    ca.add_argument("--email", dest="email", help='Email address to register')
     ca.set_defaults(func=staff.do_register_email)
 
     ca = subparsers.add_parser('edit-email', help='Edit a user property by email')
-    ca.add_argument(dest='email', help='Email address to edit')
+    ca.add_argument(dest='email_arg', nargs='?', help='Email address to edit')
+    ca.add_argument("--email", dest="email", help='Email address to edit')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='user_id to edit')
     group = ca.add_mutually_exclusive_group(required=True)
     group.add_argument("--alt", help="alternative email")
     group.add_argument("--remove", help="remove alternative email", action='store_true')
@@ -222,26 +240,33 @@ def main():
     ca = subparsers.add_parser('student-report', help='Generate a report directly from DynamoDB')
     ca.set_defaults(func=staff.do_student_report)
     ca.add_argument('--email', help='Just this email')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='Just this user_id')
     ca.add_argument("--dump",help="Dump all information", action='store_true')
     ca.add_argument("--debug", help="Print matching user records as JSON", action='store_true')
 
     ca = subparsers.add_parser('student-log', help='Show grading history for one student')
-    ca.add_argument(dest='email', help='Email address to report')
+    ca.add_argument(dest='email_arg', nargs='?', help='Email address to report')
     ca.add_argument('lab', nargs='?', help='Optional lab filter (e.g. lab1)')
+    ca.add_argument("--email", dest="email", help='Email address to report')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='user_id to report')
     ca.add_argument("--verbose", help="Show stored grader output for each run", action='store_true')
     ca.add_argument("--msec", help="Show fractional seconds in timestamps", action='store_true')
     ca.set_defaults(func=staff.do_student_log)
 
     ca = subparsers.add_parser('print-grades', help='Show grades or a student or a lab')
-    ca.add_argument(dest='whowhat', help='Email address or a lab')
+    ca.add_argument(dest='whowhat', nargs='?', help='Email address or a lab')
+    ca.add_argument("--email", dest="email", help='Email address')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='user_id')
     ca.add_argument("--all",help="Show all grades (otherwise just show highest)", action="store_true")
     ca.add_argument("--claims",help="only students that have claims", action="store_true")
     ca.set_defaults(func=staff.do_print_grades)
 
     ca = subparsers.add_parser('force-grade', help='Force the grading of a student or lab')
-    ca.add_argument(dest='email', help='email to grade (use "all" for all)')
+    ca.add_argument(dest='email_arg', nargs='?', help='email to grade (use "all" for all)')
     ca.add_argument(dest='lab', help='lab to grade')
     ca.add_argument(dest='who', help='Who manually forced the grade')
+    ca.add_argument("--email", dest="email", help='email to grade (use "all" for all)')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='user_id to grade')
     ca.add_argument("--stage", action="store_true", help="use stage.csci-e-11.org")
     ca.set_defaults(func=staff.force_grades)
 
@@ -254,14 +279,28 @@ def main():
     ca = subparsers.add_parser('status', help='Show grade increases since the last Canvas export')
     ca.set_defaults(func=staff.do_status)
 
-    ca = subparsers.add_parser('ssh', help="access a student's VM via SSH (specify email address)")
-    ca.add_argument(dest='email', help='email address')
+    ca = subparsers.add_parser('ssh', help="access a student's VM via SSH")
+    ca.add_argument(dest='email_arg', nargs='?', help='email address')
+    ca.add_argument("--email", dest="email", help='email address')
+    ca.add_argument("--user-id", "--user_id", dest="user_id", help='user_id')
     ca.set_defaults(func=staff.ssh_access)
 
     ca = subparsers.add_parser('help', help='Show quick reference for common tasks')
     ca.set_defaults(func=do_help)
 
     args = parser.parse_args()
+    if hasattr(args, "email_arg") and not getattr(args, "email", None):
+        args.email = args.email_arg
+    if args.command == "print-grades" and getattr(args, "email", None):
+        if args.whowhat:
+            parser.error("print-grades accepts either positional lab/email or --email, not both")
+        args.whowhat = args.email
+    if args.command == "print-grades" and getattr(args, "user_id", None) and args.whowhat:
+        parser.error("print-grades accepts either positional lab/email or --user-id, not both")
+    if args.command == "student-log" and getattr(args, "user_id", None) and args.email and args.lab is None:
+        if args.email.startswith("lab"):
+            args.lab = args.email
+            args.email = None
     args.func(args)
     return 0
 

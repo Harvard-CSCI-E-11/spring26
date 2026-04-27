@@ -88,10 +88,10 @@ def do_login_direct(event):
     """/login-direct?token=<base64(user_id:course_key)> - Direct login for users without OIDC claims"""
     qs = event.get("queryStringParameters") or {}
     token = qs.get("token")
-    
+
     if not token:
         return resp_text(HTTP_BAD_REQUEST, "Missing token parameter")
-    
+
     try:
         # Decode base64 token
         try:
@@ -100,28 +100,28 @@ def do_login_direct(event):
         except (ValueError, UnicodeDecodeError, binascii.Error) as e:
             LOGGER.warning("Invalid token format: %s", e)
             return resp_text(HTTP_BAD_REQUEST, "Invalid token format")
-        
+
         # Get user by user_id
         user = get_user_from_user_id(user_id)
-        
+
         # Verify course_key matches
         if user.course_key != course_key:
             email_display = user.email or "unknown"
             return resp_text(
-                HTTP_FORBIDDEN, 
+                HTTP_FORBIDDEN,
                 f"Course key mismatch for email {email_display} or email is not registered."
             )
-        
+
         # If user has claims, redirect to regular login
         if user.claims is not None:
             return redirect("/login")
-        
+
         # Create minimal claims for session (for compatibility with existing code)
         minimal_claims = {A.EMAIL: user.email}
-        
+
         # Create session
         ses = new_session(event, claims=minimal_claims)
-        
+
         # Set cookie and redirect
         sid_cookie = make_cookie(
             COOKIE_NAME, ses.sid, max_age=SESSION_TTL_SECS, domain=get_cookie_domain(event)
@@ -129,10 +129,10 @@ def do_login_direct(event):
         LOGGER.info("Direct login: created session for email=%s", user.email)
         add_user_log(event, user.user_id, f"Session {ses.sid} created (direct_login)")
         return redirect("/dashboard", cookies=[sid_cookie])
-        
+
     except EmailNotRegistered:
         return resp_text(
-            HTTP_FORBIDDEN, 
+            HTTP_FORBIDDEN,
             "Course key mismatch for email unknown or email is not registered."
         )
     except Exception as e:
@@ -172,12 +172,12 @@ def generate_direct_login_url(user_id: str, course_key: str, domain: str = None)
     """Generate direct login URL with base64-encoded token."""
     if domain is None:
         domain = COURSE_DOMAIN
-    
+
     # Create token: user_id:course_key
     token_data = f"{user_id}:{course_key}"
     # Base64 encode (URL-safe, no padding needed but add == for safety)
     token = base64.urlsafe_b64encode(token_data.encode('utf-8')).decode('utf-8').rstrip('=')
-    
+
     return f"https://{domain}/login-direct?token={token}"
 ```
 
@@ -185,7 +185,7 @@ def generate_direct_login_url(user_id: str, course_key: str, domain: str = None)
 
 ### Step 5: Modify register-email Command (Staff Account Creation)
 
-**File:** `e11/staff.py`
+**File:** `e11/e11admin/staff.py`
 
 **Function:** `do_register_email(args)`
 
@@ -208,7 +208,7 @@ def do_register_email(args):
         login_url = generate_direct_login_url(user_id, course_key)
         print(f"User {email} already exists.\ncourse_key={course_key}\nLogin URL: {login_url}")
         sys.exit(0)
-    
+
     user = create_new_user(email)
     course_key = user[A.COURSE_KEY]
     user_id = user[A.USER_ID]
@@ -295,7 +295,7 @@ def direct_login_user(fake_aws, dynamodb_local):
     """Create a test user WITHOUT claims for direct login testing (simulates staff account creation via register-email)"""
     from e11.e11_common import create_new_user, A
     import uuid
-    
+
     test_email = f"direct-{uuid.uuid4().hex[:8]}@example.com"
     user = create_new_user(test_email)  # No claims - simulates staff account creation (register-email)
     return {
@@ -313,29 +313,29 @@ def test_direct_login_success(fake_aws, dynamodb_local, direct_login_user):
     from e11.e11_common import generate_direct_login_url
     from test_utils import create_lambda_event
     import base64
-    
+
     # Generate token
     token_data = f"{direct_login_user['user_id']}:{direct_login_user['course_key']}"
     token = base64.urlsafe_b64encode(token_data.encode('utf-8')).decode('utf-8').rstrip('=')
-    
+
     # Create event
     event = create_lambda_event(
         "/login-direct",
         method="GET",
         qs={"token": token}
     )
-    
+
     # Call handler
     response = lambda_handler(event, None)
-    
+
     # Verify redirect to dashboard
     assert response["statusCode"] == HTTP_FOUND
     assert response["headers"]["location"] == "/dashboard"
-    
+
     # Verify cookie is set
     cookies = response.get("cookies", [])
     assert any("AuthSid=" in c for c in cookies)
-    
+
     # Verify session exists in DynamoDB Local
     from home_app.sessions import all_sessions_for_email
     sessions = all_sessions_for_email(direct_login_user["email"])
@@ -359,7 +359,7 @@ def test_direct_login_success(fake_aws, dynamodb_local, direct_login_user):
    - Add route case for `/login-direct` in `lambda_handler()`
    - Import base64 and get_user_from_user_id
 
-3. **e11/staff.py**
+3. **e11/e11admin/staff.py**
    - Modify `do_register_email()` to generate and print login URL
    - Import `generate_direct_login_url`
 
@@ -376,7 +376,7 @@ def test_direct_login_success(fake_aws, dynamodb_local, direct_login_user):
 - Test `generate_direct_login_url()` function
 - Test `do_login_direct()` with various error cases
 
-### Integration Tests  
+### Integration Tests
 - End-to-end flow: URL → token decode → session creation → cookie → dashboard access
 - Verify DynamoDB Local integration
 - Verify session persistence
@@ -412,7 +412,7 @@ def test_direct_login_success(fake_aws, dynamodb_local, direct_login_user):
 ## Edge Cases to Handle
 
 1. User doesn't exist → 403 error with message about course key mismatch
-2. Wrong course_key → 403 error with message about course key mismatch  
+2. Wrong course_key → 403 error with message about course key mismatch
 3. Missing token → 400 error
 4. Invalid base64 token → 400 error
 5. Invalid token format (no colon) → 400 error
